@@ -86,7 +86,7 @@ export function Usage() {
             <div className={styles.statLabel}>Kostnad</div>
             <div className={styles.statValue}>
               {formatUsd(data.totalCost)}
-              {usdNok > 0 && ` · ${formatNok(data.totalCost * usdNok)}`}
+              {usdNok > 0 && ` (${formatNok(data.totalCost * usdNok)})`}
             </div>
           </div>
 
@@ -101,7 +101,7 @@ export function Usage() {
               {data.totalRequests
                 ? `${formatUsd(data.totalCost / data.totalRequests)}${
                     usdNok > 0
-                      ? ` · ${formatNok((data.totalCost / data.totalRequests) * usdNok)}`
+                      ? ` (${formatNok((data.totalCost / data.totalRequests) * usdNok)})`
                       : ""
                   }`
                 : "—"}
