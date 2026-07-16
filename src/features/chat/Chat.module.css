@@ -111,27 +111,114 @@
   padding-right: 0;
 }
 
-.loading {
-  display: inline-block;
-  font-size: 15px;
-  color: var(--text);
-  animation: glow 3.4s ease-in-out infinite;
+.thinkingRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-@keyframes glow {
-  0%,
-  100% {
-    opacity: 0.6;
-    text-shadow: none;
-  }
-  50% {
-    opacity: 0.92;
-    text-shadow: 0 0 7px rgba(255, 255, 255, 0.2);
-  }
+.thinkingLogo {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding-top: 4px;
+  color: var(--text-muted);
 }
 
 .error {
   color: #e8888d;
+}
+
+.reasoning {
+  color: var(--text-faint);
+  font-size: 13.5px;
+}
+
+/* Markdown i assistentsvar */
+
+.markdown {
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin-top: 6px;
+}
+
+.markdown h1 {
+  font-size: 18px;
+}
+
+.markdown h2 {
+  font-size: 16px;
+}
+
+.markdown code {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.07);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.markdown pre {
+  padding: 14px 16px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.35);
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown blockquote {
+  padding-left: 14px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-muted);
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.markdown th,
+.markdown td {
+  padding: 6px 12px;
+  border: 0.5px solid var(--border-strong);
+  text-align: left;
+}
+
+.markdown th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+}
+
+.markdown a {
+  color: var(--link);
+}
+
+.markdown hr {
+  border: none;
+  border-top: 0.5px solid var(--border);
 }
 
 /* Composer */
@@ -144,7 +231,6 @@
   border: 0.5px solid #3e3f41;
   border-radius: var(--radius-lg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  overflow: hidden;
   animation: paletteIn 0.22s var(--ease-out);
 }
 
@@ -199,6 +285,7 @@
   padding: 0 12px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.15);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .modelWrap {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PlusIcon, SearchIcon, SettingsIcon, SidebarIcon } from "../ui/Icons";
+import { Logo } from "../ui/Logo";
 import styles from "./Sidebar.module.css";
 
 type SidebarProps = {
@@ -64,7 +65,10 @@ export function Sidebar({
   return (
     <aside className={styles.sidebar}>
       <div className={styles.top}>
-        <span className={styles.userName}>Nordavind</span>
+        <span className={styles.brand}>
+          <Logo size={18} />
+          Nordavind
+        </span>
         <button
           className={styles.iconBtn}
           onClick={() => setCollapsed(true)}

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Logo } from "../../ui/Logo";
 import { apiConfigured, MODELS, streamChat, type ApiMessage } from "../../lib/api";
 import styles from "./Chat.module.css";
 
@@ -6,10 +9,34 @@ interface ChatMessage extends ApiMessage {
   id: string;
   loading?: boolean;
   error?: boolean;
+  reasoning?: string;
+  /** Satt når auto-ruting eskalerte til en tyngre modell */
+  ultraModel?: string;
 }
+
+const ULTRA_MODELS = new Set(["glm-5.2", "kimi-k2.6"]);
 
 let idCounter = 0;
 const nextId = () => `m${++idCounter}`;
+
+// Komprimerer resonneringsstrømmen til 1-3 ord: siste **uthevede** frase,
+// ellers de første ordene i siste linje.
+function thinkingLabel(reasoning?: string): string {
+  if (!reasoning?.trim()) return "Tenker";
+  const bolds = reasoning.match(/\*\*([^*]{2,60})\*\*/g);
+  let raw = bolds ? bolds[bolds.length - 1].replace(/\*/g, "") : "";
+  if (!raw) {
+    const lines = reasoning.trim().split("\n").filter(Boolean);
+    raw = lines[lines.length - 1] ?? "";
+  }
+  const words = raw
+    .replace(/[#*:.\d()]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .join(" ");
+  return words || "Tenker";
+}
 
 export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -75,12 +102,23 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
     abortRef.current = new AbortController();
     try {
       let acc = "";
+      let think = "";
+      let ultra: string | undefined;
       await streamChat(
         model,
         history,
         (delta) => {
-          acc += delta;
-          update(replyId, { loading: false, content: acc });
+          if (delta.reasoning) think += delta.reasoning;
+          if (delta.content) acc += delta.content;
+          if (model === "auto" && delta.model && ULTRA_MODELS.has(delta.model)) {
+            ultra = delta.model;
+          }
+          update(replyId, {
+            loading: !acc && !think,
+            content: acc,
+            reasoning: acc ? undefined : think,
+            ultraModel: ultra,
+          });
         },
         abortRef.current.signal
       );
@@ -180,11 +218,26 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                       m.error ? styles.error : ""
                     }`}
                   >
-                    {m.loading ? (
-                      <span className={styles.loading}>Tenker …</span>
-                    ) : (
-                      m.content
-                    )}
+                    {m.content ? (
+                      m.role === "assistant" && !m.error ? (
+                        <div className={styles.markdown}>
+                          <Markdown remarkPlugins={[remarkGfm]}>
+                            {m.content}
+                          </Markdown>
+                        </div>
+                      ) : (
+                        m.content
+                      )
+                    ) : m.role === "assistant" && !m.error ? (
+                      <div className={styles.thinkingRow}>
+                        <span className={styles.thinkingLogo}>
+                          <Logo size={12} flutter ultra={!!m.ultraModel} />
+                        </span>
+                        <span className={styles.reasoning}>
+                          {thinkingLabel(m.reasoning)} …
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}
