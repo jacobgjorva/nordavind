@@ -59,6 +59,7 @@ export function Usage() {
       requests: vals.map((v) => v.req),
       cumulativeCost: vals.map((v) => (acc += v.cost)),
       searches: vals.map((v) => v.search),
+      inactive: vals.map((v) => v.req === 0),
       totalCost: vals.reduce((s, v) => s + v.cost, 0),
       totalRequests: vals.reduce((s, v) => s + v.req, 0),
     };
@@ -97,6 +98,7 @@ export function Usage() {
           <div className={styles.cardTitle}>Token-bruk</div>
           <UsageChart
             xLabels={data.labels}
+            inactive={data.inactive}
             stacked
             series={[
               { label: "Input", color: "#4299E0", values: data.input },
@@ -110,6 +112,7 @@ export function Usage() {
           <div className={styles.cardTitle}>Forespørsler</div>
           <UsageChart
             xLabels={data.labels}
+            inactive={data.inactive}
             series={[
               { label: "Forespørsler", color: "#FFAB00", values: data.requests },
             ]}
@@ -131,6 +134,7 @@ export function Usage() {
           <div className={styles.cardTitle}>Websøk</div>
           <UsageChart
             xLabels={data.labels}
+            inactive={data.inactive}
             series={[{ label: "Søk", color: "#34D499", values: data.searches }]}
           />
         </div>
