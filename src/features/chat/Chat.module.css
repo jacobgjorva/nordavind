@@ -334,6 +334,58 @@
   border-top: 0.5px solid var(--border);
 }
 
+/* Vedlegg */
+
+.attachRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 0;
+}
+
+.bubble .attachRow {
+  padding: 8px 0 0;
+}
+
+.attachChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.attachRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 13px;
+  line-height: 1;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.attachRemove:hover {
+  color: var(--text);
+}
+
+.attachError {
+  color: #e8888d;
+  font-size: 12.5px;
+}
+
 /* Composer */
 
 .composer {

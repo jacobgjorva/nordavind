@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Logo } from "../../ui/Logo";
-import { CopyIcon, SearchIcon, ShareIcon } from "../../ui/Icons";
+import { AttachIcon, CopyIcon, SearchIcon, ShareIcon } from "../../ui/Icons";
 import {
   apiConfigured,
+  extractFile,
   streamChat,
   type ApiMessage,
+  type Attachment,
   type SourceRef,
 } from "../../lib/api";
 import styles from "./Chat.module.css";
@@ -22,6 +24,10 @@ interface ChatMessage extends ApiMessage {
   sources?: SourceRef[];
   /** Tidslinje over hva modellen gjør mens den tenker */
   steps?: string[];
+  /** Det brukeren faktisk skrev (uten vedleggstekst) */
+  display?: string;
+  /** Navn på vedlagte filer */
+  attachmentNames?: string[];
 }
 
 // Nordavind-aliaser: vindskalaen navngir modellnivåene i UI.
@@ -148,6 +154,9 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
   const [input, setInput] = useState("");
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   // Auto-scroll kun når brukeren står nær bunnen — ellers eier de scrollen.
   const pinnedRef = useRef(true);
@@ -190,25 +199,55 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
     );
   }
 
+  async function handleFiles(files: FileList | null) {
+    if (!files) return;
+    setUploadError(null);
+    for (const file of [...files].slice(0, 3 - attachments.length)) {
+      try {
+        const att = await extractFile(file);
+        setAttachments((prev) => [...prev, att]);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "ukjent feil";
+        setUploadError(`${file.name}: ${msg}`);
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function send() {
     const text = input.trim();
-    if (!text || busy) return;
+    if ((!text && attachments.length === 0) || busy) return;
     setInput("");
+    setUploadError(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     if (messages.length === 0) onTitle?.(text.slice(0, 60));
+
+    // Vedleggstekst sendes til modellen, men vises ikke i bobla.
+    const files = attachments;
+    setAttachments([]);
+    const fileBlocks = files
+      .map((a) => `[Vedlegg: ${a.name}]\n${a.text}`)
+      .join("\n\n");
+    const apiContent = fileBlocks ? `${fileBlocks}\n\n${text}` : text;
 
     const history: ApiMessage[] = [
       ...messages
         .filter((m) => !m.error)
         .map(({ role, content }) => ({ role, content })),
-      { role: "user", content: text },
+      { role: "user", content: apiContent },
     ];
 
     pinnedRef.current = true;
     const replyId = nextId();
     setMessages((prev) => [
       ...prev,
-      { id: nextId(), role: "user", content: text },
+      {
+        id: nextId(),
+        role: "user",
+        content: apiContent,
+        display: text,
+        attachmentNames: files.map((a) => a.name),
+      },
       { id: replyId, role: "assistant", content: "", loading: true },
     ]);
 
@@ -290,6 +329,27 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
 
   const composer = (
     <div className={styles.composer}>
+      {(attachments.length > 0 || uploadError) && (
+        <div className={styles.attachRow}>
+          {attachments.map((a) => (
+            <span key={a.name} className={styles.attachChip}>
+              {a.name}
+              <button
+                className={styles.attachRemove}
+                onClick={() =>
+                  setAttachments((prev) => prev.filter((x) => x !== a))
+                }
+                aria-label={`Fjern ${a.name}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {uploadError && (
+            <span className={styles.attachError}>{uploadError}</span>
+          )}
+        </div>
+      )}
       <div className={styles.inputRow}>
         <textarea
           ref={textareaRef}
@@ -303,6 +363,22 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
         />
       </div>
       <div className={styles.footer}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          multiple
+          accept=".pdf,.txt,.md,.csv,.json,.log,text/*"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        <button
+          className={styles.actionBtn}
+          onClick={() => fileInputRef.current?.click()}
+          title="Legg ved fil"
+          aria-label="Legg ved fil"
+        >
+          <AttachIcon size={15} />
+        </button>
         <span className={styles.modelInfo}>
           Modell: {modelAlias(activeModel)}
         </span>
@@ -352,7 +428,22 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                           )}
                         </div>
                       ) : (
-                        m.content
+                        <>
+                          {m.display ?? m.content}
+                          {m.attachmentNames &&
+                            m.attachmentNames.length > 0 && (
+                              <span className={styles.attachRow}>
+                                {m.attachmentNames.map((name) => (
+                                  <span
+                                    key={name}
+                                    className={styles.attachChip}
+                                  >
+                                    {name}
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                        </>
                       )
                     ) : m.role === "assistant" && !m.error ? (
                       <div className={styles.timeline}>

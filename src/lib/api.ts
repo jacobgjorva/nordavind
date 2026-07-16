@@ -10,6 +10,22 @@ const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export const apiConfigured = Boolean(BASE_URL);
 
+export interface Attachment {
+  name: string;
+  text: string;
+}
+
+// Laster opp en fil og får ren tekst tilbake (PDF/tekst).
+export async function extractFile(file: File): Promise<Attachment> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE_URL}/extract`, { method: "POST", body: fd });
+  if (!res.ok) {
+    throw new Error((await res.text().catch(() => "")) || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export interface SourceRef {
   title: string;
   url: string;
