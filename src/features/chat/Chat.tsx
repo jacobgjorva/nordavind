@@ -37,8 +37,9 @@ const MODEL_GLOW: Record<string, string> = {
   "glm-5.2": "#c9a8ff",
 };
 
-let idCounter = 0;
-const nextId = () => `m${++idCounter}`;
+// Kollisjonsfrie ID-er: en teller nullstilles ved hot reload og gjenbruker
+// ID-er, som gjør at update() overskriver gamle meldinger.
+const nextId = () => crypto.randomUUID();
 
 // Handlingsrad under hvert assistentsvar: kopier, del, kilder.
 function MessageActions({
@@ -279,7 +280,7 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
       </div>
       <div className={styles.footer}>
         <span className={styles.modelInfo}>
-          Using {modelAlias(activeModel)}
+          Modell: {modelAlias(activeModel)}
         </span>
         <span className={styles.sendHint}>
           Send <span className={styles.kbd}>↵</span>
