@@ -103,10 +103,40 @@
   padding-right: 0;
 }
 
-.thinkingRow {
+.timeline {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+}
+
+.step {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  animation: stepIn 0.45s var(--ease-out) backwards;
+}
+
+@keyframes stepIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stepLine {
+  display: block;
+  width: 1px;
+  height: 12px;
+  margin: 3px 0 3px 18px;
+  background: var(--border-strong);
+}
+
+.stepActive {
+  color: var(--text-muted);
+  font-size: 13.5px;
 }
 
 .thinkingLogo {

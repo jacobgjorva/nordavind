@@ -20,6 +20,8 @@ interface ChatMessage extends ApiMessage {
   resolvedModel?: string;
   /** Kilder fra backendens websøk */
   sources?: SourceRef[];
+  /** Tidslinje over hva modellen gjør mens den tenker */
+  steps?: string[];
 }
 
 // Nordavind-aliaser: vindskalaen navngir modellnivåene i UI.
@@ -226,11 +228,18 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
       let think = "";
       let resolved: string | undefined;
       const sources: SourceRef[] = [];
+      const steps: string[] = [];
+      const pushStep = (label: string) => {
+        if (label && steps[steps.length - 1] !== label && steps.length < 10) {
+          steps.push(label);
+        }
+      };
       await streamChat(
         "auto",
         history,
         (delta) => {
           if (delta.reasoning) think += delta.reasoning;
+          if (delta.step) pushStep(delta.step);
           if (delta.content) acc += delta.content;
           if (delta.model) {
             resolved = delta.model;
@@ -242,11 +251,12 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
             }
           }
           update(replyId, {
-            loading: !acc && !think,
+            loading: !acc && !think && steps.length === 0,
             content: acc,
             reasoning: acc ? undefined : think,
             resolvedModel: resolved,
             sources: [...sources],
+            steps: [...steps],
           });
         },
         abortRef.current.signal
@@ -345,17 +355,41 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                         m.content
                       )
                     ) : m.role === "assistant" && !m.error ? (
-                      <div className={styles.thinkingRow}>
-                        <span className={styles.thinkingLogo}>
-                          <Logo
-                            size={12}
-                            flutter
-                            glow={MODEL_GLOW[m.resolvedModel ?? ""] ?? "#ffffff"}
-                          />
-                        </span>
-                        <span className={styles.reasoning}>
-                          {thinkingLabel(m.reasoning)} …
-                        </span>
+                      <div className={styles.timeline}>
+                        {[...(m.steps ?? []), thinkingLabel(m.reasoning)].map(
+                          (step, i, arr) => {
+                            const active = i === arr.length - 1;
+                            return (
+                              <div key={i}>
+                                {i > 0 && (
+                                  <span className={styles.stepLine} />
+                                )}
+                                <div className={styles.step}>
+                                  <span className={styles.thinkingLogo}>
+                                    <Logo
+                                      size={12}
+                                      flutter={active}
+                                      glow={
+                                        MODEL_GLOW[m.resolvedModel ?? ""] ??
+                                        "#ffffff"
+                                      }
+                                    />
+                                  </span>
+                                  <span
+                                    className={
+                                      active
+                                        ? styles.stepActive
+                                        : styles.reasoning
+                                    }
+                                  >
+                                    {step}
+                                    {active && " …"}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     ) : null}
                   </div>

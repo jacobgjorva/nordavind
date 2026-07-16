@@ -22,6 +22,8 @@ export interface StreamDelta {
   model?: string;
   /** Kilder fra backendens websøk */
   sources?: SourceRef[];
+  /** Fremdriftssteg til thinking-tidslinjen */
+  step?: string;
 }
 
 export async function streamChat(
@@ -71,13 +73,14 @@ export async function streamChat(
       try {
         const json = JSON.parse(data);
         const sources = json.nordavind_sources as SourceRef[] | undefined;
+        const step = json.nordavind_step as string | undefined;
         const delta = json.choices?.[0]?.delta;
         const content = delta?.content;
         const reasoning = delta?.reasoning ?? delta?.reasoning_content;
         // Modellnavn kan ha leverandørprefiks ("lyceum/glm-5.2")
         const model = (json.model as string | undefined)?.split("/").pop();
-        if (content || reasoning || model || sources) {
-          onDelta({ content, reasoning, model, sources });
+        if (content || reasoning || model || sources || step) {
+          onDelta({ content, reasoning, model, sources, step });
         }
       } catch {
         // ufullstendig chunk — ignorer
