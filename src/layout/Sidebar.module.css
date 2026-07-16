@@ -170,3 +170,36 @@
   height: 100%;
   padding: 14px 10px;
 }
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 10px 2px;
+  border-top: 0.5px solid var(--border);
+}
+
+.footerEmail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+.footerLink {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.footerLink:hover {
+  color: var(--text);
+}

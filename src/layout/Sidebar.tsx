@@ -5,17 +5,21 @@ import styles from "./Sidebar.module.css";
 
 type SidebarProps = {
   chatTitle: string | null;
+  userEmail: string;
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenChat: () => void;
+  onLogout: () => void;
   inSettings: boolean;
 };
 
 export function Sidebar({
   chatTitle,
+  userEmail,
   onNewChat,
   onOpenSettings,
   onOpenChat,
+  onLogout,
   inSettings,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
@@ -115,6 +119,13 @@ export function Sidebar({
           )}
         </div>
       </nav>
+
+      <div className={styles.footer}>
+        <span className={styles.footerEmail}>{userEmail}</span>
+        <button className={styles.footerLink} onClick={onLogout}>
+          Logg ut
+        </button>
+      </div>
     </aside>
   );
 }
