@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Logo } from "../../ui/Logo";
-import { apiConfigured, streamChat, type ApiMessage } from "../../lib/api";
+import { CopyIcon, ShareIcon } from "../../ui/Icons";
+import {
+  apiConfigured,
+  streamChat,
+  type ApiMessage,
+  type SourceRef,
+} from "../../lib/api";
 import styles from "./Chat.module.css";
 
 interface ChatMessage extends ApiMessage {
@@ -12,17 +18,99 @@ interface ChatMessage extends ApiMessage {
   reasoning?: string;
   /** Faktisk modell backend valgte (fra streamen) */
   resolvedModel?: string;
+  /** Kilder fra backendens websøk */
+  sources?: SourceRef[];
 }
 
 // Én glød-farge per modell i thinking-animasjonen.
 const MODEL_GLOW: Record<string, string> = {
-  "glm-4.7-flash": "#ffffff",
-  "glm-5-turbo": "#5eceb3",
+  "mistral-large-3": "#ffffff",
   "glm-5.2": "#c9a8ff",
 };
 
 let idCounter = 0;
 const nextId = () => `m${++idCounter}`;
+
+// Handlingsrad under hvert assistentsvar: kopier, del, kilder.
+function MessageActions({
+  content,
+  sources = [],
+}: {
+  content: string;
+  sources?: SourceRef[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  function copy() {
+    navigator.clipboard?.writeText(content);
+  }
+
+  function share() {
+    if (navigator.share) {
+      navigator.share({ text: content }).catch(() => {});
+    } else {
+      copy();
+    }
+  }
+
+  return (
+    <div className={styles.actions}>
+      <button className={styles.actionBtn} onClick={copy} title="Kopier" aria-label="Kopier">
+        <CopyIcon size={15} />
+      </button>
+      <button className={styles.actionBtn} onClick={share} title="Del" aria-label="Del">
+        <ShareIcon size={15} />
+      </button>
+      {sources.length > 0 && (
+        <>
+          <button className={styles.sourcesBtn} onClick={() => setOpen((o) => !o)}>
+            <span className={styles.sourcesCount}>{sources.length}</span>
+            Kilder
+          </button>
+          {open && (
+            <div className={styles.sourcesList}>
+              {sources.map((s) => (
+                <SourceLink key={s.url} href={s.url}>
+                  {s.title || s.url}
+                </SourceLink>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Kildelenker rendres som små tags med favicon + sidenavn i stedet for URL.
+function SourceLink({
+  href,
+  children,
+}: {
+  href?: string;
+  children?: React.ReactNode;
+}) {
+  let host = "";
+  try {
+    host = href ? new URL(href).hostname.replace(/^www\./, "") : "";
+  } catch {
+    host = "";
+  }
+
+  const text = Array.isArray(children) ? children.join("") : String(children ?? "");
+  let label: React.ReactNode = children;
+  if (host && (text === href || text.startsWith("http"))) {
+    const name = host.split(".")[0];
+    label = name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={styles.sourceTag}>
+      {label}
+      <span className={styles.sourceArrow}>↗</span>
+    </a>
+  );
+}
 
 // Komprimerer resonneringsstrømmen til 1-3 ord: siste **uthevede** frase,
 // ellers de første ordene i siste linje.
@@ -58,6 +146,18 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
   }, [messages]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Zoom/vindusendring endrer scrollHeight — juster tekstfeltet på nytt.
+  useEffect(() => {
+    function resize() {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
 
   function update(id: string, patch: Partial<ChatMessage>) {
     setMessages((prev) =>
@@ -101,6 +201,7 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
       let acc = "";
       let think = "";
       let resolved: string | undefined;
+      const sources: SourceRef[] = [];
       await streamChat(
         "auto",
         history,
@@ -111,11 +212,17 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
             resolved = delta.model;
             setActiveModel(delta.model);
           }
+          if (delta.sources) {
+            for (const s of delta.sources) {
+              if (!sources.some((x) => x.url === s.url)) sources.push(s);
+            }
+          }
           update(replyId, {
             loading: !acc && !think,
             content: acc,
             reasoning: acc ? undefined : think,
             resolvedModel: resolved,
+            sources: [...sources],
           });
         },
         abortRef.current.signal
@@ -193,9 +300,18 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                     {m.content ? (
                       m.role === "assistant" && !m.error ? (
                         <div className={styles.markdown}>
-                          <Markdown remarkPlugins={[remarkGfm]}>
+                          <Markdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{ a: SourceLink }}
+                          >
                             {m.content}
                           </Markdown>
+                          {!busy && (
+                            <MessageActions
+                              content={m.content}
+                              sources={m.sources}
+                            />
+                          )}
                         </div>
                       ) : (
                         m.content
@@ -226,7 +342,6 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
         </div>
       ) : (
         <div className={styles.empty}>
-          <div className={styles.greeting}>Hva kan jeg hjelpe med?</div>
           <div className={styles.composerWrap}>{composer}</div>
         </div>
       )}

@@ -10,11 +10,18 @@ const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export const apiConfigured = Boolean(BASE_URL);
 
+export interface SourceRef {
+  title: string;
+  url: string;
+}
+
 export interface StreamDelta {
   content?: string;
   reasoning?: string;
   /** Faktisk modell valgt av backend (relevant ved model: "auto") */
   model?: string;
+  /** Kilder fra backendens websøk */
+  sources?: SourceRef[];
 }
 
 export async function streamChat(
@@ -63,12 +70,15 @@ export async function streamChat(
       if (data === "[DONE]") return;
       try {
         const json = JSON.parse(data);
+        const sources = json.nordavind_sources as SourceRef[] | undefined;
         const delta = json.choices?.[0]?.delta;
         const content = delta?.content;
         const reasoning = delta?.reasoning ?? delta?.reasoning_content;
         // Modellnavn kan ha leverandørprefiks ("lyceum/glm-5.2")
         const model = (json.model as string | undefined)?.split("/").pop();
-        if (content || reasoning || model) onDelta({ content, reasoning, model });
+        if (content || reasoning || model || sources) {
+          onDelta({ content, reasoning, model, sources });
+        }
       } catch {
         // ufullstendig chunk — ignorer
       }
