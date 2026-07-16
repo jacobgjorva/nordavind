@@ -116,6 +116,17 @@ function SourceLink({
   }
 
   const text = Array.isArray(children) ? children.join("") : String(children ?? "");
+
+  // Numeriske referanselenker ([1] med definisjon nederst) rendres som
+  // hevet kildehenvisning i Perplexity-stil.
+  if (/^\d{1,2}$/.test(text.trim())) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={styles.citation}>
+        {text.trim()}
+      </a>
+    );
+  }
+
   let label: React.ReactNode = children;
   if (host && (text === href || text.startsWith("http"))) {
     const name = host.split(".")[0];
