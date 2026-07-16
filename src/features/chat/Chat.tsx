@@ -146,13 +146,26 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
   const [input, setInput] = useState("");
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  // Auto-scroll kun når brukeren står nær bunnen — ellers eier de scrollen.
+  const pinnedRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hasMessages = messages.length > 0;
 
+  function handleScroll() {
+    const el = messagesRef.current;
+    if (!el) return;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = messagesRef.current;
+    if (el && pinnedRef.current) {
+      // Instant, ikke smooth: under streaming rekker ikke smooth-animasjonen
+      // å følge med, og innholdet havner under folden.
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -189,6 +202,7 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
       { role: "user", content: text },
     ];
 
+    pinnedRef.current = true;
     const replyId = nextId();
     setMessages((prev) => [
       ...prev,
@@ -293,7 +307,11 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
     <div className={styles.chatRoot}>
       {hasMessages ? (
         <div className={styles.conversation}>
-          <div className={styles.messages}>
+          <div
+            className={styles.messages}
+            ref={messagesRef}
+            onScroll={handleScroll}
+          >
             <div className={styles.messagesInner}>
               {messages.map((m) => (
                 <div
@@ -343,7 +361,6 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                   </div>
                 </div>
               ))}
-              <div ref={bottomRef} />
             </div>
           </div>
           <div className={styles.composerDocked}>
