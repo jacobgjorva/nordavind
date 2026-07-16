@@ -8,14 +8,6 @@ export interface ApiMessage {
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
-export const MODELS = (
-  (import.meta.env.VITE_MODELS as string | undefined) ??
-  "auto,glm-5.2,kimi-k2.6"
-)
-  .split(",")
-  .map((m) => m.trim())
-  .filter(Boolean);
-
 export const apiConfigured = Boolean(BASE_URL);
 
 export interface StreamDelta {

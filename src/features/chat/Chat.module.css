@@ -91,7 +91,7 @@
   max-width: 70%;
   padding: 10px 16px;
   border-radius: var(--radius-lg);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -288,61 +288,11 @@
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
-.modelWrap {
-  position: relative;
-}
-
-.modelButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 32px;
+.modelInfo {
   padding: 0 6px;
-  border: none;
-  background: none;
   color: var(--text-muted);
   font-size: 13.5px;
   font-weight: 500;
-  transition: color var(--dur-fast) var(--ease);
-}
-
-.modelButton:hover {
-  color: var(--text);
-}
-
-.modelMenu {
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
-  padding: 4px;
-  background: #2e2e30;
-  border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-.modelOption {
-  padding: 9px 11px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  text-align: left;
-  font-size: 14.5px;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-
-.modelOption:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.modelOptionActive {
-  color: var(--text);
-  font-weight: 600;
 }
 
 .sendHint {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Logo } from "../../ui/Logo";
-import { apiConfigured, MODELS, streamChat, type ApiMessage } from "../../lib/api";
+import { apiConfigured, streamChat, type ApiMessage } from "../../lib/api";
 import styles from "./Chat.module.css";
 
 interface ChatMessage extends ApiMessage {
@@ -10,11 +10,16 @@ interface ChatMessage extends ApiMessage {
   loading?: boolean;
   error?: boolean;
   reasoning?: string;
-  /** Satt når auto-ruting eskalerte til en tyngre modell */
-  ultraModel?: string;
+  /** Faktisk modell backend valgte (fra streamen) */
+  resolvedModel?: string;
 }
 
-const ULTRA_MODELS = new Set(["glm-5.2", "kimi-k2.6"]);
+// Én glød-farge per modell i thinking-animasjonen.
+const MODEL_GLOW: Record<string, string> = {
+  "glm-4.7-flash": "#ffffff",
+  "glm-5-turbo": "#5eceb3",
+  "glm-5.2": "#c9a8ff",
+};
 
 let idCounter = 0;
 const nextId = () => `m${++idCounter}`;
@@ -41,8 +46,7 @@ function thinkingLabel(reasoning?: string): string {
 export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [model, setModel] = useState(MODELS[0] ?? "");
-  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [activeModel, setActiveModel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -54,13 +58,6 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
   }, [messages]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
-
-  useEffect(() => {
-    if (!modelMenuOpen) return;
-    const close = () => setModelMenuOpen(false);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, [modelMenuOpen]);
 
   function update(id: string, patch: Partial<ChatMessage>) {
     setMessages((prev) =>
@@ -103,21 +100,22 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
     try {
       let acc = "";
       let think = "";
-      let ultra: string | undefined;
+      let resolved: string | undefined;
       await streamChat(
-        model,
+        "auto",
         history,
         (delta) => {
           if (delta.reasoning) think += delta.reasoning;
           if (delta.content) acc += delta.content;
-          if (model === "auto" && delta.model && ULTRA_MODELS.has(delta.model)) {
-            ultra = delta.model;
+          if (delta.model) {
+            resolved = delta.model;
+            setActiveModel(delta.model);
           }
           update(replyId, {
             loading: !acc && !think,
             content: acc,
             reasoning: acc ? undefined : think,
-            ultraModel: ultra,
+            resolvedModel: resolved,
           });
         },
         abortRef.current.signal
@@ -164,35 +162,9 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
         />
       </div>
       <div className={styles.footer}>
-        <div className={styles.modelWrap}>
-          <button
-            className={styles.modelButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              setModelMenuOpen((o) => !o);
-            }}
-          >
-            {model || "ingen modell"} ▾
-          </button>
-          {modelMenuOpen && (
-            <div className={styles.modelMenu}>
-              {MODELS.map((m) => (
-                <button
-                  key={m}
-                  className={`${styles.modelOption} ${
-                    m === model ? styles.modelOptionActive : ""
-                  }`}
-                  onClick={() => {
-                    setModel(m);
-                    setModelMenuOpen(false);
-                  }}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <span className={styles.modelInfo}>
+          Using {activeModel ?? "auto"}
+        </span>
         <span className={styles.sendHint}>
           Send <span className={styles.kbd}>↵</span>
         </span>
@@ -231,7 +203,11 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                     ) : m.role === "assistant" && !m.error ? (
                       <div className={styles.thinkingRow}>
                         <span className={styles.thinkingLogo}>
-                          <Logo size={12} flutter ultra={!!m.ultraModel} />
+                          <Logo
+                            size={12}
+                            flutter
+                            glow={MODEL_GLOW[m.resolvedModel ?? ""] ?? "#ffffff"}
+                          />
                         </span>
                         <span className={styles.reasoning}>
                           {thinkingLabel(m.reasoning)} …

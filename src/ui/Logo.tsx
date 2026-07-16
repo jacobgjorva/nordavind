@@ -8,18 +8,23 @@ const ASPECT = 1917 / 616;
 export function Logo({
   size = 20,
   flutter = false,
-  ultra = false,
+  glow = "#ffffff",
 }: {
   size?: number;
   flutter?: boolean;
-  ultra?: boolean;
+  /** Fargen på lysdraget under tenking — én farge per modell */
+  glow?: string;
 }) {
   return (
     <span
-      className={`logo-mark ${flutter ? "logo-shimmer" : ""} ${
-        ultra ? "logo-shimmer-ultra" : ""
-      }`}
-      style={{ width: size * ASPECT, height: size }}
+      className={`logo-mark ${flutter ? "logo-shimmer" : ""}`}
+      style={
+        {
+          width: size * ASPECT,
+          height: size,
+          "--shimmer-glow": glow,
+        } as React.CSSProperties
+      }
       role="img"
       aria-label="Nordavind"
     />
