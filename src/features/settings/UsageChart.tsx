@@ -186,11 +186,16 @@ export function UsageChart({
             />
           ))}
 
-          {xLabels.map((label, i) => (
-            <text key={i} x={xFor(i)} y={HEIGHT - 6} textAnchor="middle" className={styles.axisLabel}>
-              {label}
-            </text>
-          ))}
+          {xLabels.map((label, i) => {
+            // Maks ~7 etiketter så de ikke overlapper
+            const step = Math.ceil(n / 7);
+            if (i % step !== 0 && i !== n - 1) return null;
+            return (
+              <text key={i} x={xFor(i)} y={HEIGHT - 6} textAnchor="middle" className={styles.axisLabel}>
+                {label}
+              </text>
+            );
+          })}
 
           {hover !== null && (
             <line
