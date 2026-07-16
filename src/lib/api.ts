@@ -10,6 +10,61 @@ const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export const apiConfigured = Boolean(BASE_URL);
 
+const TOKEN_KEY = "nordavind_token";
+
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);
+export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export interface AuthUser {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthTenant {
+  id: string;
+  name: string;
+}
+
+export async function requestCode(email: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/auth/request-code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function verifyCode(
+  email: string,
+  code: string
+): Promise<{ token: string; user: AuthUser }> {
+  const res = await fetch(`${BASE_URL}/auth/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  if (res.status === 401) throw new Error("Ugyldig kode");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchMe(): Promise<{
+  user: AuthUser;
+  tenant: AuthTenant;
+}> {
+  const res = await fetch(`${BASE_URL}/auth/me`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export interface Attachment {
   name: string;
   text: string;
@@ -19,7 +74,11 @@ export interface Attachment {
 export async function extractFile(file: File): Promise<Attachment> {
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${BASE_URL}/extract`, { method: "POST", body: fd });
+  const res = await fetch(`${BASE_URL}/extract`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: fd,
+  });
   if (!res.ok) {
     throw new Error((await res.text().catch(() => "")) || `HTTP ${res.status}`);
   }
@@ -54,6 +113,7 @@ export async function streamChat(
     headers: {
       "Content-Type": "application/json",
       ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+      ...authHeaders(),
     },
     body: JSON.stringify({
       model,
