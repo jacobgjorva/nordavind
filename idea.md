@@ -22,6 +22,22 @@ En europeisk AI-plattform bygget på open-weight modeller (GLM-5.2, Kimi K2.7) m
 - **Backend:** Go
 - **Frontend:** React + TypeScript, bygget med Vite (ren SPA)
 
+## Kunde- og brukermodell
+- **Kunden er bedriften (tenant):** org.nr, avtale, fakturering, egen API-nøkkel og admin-rolle
+  som ser forbruk og grenser for hele bedriften.
+- **Brukerne er ansatte** under tenanten: egen innlogging, egne samtaler; forbruk logges per
+  bruker og aggregeres per tenant (`tenant_id` + `user_id` på alt fra dag én).
+- **Prismodell:** fastpris per bruker/mnd; vår interne kostkontroll (modellruting) sikrer margin.
+
+## Per-kunde-tilpasning (skall-modellen)
+- **Backend eier all logikk og konfigurasjon:** modellruting, websøk, system-prompt, usage —
+  og tenant-config med design-tokens (farger, logo, font, radius) + feature-flags for add-ons.
+  Serveres via `/v1/tenant/config`.
+- **Frontend er ett felles skall:** én kodebase som henter tenant-config ved oppstart og
+  anvender design-tokens som CSS-variabler runtime. Kundetilpasset stil = data, ikke kode.
+- **Add-ons** (f.eks. integrasjoner, egne widgets) slås på per tenant via feature-flags —
+  aldri egne frontend-forks.
+
 ## Målgruppe
 Bedrifter som vil ta i bruk AI-verktøy, men nøler på pris eller datasikkerhet. Særlig norske/nordiske SMB-er der GDPR og forutsigbar kostnad veier tungt.
 
