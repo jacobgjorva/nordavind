@@ -22,6 +22,15 @@ interface ChatMessage extends ApiMessage {
   sources?: SourceRef[];
 }
 
+// Nordavind-aliaser: vindskalaen navngir modellnivåene i UI.
+const MODEL_ALIAS: Record<string, string> = {
+  "mistral-large-3": "Bris",
+  "glm-5.2": "Storm",
+};
+
+const modelAlias = (model: string | null) =>
+  model ? MODEL_ALIAS[model] ?? model : "auto";
+
 // Én glød-farge per modell i thinking-animasjonen.
 const MODEL_GLOW: Record<string, string> = {
   "mistral-large-3": "#ffffff",
@@ -270,7 +279,7 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
       </div>
       <div className={styles.footer}>
         <span className={styles.modelInfo}>
-          Using {activeModel ?? "auto"}
+          Using {modelAlias(activeModel)}
         </span>
         <span className={styles.sendHint}>
           Send <span className={styles.kbd}>↵</span>
