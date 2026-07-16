@@ -1,0 +1,43 @@
+/* Delte primitiver — kun utseende.
+   Layout (høyde, padding, margin, font-size) settes lokalt i komponenten som komponerer. */
+
+.keyButton {
+  border: none;
+  border-radius: var(--btn-radius);
+  background: var(--key-grad);
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 500;
+  box-shadow: var(--key-shadow);
+  transition: background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+.keyButton:hover:not(:disabled),
+.keyButton:active:not(:disabled) {
+  box-shadow: var(--key-shadow-inset);
+}
+
+.input {
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.select {
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a90' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: calc(100% - 10px) center;
+  background-size: 15px 15px;
+  background-repeat: no-repeat;
+}
