@@ -14,6 +14,10 @@ function formatUsd(v: number): string {
   return `$${v.toFixed(v > 0 && v < 0.1 ? 4 : 2)}`;
 }
 
+function formatNok(v: number): string {
+  return `${v.toFixed(v > 0 && v < 1 ? 2 : 0)} kr`;
+}
+
 // Fyller siste N dager slik at grafene får sammenhengende akse.
 function lastDays(n: number): string[] {
   const out: string[] = [];
@@ -28,11 +32,15 @@ function lastDays(n: number): string[] {
 
 export function Usage() {
   const [rows, setRows] = useState<DailyUsage[] | null>(null);
+  const [usdNok, setUsdNok] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDailyUsage(DAYS, "tenant")
-      .then(setRows)
+      .then((res) => {
+        setRows(res.usage);
+        setUsdNok(res.usdNok);
+      })
       .catch(() => setError("Kunne ikke hente forbruksdata."));
   }, []);
 
@@ -76,7 +84,10 @@ export function Usage() {
 
           <div className={styles.stat}>
             <div className={styles.statLabel}>Kostnad</div>
-            <div className={styles.statValue}>{formatUsd(data.totalCost)}</div>
+            <div className={styles.statValue}>
+              {formatUsd(data.totalCost)}
+              {usdNok > 0 && ` · ${formatNok(data.totalCost * usdNok)}`}
+            </div>
           </div>
 
           <div className={styles.stat}>
@@ -88,7 +99,11 @@ export function Usage() {
             <div className={styles.statLabel}>Snitt per forespørsel</div>
             <div className={styles.statValue}>
               {data.totalRequests
-                ? formatUsd(data.totalCost / data.totalRequests)
+                ? `${formatUsd(data.totalCost / data.totalRequests)}${
+                    usdNok > 0
+                      ? ` · ${formatNok((data.totalCost / data.totalRequests) * usdNok)}`
+                      : ""
+                  }`
                 : "—"}
             </div>
           </div>

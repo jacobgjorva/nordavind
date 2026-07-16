@@ -69,14 +69,14 @@ export interface DailyUsage {
 export async function fetchDailyUsage(
   days: number,
   scope: "me" | "tenant"
-): Promise<DailyUsage[]> {
+): Promise<{ usage: DailyUsage[]; usdNok: number }> {
   const res = await fetch(
     `${BASE_URL}/usage/daily?days=${days}&scope=${scope}`,
     { headers: authHeaders() }
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
-  return body.usage ?? [];
+  return { usage: body.usage ?? [], usdNok: body.usd_nok ?? 0 };
 }
 
 export async function fetchMe(): Promise<{
