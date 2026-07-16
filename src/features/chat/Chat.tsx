@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Logo } from "../../ui/Logo";
-import { CopyIcon, ShareIcon } from "../../ui/Icons";
+import { CopyIcon, SearchIcon, ShareIcon } from "../../ui/Icons";
 import {
   apiConfigured,
   streamChat,
@@ -356,40 +356,31 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
                       )
                     ) : m.role === "assistant" && !m.error ? (
                       <div className={styles.timeline}>
-                        {[...(m.steps ?? []), thinkingLabel(m.reasoning)].map(
-                          (step, i, arr) => {
-                            const active = i === arr.length - 1;
-                            return (
-                              <div key={i}>
-                                {i > 0 && (
-                                  <span className={styles.stepLine} />
-                                )}
-                                <div className={styles.step}>
-                                  <span className={styles.thinkingLogo}>
-                                    <Logo
-                                      size={12}
-                                      flutter={active}
-                                      glow={
-                                        MODEL_GLOW[m.resolvedModel ?? ""] ??
-                                        "#ffffff"
-                                      }
-                                    />
-                                  </span>
-                                  <span
-                                    className={
-                                      active
-                                        ? styles.stepActive
-                                        : styles.reasoning
-                                    }
-                                  >
-                                    {step}
-                                    {active && " …"}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          }
-                        )}
+                        <div className={styles.step}>
+                          <span className={styles.thinkingLogo}>
+                            <Logo
+                              size={12}
+                              flutter
+                              glow={
+                                MODEL_GLOW[m.resolvedModel ?? ""] ?? "#ffffff"
+                              }
+                            />
+                          </span>
+                          <span className={styles.stepActive}>
+                            {thinkingLabel(m.reasoning)} …
+                          </span>
+                        </div>
+                        {(m.steps ?? []).map((step, i) => (
+                          <div key={i}>
+                            <span className={styles.stepLine} />
+                            <div className={styles.step}>
+                              <span className={styles.stepIcon}>
+                                <SearchIcon size={14} />
+                              </span>
+                              <span className={styles.reasoning}>{step}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : null}
                   </div>

@@ -130,8 +130,14 @@
   display: block;
   width: 1px;
   height: 12px;
-  margin: 3px 0 3px 18px;
+  margin: 3px 0 3px 7px;
   background: var(--border-strong);
+}
+
+.stepIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-faint);
 }
 
 .stepActive {
