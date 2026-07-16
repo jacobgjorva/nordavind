@@ -70,7 +70,7 @@ export function Sidebar({
     <aside className={styles.sidebar}>
       <div className={styles.top}>
         <span className={styles.brand}>
-          <Logo size={18} />
+          <Logo size={8} />
           Nordavind
         </span>
         <button

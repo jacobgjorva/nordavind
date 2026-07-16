@@ -45,7 +45,7 @@ export function Login({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.brand}>
-          <Logo size={22} />
+          <Logo size={9} />
           <span>Nordavind</span>
         </div>
 
