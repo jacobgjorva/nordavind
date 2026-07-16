@@ -1,0 +1,33 @@
+/* Logo: alltid samme element. Grunnfarge = currentColor.
+   Under tenking (.logo-shimmer) glir et lysdrag gjennom merket. */
+
+.logo-mark {
+  display: inline-block;
+  flex-shrink: 0;
+  -webkit-mask: url(/logo.svg) center / contain no-repeat;
+  mask: url(/logo.svg) center / contain no-repeat;
+  background: currentColor;
+}
+
+.logo-shimmer {
+  background: linear-gradient(
+    100deg,
+    currentColor 44%,
+    var(--shimmer-glow, #ffffff) 50%,
+    currentColor 56%
+  );
+  background-size: 300% 100%;
+  animation: logo-shimmer 0.8s linear infinite;
+  filter: drop-shadow(
+    0 0 10px color-mix(in srgb, var(--shimmer-glow, #ffffff) 40%, transparent)
+  );
+}
+
+@keyframes logo-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0% 0;
+  }
+}

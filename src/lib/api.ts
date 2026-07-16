@@ -8,20 +8,44 @@ export interface ApiMessage {
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
-export const MODELS = (
-  (import.meta.env.VITE_MODELS as string | undefined) ??
-  "glm-5.2,kimi-k2.7"
-)
-  .split(",")
-  .map((m) => m.trim())
-  .filter(Boolean);
-
 export const apiConfigured = Boolean(BASE_URL);
+
+export interface Attachment {
+  name: string;
+  text: string;
+}
+
+// Laster opp en fil og får ren tekst tilbake (PDF/tekst).
+export async function extractFile(file: File): Promise<Attachment> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${BASE_URL}/extract`, { method: "POST", body: fd });
+  if (!res.ok) {
+    throw new Error((await res.text().catch(() => "")) || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export interface SourceRef {
+  title: string;
+  url: string;
+}
+
+export interface StreamDelta {
+  content?: string;
+  reasoning?: string;
+  /** Faktisk modell valgt av backend (relevant ved model: "auto") */
+  model?: string;
+  /** Kilder fra backendens websøk */
+  sources?: SourceRef[];
+  /** Fremdriftssteg til thinking-tidslinjen */
+  step?: string;
+}
 
 export async function streamChat(
   model: string,
   messages: ApiMessage[],
-  onDelta: (text: string) => void,
+  onDelta: (delta: StreamDelta) => void,
   signal?: AbortSignal
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -31,7 +55,13 @@ export async function streamChat(
       "Content-Type": "application/json",
       ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
     },
-    body: JSON.stringify({ model, messages, stream: true }),
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      // Reasoning gir merkbart tregere første token; av som default i test-UI.
+      reasoning: { enabled: false },
+    }),
   });
 
   if (!res.ok || !res.body) {
@@ -58,8 +88,16 @@ export async function streamChat(
       if (data === "[DONE]") return;
       try {
         const json = JSON.parse(data);
-        const delta = json.choices?.[0]?.delta?.content;
-        if (delta) onDelta(delta);
+        const sources = json.nordavind_sources as SourceRef[] | undefined;
+        const step = json.nordavind_step as string | undefined;
+        const delta = json.choices?.[0]?.delta;
+        const content = delta?.content;
+        const reasoning = delta?.reasoning ?? delta?.reasoning_content;
+        // Modellnavn kan ha leverandørprefiks ("lyceum/glm-5.2")
+        const model = (json.model as string | undefined)?.split("/").pop();
+        if (content || reasoning || model || sources || step) {
+          onDelta({ content, reasoning, model, sources, step });
+        }
       } catch {
         // ufullstendig chunk — ignorer
       }
