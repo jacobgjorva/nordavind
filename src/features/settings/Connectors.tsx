@@ -762,8 +762,6 @@ function TableManager({
                     </div>
                   </div>
 
-                  <div className={styles.tmDivider} />
-
                   <div className={styles.tmField}>
                     <span className={styles.tmLabel}>Tilgang</span>
                     <div className={styles.tmAccess}>
