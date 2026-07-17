@@ -106,11 +106,13 @@ function ChatWizard(_props: {
   }
 
   return (
-    <div className={styles.content}>
+    <div className={styles.createPage}>
       <div className={styles.sectionTitle}>Opprett kobling</div>
       <div className={styles.canvas}>
         <div className={styles.canvasScroll} />
-        <div className={styles.canvasComposer}>
+      </div>
+      <div className={chatStyles.composerDocked}>
+        <div className={chatStyles.composerWrap}>
           <div className={chatStyles.composer}>
             <div className={chatStyles.inputRow}>
               <textarea

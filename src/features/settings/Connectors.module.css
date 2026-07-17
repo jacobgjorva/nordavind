@@ -893,3 +893,17 @@
 .canvasComposer {
   padding: 12px 16px 16px;
 }
+
+/* Opprett kobling: canvas fyller siden, composer dokket nederst som i chatten */
+.createPage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: calc(100vh - 56px - 80px);
+}
+
+.createPage .canvas {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
