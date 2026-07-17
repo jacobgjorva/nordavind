@@ -916,17 +916,17 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
+  gap: 14px;
   padding: 24px;
 }
 
 .canvasQuestion {
-  /* Samme tekststil som meldinger i hovedchatten */
+  /* Som assistentmeldinger i hovedchatten: venstrejustert */
+  align-self: flex-start;
   font-size: 16px;
   font-weight: 450;
   line-height: 1.6;
-  text-align: center;
 }
 
 /* Meny inne i komboboksen (theBrief CommandPalette-stil) */
@@ -982,7 +982,13 @@
 }
 
 .canvasChoice {
-  margin-top: 14px;
-  color: var(--text-muted);
-  font-size: 14px;
+  /* Som brukermeldinger i hovedchatten: boble til høyre */
+  align-self: flex-end;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.6;
 }
