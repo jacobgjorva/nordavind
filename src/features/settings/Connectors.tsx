@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import chatStyles from "../chat/Chat.module.css";
+import { Logo } from "../../ui/Logo";
 import {
   createConnection,
   deleteConnection,
@@ -189,6 +190,8 @@ function ChatWizard(_props: {
   // stage: -1 = kildevalg, 0..n = DB_FLOW-steg, 100 = kobler til, 101 = ferdig
   const [stage, setStage] = useState(-1);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Pågående handling: vises med logo-animasjon som i hovedchatten.
+  const [status, setStatus] = useState<string | null>(null);
 
   const question =
     stage === -1
@@ -213,7 +216,7 @@ function ChatWizard(_props: {
 
   async function connect(a: Record<string, string>) {
     setStage(100);
-    say("bot", "Tester tilkoblingen …");
+    setStatus("Tester tilkoblingen");
     try {
       const conn = await createConnection({
         name: a.name,
@@ -224,9 +227,11 @@ function ChatWizard(_props: {
         user: a.user,
         password: a.password ?? "",
       });
+      setStatus(null);
       say("bot", `Tilkoblet! ${conn.name} er lagret. Neste steg kommer snart.`);
       setStage(101);
     } catch (err) {
+      setStatus(null);
       say("bot", (err instanceof Error ? err.message : "Kunne ikke koble til.") + " Prøv passordet igjen.");
       setStage(DB_FLOW.length - 1);
     }
@@ -311,6 +316,14 @@ function ChatWizard(_props: {
           {question && (
             <div className={styles.canvasQuestion} key={`q-${stage}`}>
               <FadeText text={question} />
+            </div>
+          )}
+          {status && (
+            <div className={chatStyles.step}>
+              <span className={chatStyles.thinkingLogo}>
+                <Logo size={12} flutter glow="#ffffff" />
+              </span>
+              <span className={chatStyles.stepActive}>{status} …</span>
             </div>
           )}
         </div>
