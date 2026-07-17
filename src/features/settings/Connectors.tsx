@@ -605,13 +605,25 @@ function TableManager({
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  // Per bord: valgt, beskrivelse, tilgang (tom = alle).
+  const views = schema.config.views ?? [];
+  // Per bord: valgt, beskrivelse, tilgang (tom = alle), custom SQL.
   const [state, setState] = useState<
-    Record<string, { on: boolean; desc: string; userIds: string[]; open: boolean }>
+    Record<
+      string,
+      {
+        on: boolean;
+        desc: string;
+        userIds: string[];
+        open: boolean;
+        sqlOn: boolean;
+        sql: string;
+      }
+    >
   >(() =>
     Object.fromEntries(
       schema.tables.map((t) => {
         const c = cfg.find((x) => x.name === t.name);
+        const v = views.find((x) => x.name === `${t.name}_query`);
         return [
           t.name,
           {
@@ -619,6 +631,8 @@ function TableManager({
             desc: c?.description ?? "",
             userIds: c?.user_ids ?? [],
             open: false,
+            sqlOn: Boolean(v),
+            sql: v?.sql ?? "",
           },
         ];
       })
@@ -648,13 +662,17 @@ function TableManager({
         columns: {},
         user_ids: s.userIds,
       }));
-    // Behold eksisterende relasjoner/views for bord som fortsatt er med.
+    // Behold eksisterende relasjoner for bord som fortsatt er med.
     const names = new Set(cfgTables.map((t) => t.name));
     const links = (schema.config.links ?? []).filter(
       (l) => names.has(l.from_table) && names.has(l.to_table)
     );
+    // Custom SQL per bord lagres som en view.
+    const nextViews = Object.entries(state)
+      .filter(([, s]) => s.on && s.sqlOn && s.sql.trim())
+      .map(([name, s]) => ({ name: `${name}_query`, sql: s.sql.trim(), description: "" }));
     try {
-      await saveConnectionConfig(conn.id, cfgTables, links, schema.config.views ?? []);
+      await saveConnectionConfig(conn.id, cfgTables, links, nextViews);
       setSaved(true);
       setTimeout(onClose, 700);
     } catch {
@@ -691,13 +709,14 @@ function TableManager({
       <div className={styles.tmList}>
         {tables.map((t) => {
           const s = state[t.name];
+          const lines = s.sql.split("\n").length;
           return (
             <div key={t.name} className={`${styles.tmRow} ${s.on ? styles.tmRowOn : ""}`}>
               <label className={styles.tmTop}>
                 <input
                   type="checkbox"
                   checked={s.on}
-                  onChange={(e) => patch(t.name, { on: e.target.checked })}
+                  onChange={(e) => patch(t.name, { on: e.target.checked, open: e.target.checked })}
                 />
                 <span className={styles.tableName}>{t.name}</span>
                 <span className={styles.colCount}>{t.columns.length} felt</span>
@@ -710,48 +729,85 @@ function TableManager({
                       patch(t.name, { open: !s.open });
                     }}
                   >
-                    {s.open ? "Skjul" : "Tilgang"}
+                    {s.open ? "Skjul" : "Rediger"}
                   </button>
                 )}
               </label>
 
-              {s.on && (
-                <input
-                  className={styles.tmDesc}
-                  placeholder="Beskrivelse (vises til AI-en)"
-                  value={s.desc}
-                  onChange={(e) => patch(t.name, { desc: e.target.value })}
-                />
-              )}
-
               {s.on && s.open && (
-                <div className={styles.tmAccess}>
-                  <button
-                    type="button"
-                    className={`${styles.chip} ${s.userIds.length === 0 ? styles.chipOn : ""}`}
-                    onClick={() => patch(t.name, { userIds: [] })}
-                  >
-                    Alle
-                  </button>
-                  {users.map((u) => {
-                    const on = s.userIds.includes(u.id);
-                    return (
+                <div className={styles.tmPanel}>
+                  <div className={styles.tmField}>
+                    <span className={styles.tmLabel}>Beskrivelse</span>
+                    <input
+                      className={styles.tmDesc}
+                      placeholder="Hva inneholder bordet? (vises til AI-en)"
+                      value={s.desc}
+                      onChange={(e) => patch(t.name, { desc: e.target.value })}
+                    />
+                  </div>
+
+                  <div className={styles.tmDivider} />
+
+                  <div className={styles.tmToggleRow}>
+                    <span className={styles.tmLabel}>Custom SQL</span>
+                    <Toggle on={s.sqlOn} onChange={(v) => patch(t.name, { sqlOn: v })} />
+                  </div>
+                  {s.sqlOn && (
+                    <div className={styles.sqlEditor}>
+                      <div className={styles.sqlGutter}>
+                        {Array.from({ length: Math.max(lines, 3) }, (_, i) => (
+                          <span key={i}>{i + 1}</span>
+                        ))}
+                      </div>
+                      <div className={styles.sqlField}>
+                        <pre className={styles.sqlHighlight} aria-hidden="true">
+                          {highlightSql(s.sql)}
+                          {"\n"}
+                        </pre>
+                        <textarea
+                          className={styles.sqlInput}
+                          value={s.sql}
+                          placeholder={`SELECT * FROM ${t.name} …`}
+                          spellCheck={false}
+                          onChange={(e) => patch(t.name, { sql: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.tmDivider} />
+
+                  <div className={styles.tmField}>
+                    <span className={styles.tmLabel}>Tilgang</span>
+                    <div className={styles.tmAccess}>
                       <button
-                        key={u.id}
                         type="button"
-                        className={`${styles.chip} ${on ? styles.chipOn : ""}`}
-                        onClick={() =>
-                          patch(t.name, {
-                            userIds: on
-                              ? s.userIds.filter((id) => id !== u.id)
-                              : [...s.userIds, u.id],
-                          })
-                        }
+                        className={`${styles.chip} ${s.userIds.length === 0 ? styles.chipOn : ""}`}
+                        onClick={() => patch(t.name, { userIds: [] })}
                       >
-                        {u.email}
+                        Alle
                       </button>
-                    );
-                  })}
+                      {users.map((u) => {
+                        const on = s.userIds.includes(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            type="button"
+                            className={`${styles.chip} ${on ? styles.chipOn : ""}`}
+                            onClick={() =>
+                              patch(t.name, {
+                                userIds: on
+                                  ? s.userIds.filter((id) => id !== u.id)
+                                  : [...s.userIds, u.id],
+                              })
+                            }
+                          >
+                            {u.email}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
