@@ -1061,7 +1061,7 @@
 
 .flowNodeExpanded {
   border-color: #a5b8fc;
-  min-width: 300px;
+  width: 520px;
 }
 
 .flowNodeBody {
