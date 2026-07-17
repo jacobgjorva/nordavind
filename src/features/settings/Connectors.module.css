@@ -1044,12 +1044,32 @@
 .flowNode {
   cursor: pointer;
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
   padding: 8px 16px 8px 8px;
   border: 1px solid #3a3a3e;
   border-radius: 16px;
   background: #1a1a1c;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.flowNodeRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flowNodeExpanded {
+  border-color: #a5b8fc;
+  min-width: 300px;
+}
+
+.flowNodeBody {
+  display: block;
+  min-height: 140px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--border);
 }
 
 .flowNodeStart {

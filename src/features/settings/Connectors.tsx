@@ -191,44 +191,36 @@ export function Connectors() {
                       className={linked(order[i - 1], t) ? styles.flowWire : styles.flowGap}
                     />
                   )}
-                  <span className={styles.flowNodeWrap}>
-                    <span
-                      className={`${styles.flowNode} ${
-                        popover?.connId === c.id && popover?.table === t
-                          ? styles.flowNodeActive
-                          : ""
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPopover(
-                          popover?.connId === c.id && popover?.table === t
-                            ? null
-                            : { connId: c.id, table: t }
-                        );
-                      }}
-                    >
-                      <span className={`${styles.flowBadge} ${styles.flowBadgeBlue}`}>
-                        <PlayGlyph />
+                  {(() => {
+                    const active = popover?.connId === c.id && popover?.table === t;
+                    return (
+                      <span
+                        className={`${styles.flowNode} ${
+                          active ? styles.flowNodeExpanded : ""
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPopover(active ? null : { connId: c.id, table: t });
+                        }}
+                      >
+                        <span className={styles.flowNodeRow}>
+                          <span className={`${styles.flowBadge} ${styles.flowBadgeBlue}`}>
+                            <PlayGlyph />
+                          </span>
+                          <span className={styles.flowText}>
+                            <span className={styles.flowTitle}>{t}</span>
+                            <span className={styles.flowSub}>Bord ({c.name})</span>
+                          </span>
+                        </span>
+                        {active && schemas[c.id] && (
+                          <span
+                            className={styles.flowNodeBody}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
                       </span>
-                      <span className={styles.flowText}>
-                        <span className={styles.flowTitle}>{t}</span>
-                        <span className={styles.flowSub}>Bord ({c.name})</span>
-                      </span>
-                    </span>
-                    {popover?.connId === c.id &&
-                      popover?.table === t &&
-                      schemas[c.id] && (
-                        <NodePopover
-                          schema={schemas[c.id]}
-                          table={t}
-                          onClose={() => setPopover(null)}
-                          onSaved={() => {
-                            setPopover(null);
-                            reload();
-                          }}
-                        />
-                      )}
-                  </span>
+                    );
+                  })()}
                 </span>
               ));
             })}
@@ -266,28 +258,6 @@ function FadeText({ text }: { text: string }) {
         </span>
       ))}
     </span>
-  );
-}
-
-// Popover ved klikk på en node: rediger beskrivelse + relasjoner til andre bord.
-function NodePopover({
-  schema,
-  table,
-  onClose,
-  onSaved,
-}: {
-  schema: ConnectionSchema;
-  table: string;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  void schema;
-  void table;
-  void onClose;
-  void onSaved;
-
-  return (
-    <div className={styles.nodePopover} onClick={(e) => e.stopPropagation()} />
   );
 }
 
