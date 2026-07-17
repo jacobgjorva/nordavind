@@ -269,7 +269,7 @@ export function Chat({
     if (target) {
       const delta =
         target.getBoundingClientRect().top - el.getBoundingClientRect().top;
-      el.scrollTop += delta - 16;
+      el.scrollTop += delta - 64;
       scrollToMsgRef.current = null;
     }
   }, [messages]);
