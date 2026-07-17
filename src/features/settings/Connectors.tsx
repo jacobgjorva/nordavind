@@ -5,12 +5,9 @@ import {
   completeChat,
   createConnection,
   deleteConnection,
-  fetchAdminUsers,
   fetchConnections,
   fetchConnectionSchema,
-  fetchMe,
   saveConnectionConfig,
-  type AdminUser,
   type Connection,
   type ConnectionSchema,
 } from "../../lib/api";
@@ -202,15 +199,6 @@ function ChatWizard(_props: {
   const [schema, setSchema] = useState<ConnectionSchema | null>(null);
   const [selTables, setSelTables] = useState<Set<string>>(new Set());
   const [tablesDone, setTablesDone] = useState(false);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [meId, setMeId] = useState<string>("");
-  const [selUsers, setSelUsers] = useState<Set<string>>(new Set());
-  const [accessDone, setAccessDone] = useState(false);
-
-  useEffect(() => {
-    fetchAdminUsers().then(setUsers).catch(() => {});
-    fetchMe().then((r) => setMeId(r.user.id)).catch(() => {});
-  }, []);
   const [busy, setBusy] = useState(false);
   // Pågående handling: vises med logo-animasjon som i hovedchatten.
   const [status, setStatus] = useState<string | null>(null);
@@ -224,45 +212,30 @@ function ChatWizard(_props: {
       null;
 
   const tablesPhase = Boolean(savedConn && schema && !tablesDone && !activeStep);
-  const accessPhase = Boolean(tablesDone && !accessDone);
 
   const question = !sourceChosen
     ? "Hva skal vi koble til?"
     : activeStep?.question ??
-      (tablesPhase
-        ? "Hvilke bord skal AI-en få bruke?"
-        : accessPhase
-          ? "Hvem skal ha tilgang til dataene?"
-          : null);
+      (tablesPhase ? "Hvilke bord skal AI-en få bruke?" : null);
 
   const DONE_ITEM = "__done__";
-  const ALL_ITEM = "__all__";
-  const ME_ITEM = "__me__";
   const rawOptions = !sourceChosen
     ? SOURCE_OPTIONS
     : activeStep
       ? activeStep.options(answers)
       : tablesPhase && schema
         ? schema.tables.map((t) => t.name)
-        : accessPhase
-          ? users.map((u) => u.email)
-          : [];
+        : [];
   const filtered = rawOptions.filter((o) =>
     o.toLowerCase().includes(input.trim().toLowerCase())
   );
-  // Fler-valgfaser: maks 5 treff + faste elementer.
+  // Bordvalg: maks 5 treff om gangen + Ferdig-element når noe er valgt.
   const options = tablesPhase
     ? [
         ...(selTables.size > 0 ? [DONE_ITEM] : []),
         ...filtered.slice(0, 5),
       ]
-    : accessPhase
-      ? [
-          ...(selUsers.size > 0 ? [DONE_ITEM] : [ALL_ITEM, ME_ITEM]),
-          ...(selUsers.size > 0 ? [] : []),
-          ...filtered.slice(0, 5),
-        ]
-      : filtered;
+    : filtered;
 
   function say(role: "bot" | "user", text: string) {
     setLog((prev) => [...prev, { id: ++logId, role, text }]);
@@ -470,16 +443,12 @@ function ChatWizard(_props: {
     setHilite(0);
   }
 
-  function finishTables() {
+  // Lagrer kurateringen: valgte bord, åpne for alle brukere.
+  async function finishTables() {
+    if (!savedConn) return;
     say("user", `Valgte bord: ${[...selTables].join(", ")}`);
     setTablesDone(true);
-  }
-
-  // Lagrer kurateringen: valgte bord + hvem som har tilgang (tom = alle).
-  async function finishAccess(ids: string[], label: string) {
-    if (!savedConn) return;
-    say("user", label);
-    setStatus("Lagrer tilganger");
+    setStatus("Lagrer");
     try {
       await saveConnectionConfig(
         savedConn.id,
@@ -487,48 +456,24 @@ function ChatWizard(_props: {
           name,
           description: "",
           columns: {},
-          user_ids: ids,
+          user_ids: [],
         })),
         [],
         []
       );
       setStatus(null);
-      setAccessDone(true);
       say("bot", `Ferdig! ${savedConn.name} er klar til bruk i chatten.`);
     } catch {
       setStatus(null);
-      say("bot", "Kunne ikke lagre tilgangene. Prøv igjen.");
+      setTablesDone(false);
+      say("bot", "Kunne ikke lagre. Prøv igjen.");
     }
-  }
-
-  function toggleUser(email: string) {
-    const u = users.find((x) => x.email === email);
-    if (!u) return;
-    setSelUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(u.id)) next.delete(u.id);
-      else next.add(u.id);
-      return next;
-    });
-    setInput("");
-    setHilite(0);
   }
 
   function pick(option: string) {
     if (tablesPhase) {
       if (option === DONE_ITEM) finishTables();
       else toggleTable(option);
-      return;
-    }
-    if (accessPhase) {
-      if (option === ALL_ITEM) finishAccess([], "Alle brukere");
-      else if (option === ME_ITEM) finishAccess(meId ? [meId] : [], "Kun meg");
-      else if (option === DONE_ITEM)
-        finishAccess(
-          [...selUsers],
-          `Tilgang: ${users.filter((u) => selUsers.has(u.id)).map((u) => u.email).join(", ")}`
-        );
-      else toggleUser(option);
       return;
     }
     answer(option);
@@ -547,7 +492,7 @@ function ChatWizard(_props: {
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (tablesPhase || accessPhase) {
+      if (tablesPhase) {
         if (options.length > 0) pick(options[hilite]);
         return;
       }
@@ -602,13 +547,7 @@ function ChatWizard(_props: {
             {options.length > 0 && (
               <div className={styles.comboBody}>
                 <div className={styles.comboLabel}>
-                  {!sourceChosen
-                    ? "Kilder"
-                    : tablesPhase
-                      ? "Bord"
-                      : accessPhase
-                        ? "Tilgang"
-                        : "Forslag"}
+                  {!sourceChosen ? "Kilder" : tablesPhase ? "Bord" : "Forslag"}
                 </div>
                 {options.map((o, i) => (
                   <button
@@ -620,22 +559,13 @@ function ChatWizard(_props: {
                   >
                     <span
                       className={`${styles.comboDot} ${
-                        (tablesPhase && (o === DONE_ITEM || selTables.has(o))) ||
-                        (accessPhase &&
-                          (o === DONE_ITEM ||
-                            selUsers.has(users.find((u) => u.email === o)?.id ?? "")))
+                        tablesPhase && (o === DONE_ITEM || selTables.has(o))
                           ? styles.comboDotOn
                           : ""
                       }`}
                     />
                     <span className={styles.comboItemLabel}>
-                      {o === DONE_ITEM
-                        ? `Ferdig (${tablesPhase ? selTables.size : selUsers.size} valgt)`
-                        : o === ALL_ITEM
-                          ? "Alle brukere"
-                          : o === ME_ITEM
-                            ? "Kun meg"
-                            : o}
+                      {o === DONE_ITEM ? `Ferdig (${selTables.size} valgt)` : o}
                     </span>
                     {tablesPhase && o !== DONE_ITEM && (
                       <span className={styles.comboHint}>
