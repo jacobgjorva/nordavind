@@ -640,12 +640,6 @@ function AccessEditor({
       </div>
 
       <table className={styles.accTable}>
-        <thead>
-          <tr>
-            <th>Bruker</th>
-            <th className={styles.accTh2}>Tilgang</th>
-          </tr>
-        </thead>
         <tbody>
           {added.length === 0 ? (
             <tr>
