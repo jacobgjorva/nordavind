@@ -1091,9 +1091,11 @@
 
 .flowWire {
   display: inline-block;
-  width: 28px;
-  height: 1px;
+  width: 20px;
+  height: 2px;
+  border-radius: 1px;
   background: #4a4a4e;
+  margin: 0 6px;
 }
 
 .flowGap {
