@@ -10,6 +10,7 @@ import {
   saveConnectionConfig,
   type Connection,
   type ConnectionSchema,
+  type DbLink,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
 
@@ -267,7 +268,40 @@ function FadeText({ text }: { text: string }) {
   );
 }
 
-// Innhold i en ekspandert node: beskrivelse (mer kommer).
+// Enkel av/på-bryter i Guardrails-stil.
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.toggle} ${on ? styles.toggleOn : ""}`}
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+    >
+      <span className={styles.toggleKnob} />
+    </button>
+  );
+}
+
+const SQL_KW = new Set(
+  ("select from where join left right inner outer full cross on group order by " +
+    "limit offset having distinct count sum avg min max as and or not in is null " +
+    "like between union all case when then else end with asc desc").split(" ")
+);
+
+function highlightSql(sql: string) {
+  return sql.split(/([a-zA-Z_]+|[^a-zA-Z_]+)/).map((tok, i) =>
+    SQL_KW.has(tok.toLowerCase()) ? (
+      <span key={i} className={styles.sqlKw}>
+        {tok}
+      </span>
+    ) : (
+      <span key={i}>{tok}</span>
+    )
+  );
+}
+
+// Innhold i en ekspandert node: beskrivelse, relasjon-toggle, custom SQL-toggle.
 function NodeEditor({
   schema,
   table,
@@ -278,41 +312,181 @@ function NodeEditor({
   onSaved: () => void;
 }) {
   const cfgTables = schema.config.tables ?? [];
-  const initial = cfgTables.find((t) => t.name === table)?.description ?? "";
-  const [description, setDescription] = useState(initial);
+  const others = cfgTables.map((t) => t.name).filter((n) => n !== table);
+  const myCols = schema.tables.find((t) => t.name === table)?.columns ?? [];
+  const viewName = `${table}_query`;
+
+  const initialDesc = cfgTables.find((t) => t.name === table)?.description ?? "";
+  const initialLinks = (schema.config.links ?? []).filter(
+    (l) => l.from_table === table || l.to_table === table
+  );
+  const initialView = (schema.config.views ?? []).find((v) => v.name === viewName);
+
+  const [description, setDescription] = useState(initialDesc);
+  const [relOn, setRelOn] = useState(initialLinks.length > 0);
+  const [links, setLinks] = useState<DbLink[]>(initialLinks);
+  const [sqlOn, setSqlOn] = useState(Boolean(initialView));
+  const [sql, setSql] = useState(initialView?.sql ?? "");
   const [saving, setSaving] = useState(false);
-  const dirty = description !== initial;
+
+  const [fromCol, setFromCol] = useState("");
+  const [toTable, setToTable] = useState("");
+  const [toCol, setToCol] = useState("");
+  const toCols = schema.tables.find((t) => t.name === toTable)?.columns ?? [];
+
+  function addLink() {
+    if (!fromCol || !toTable || !toCol) return;
+    setLinks((prev) => [
+      ...prev,
+      { from_table: table, from_column: fromCol, to_table: toTable, to_column: toCol },
+    ]);
+    setFromCol("");
+    setToTable("");
+    setToCol("");
+  }
 
   async function save() {
     setSaving(true);
     try {
-      await saveConnectionConfig(
-        schema.connection.id,
-        cfgTables.map((t) => (t.name === table ? { ...t, description } : t)),
-        schema.config.links ?? [],
-        schema.config.views ?? []
+      const tables = cfgTables.map((t) =>
+        t.name === table ? { ...t, description } : t
       );
+      const otherLinks = (schema.config.links ?? []).filter(
+        (l) => l.from_table !== table && l.to_table !== table
+      );
+      const keptLinks = relOn ? [...otherLinks, ...links] : otherLinks;
+      const otherViews = (schema.config.views ?? []).filter((v) => v.name !== viewName);
+      const views =
+        sqlOn && sql.trim()
+          ? [...otherViews, { name: viewName, sql: sql.trim(), description: "" }]
+          : otherViews;
+      await saveConnectionConfig(schema.connection.id, tables, keptLinks, views);
       onSaved();
     } finally {
       setSaving(false);
     }
   }
 
+  const lines = sql.split("\n").length;
+
   return (
-    <span className={styles.nodeField}>
-      <span className={styles.nodeFieldLabel}>Beskrivelse</span>
-      <textarea
-        className={styles.nodeArea}
-        placeholder="Hva inneholder bordet? (vises til AI-en)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        autoFocus
-      />
-      {dirty && (
-        <button className={styles.nodeSave} onClick={save} disabled={saving}>
-          {saving ? "Lagrer …" : "Lagre"}
-        </button>
+    <span className={styles.nodeEditor}>
+      <span className={styles.nodeField}>
+        <span className={styles.nodeFieldLabel}>Beskrivelse</span>
+        <textarea
+          className={styles.nodeArea}
+          placeholder="Hva inneholder bordet? (vises til AI-en)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          autoFocus
+        />
+      </span>
+
+      <span className={styles.nodeToggleRow}>
+        <span className={styles.nodeToggleLabel}>Relasjon</span>
+        <Toggle on={relOn} onChange={setRelOn} />
+      </span>
+      {relOn && (
+        <span className={styles.nodeSub}>
+          {links.map((l, i) => (
+            <span key={i} className={styles.relLink}>
+              <span className={styles.relLinkText}>
+                {l.from_column} = {l.to_table}.{l.to_column}
+              </span>
+              <button
+                className={styles.remove}
+                onClick={() => setLinks((prev) => prev.filter((_, j) => j !== i))}
+              >
+                Fjern
+              </button>
+            </span>
+          ))}
+          {others.length > 0 ? (
+            <span className={styles.relAddRow}>
+              <select
+                className={styles.relSelect}
+                value={fromCol}
+                onChange={(e) => setFromCol(e.target.value)}
+              >
+                <option value="">Nøkkel …</option>
+                {myCols.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.relSelect}
+                value={toTable}
+                onChange={(e) => {
+                  setToTable(e.target.value);
+                  setToCol("");
+                }}
+              >
+                <option value="">Bord …</option>
+                {others.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.relSelect}
+                value={toCol}
+                onChange={(e) => setToCol(e.target.value)}
+                disabled={!toTable}
+              >
+                <option value="">Kolonne …</option>
+                {toCols.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={styles.relAdd}
+                onClick={addLink}
+                disabled={!fromCol || !toTable || !toCol}
+              >
+                +
+              </button>
+            </span>
+          ) : (
+            <span className={styles.nodeHint}>Ingen andre bord i denne tilkoblingen.</span>
+          )}
+        </span>
       )}
+
+      <span className={styles.nodeToggleRow}>
+        <span className={styles.nodeToggleLabel}>Custom SQL</span>
+        <Toggle on={sqlOn} onChange={setSqlOn} />
+      </span>
+      {sqlOn && (
+        <span className={styles.sqlEditor}>
+          <span className={styles.sqlGutter}>
+            {Array.from({ length: Math.max(lines, 3) }, (_, i) => (
+              <span key={i}>{i + 1}</span>
+            ))}
+          </span>
+          <span className={styles.sqlField}>
+            <pre className={styles.sqlHighlight} aria-hidden="true">
+              {highlightSql(sql)}
+              {"\n"}
+            </pre>
+            <textarea
+              className={styles.sqlInput}
+              value={sql}
+              placeholder={`SELECT * FROM ${table} JOIN …`}
+              spellCheck={false}
+              onChange={(e) => setSql(e.target.value)}
+            />
+          </span>
+        </span>
+      )}
+
+      <button className={styles.nodeSave} onClick={save} disabled={saving}>
+        {saving ? "Lagrer …" : "Lagre"}
+      </button>
     </span>
   );
 }
