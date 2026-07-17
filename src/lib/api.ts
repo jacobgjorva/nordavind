@@ -125,6 +125,20 @@ export async function appendChatMessage(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+export async function generateChatTitle(
+  id: string,
+  question: string,
+  answer: string
+): Promise<string> {
+  const res = await fetch(`${BASE_URL}/chats/${id}/title`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ question, answer }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).title;
+}
+
 export async function deleteChat(id: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/chats/${id}`, {
     method: "DELETE",

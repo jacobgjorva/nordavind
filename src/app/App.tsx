@@ -88,7 +88,15 @@ export default function App() {
           <Chat
             key={session.key}
             chatId={session.chatId}
+            initialTitle={
+              session.chatId
+                ? chats.find((c) => c.id === session.chatId)?.title ?? null
+                : null
+            }
             onChatCreated={onChatCreated}
+            onTitleGenerated={() => {
+              fetchChats().then(setChats).catch(() => {});
+            }}
           />
         ) : (
           <Settings user={user} />

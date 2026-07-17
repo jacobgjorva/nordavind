@@ -9,6 +9,7 @@ import {
   createChat,
   extractFile,
   fetchChatMessages,
+  generateChatTitle,
   streamChat,
   type ApiMessage,
   type Attachment,
@@ -166,12 +167,17 @@ function thinkingLabel(reasoning?: string): string {
 
 export function Chat({
   chatId,
+  initialTitle,
   onChatCreated,
+  onTitleGenerated,
 }: {
   chatId: string | null;
+  initialTitle?: string | null;
   onChatCreated?: (chat: ChatSummary) => void;
+  onTitleGenerated?: () => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [title, setTitle] = useState<string | null>(initialTitle ?? null);
   const chatIdRef = useRef<string | null>(chatId);
 
   // Last inn lagrede meldinger når en eksisterende samtale åpnes.
@@ -358,6 +364,7 @@ export function Chat({
             ? `${text}\n\n[Vedlegg: ${files.map((a) => a.name).join(", ")}]`
             : text;
         const cid = chatIdRef.current;
+        const isFirstExchange = history.length === 1;
         appendChatMessage(cid, { role: "user", content: displayContent })
           .then(() =>
             appendChatMessage(cid, {
@@ -367,6 +374,14 @@ export function Chat({
             })
           )
           .catch(() => {});
+        if (isFirstExchange) {
+          generateChatTitle(cid, text, acc)
+            .then((t) => {
+              setTitle(t);
+              onTitleGenerated?.();
+            })
+            .catch(() => {});
+        }
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
@@ -458,6 +473,9 @@ export function Chat({
 
   return (
     <div className={styles.chatRoot}>
+      {title && hasMessages && (
+        <div className={styles.titlePill}>{title}</div>
+      )}
       {hasMessages ? (
         <div className={styles.conversation}>
           <div
