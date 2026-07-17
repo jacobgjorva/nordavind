@@ -419,7 +419,7 @@ function TableManager({
             <div key={t.name} className={`${styles.tmRow} ${s.on ? styles.tmRowOn : ""}`}>
               <div
                 className={styles.tmTop}
-                onClick={() => s.on && patch(t.name, { open: !s.open })}
+                onClick={() => patch(t.name, { open: !s.open })}
               >
                 <input
                   type="checkbox"
@@ -431,7 +431,7 @@ function TableManager({
                 <span className={styles.colCount}>{t.columns.length} felt</span>
               </div>
 
-              {s.on && s.open && (
+              {s.open && (
                 <div className={styles.tmPanel}>
                   <div className={styles.tmField}>
                     <input
