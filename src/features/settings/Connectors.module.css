@@ -1660,8 +1660,8 @@
 .tmPanel {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 8px 14px 18px;
+  gap: 34px;
+  padding: 14px 14px 22px;
 }
 
 .tmDivider {
