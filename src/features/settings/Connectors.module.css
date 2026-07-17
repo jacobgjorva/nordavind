@@ -1706,15 +1706,16 @@
 .acc {
   display: flex;
   flex-direction: column;
-  border: 0.5px solid var(--border);
+  border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
   overflow: hidden;
 }
 
 .accSearchWrap {
   position: relative;
   width: 100%;
-  border-bottom: 0.5px solid var(--border);
+  border-bottom: 0.5px solid var(--border-strong);
 }
 
 .accSearch {
@@ -1742,7 +1743,7 @@
 .accTable td {
   padding: 9px 12px;
   text-align: left;
-  border-bottom: 0.5px solid var(--border);
+  border-bottom: 0.5px solid var(--border-strong);
 }
 
 .accTable thead th {

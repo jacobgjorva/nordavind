@@ -439,21 +439,9 @@ function TableManager({
                 />
                 <span className={styles.tableName}>{t.name}</span>
                 <span className={styles.colCount}>{t.columns.length} felt</span>
-                {s.on && (
-                  <button
-                    type="button"
-                    className={styles.tmExpand}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      patch(t.name, { open: !s.open });
-                    }}
-                  >
-                    {s.open ? "Skjul" : "Rediger"}
-                  </button>
-                )}
               </label>
 
-              {s.on && s.open && (
+              {s.on && (
                 <div className={styles.tmPanel}>
                   <div className={styles.tmField}>
                     <input
