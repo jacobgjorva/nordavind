@@ -712,3 +712,12 @@
   background: rgba(66, 153, 224, 0.25);
   color: var(--text);
 }
+
+.subLabel {
+  margin-top: 36px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
