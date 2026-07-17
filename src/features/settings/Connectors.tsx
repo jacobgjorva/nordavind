@@ -298,12 +298,20 @@ function ChatWizard(_props: {
             '"asdkjhasd" -> {"accept":false,"goto":null,"reply":"Det ser ut som tastetull - gi tilkoblingen et beskrivende navn."}. ' +
             '"vent, jeg vil bytte databasetype" -> {"accept":false,"goto":"driver","reply":"Ok, vi tar databasetypen på nytt."}. ' +
             `Hvis brukeren vil endre et TIDLIGERE felt (${fields}), sett goto til det feltet. ` +
+            'Hvis brukeren vil endre selve datakilden (angrer på valget Database/CSV osv., eller sier han svarte feil uten at noe felt er besvart ennå), sett goto til "source". ' +
             "reply skal ALDRI gjenta eller stille selve feltspørsmålet — det stilles automatisk etterpå. Hold reply til én kort setning, eller tom streng.",
         },
         { role: "user", content: value },
       ]);
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       setStatus(null);
+      if (parsed.goto === "source") {
+        if (parsed.reply) say("bot", parsed.reply);
+        setSourceChosen(false);
+        setAnswers({});
+        setEditKey(null);
+        return;
+      }
       const gotoStep = parsed.goto ? DB_FLOW.find((f) => f.key === parsed.goto) : null;
       if (gotoStep) {
         if (parsed.reply) say("bot", parsed.reply);
