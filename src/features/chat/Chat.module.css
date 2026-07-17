@@ -105,6 +105,9 @@
   /* Kun vår egen scroll-logikk styrer posisjonen */
   overflow-anchor: none;
   padding: 72px 20px 12px;
+  /* Innhold fader ut mot toppen i stedet for å kollidere med tittelen */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 24px, black 72px);
+  mask-image: linear-gradient(to bottom, transparent 24px, black 72px);
 }
 
 .messagesInner {
