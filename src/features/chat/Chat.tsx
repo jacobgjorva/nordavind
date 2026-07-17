@@ -252,24 +252,25 @@ export function Chat({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
-  // Auto-scroll kun når brukeren står nær bunnen — ellers eier de scrollen.
-  const pinnedRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hasMessages = messages.length > 0;
 
-  function handleScroll() {
-    const el = messagesRef.current;
-    if (!el) return;
-    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  }
+  // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
+  // strømmer nedover derfra og brukeren eier scrollen ellers.
+  const scrollToMsgRef = useRef<string | null>(null);
 
   useEffect(() => {
     const el = messagesRef.current;
-    if (el && pinnedRef.current) {
-      // Instant, ikke smooth: under streaming rekker ikke smooth-animasjonen
-      // å følge med, og innholdet havner under folden.
-      el.scrollTop = el.scrollHeight;
+    if (!el || !scrollToMsgRef.current) return;
+    const target = el.querySelector(
+      `[data-mid="${scrollToMsgRef.current}"]`
+    ) as HTMLElement | null;
+    if (target) {
+      const delta =
+        target.getBoundingClientRect().top - el.getBoundingClientRect().top;
+      el.scrollTop += delta - 16;
+      scrollToMsgRef.current = null;
     }
   }, [messages]);
 
@@ -341,12 +342,13 @@ export function Chat({
       { role: "user", content: apiContent },
     ];
 
-    pinnedRef.current = true;
+    const userMsgId = nextId();
+    scrollToMsgRef.current = userMsgId;
     const replyId = nextId();
     setMessages((prev) => [
       ...prev,
       {
-        id: nextId(),
+        id: userMsgId,
         role: "user",
         content: apiContent,
         display: text,
@@ -546,15 +548,12 @@ export function Chat({
       )}
       {hasMessages ? (
         <div className={styles.conversation}>
-          <div
-            className={styles.messages}
-            ref={messagesRef}
-            onScroll={handleScroll}
-          >
+          <div className={styles.messages} ref={messagesRef}>
             <div className={styles.messagesInner}>
               {messages.map((m) => (
                 <div
                   key={m.id}
+                  data-mid={m.id}
                   className={`${styles.row} ${
                     m.role === "user" ? styles.user : styles.assistant
                   }`}
@@ -575,7 +574,7 @@ export function Chat({
                           >
                             {m.content}
                           </Markdown>
-                          {!busy && (
+                          {!m.streaming && !m.loading && (
                             <MessageActions
                               content={m.content}
                               sources={m.sources}

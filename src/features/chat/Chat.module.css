@@ -102,6 +102,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Kun vår egen scroll-logikk styrer posisjonen */
+  overflow-anchor: none;
   padding: 32px 20px 12px;
 }
 
@@ -112,6 +114,8 @@
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
+  /* Luft under siste melding slik at nye spørsmål kan legges øverst i viewporten */
+  padding-bottom: 75vh;
 }
 
 .composerDocked {
