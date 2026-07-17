@@ -38,32 +38,33 @@ export function Connectors() {
   if (error && !conns) return <div className={styles.error}>{error}</div>;
   if (!conns) return null;
 
+  // Ny tilkobling tar over hele siden.
+  if (canvas) {
+    return (
+      <ChatWizard
+        initialConn={canvas.conn}
+        onClose={() => {
+          setCanvas(null);
+          reload();
+        }}
+      />
+    );
+  }
+
   return (
     <div className={styles.content}>
       <div className={styles.section}>
         <div className={styles.head}>
           <div className={styles.sectionTitle}>Databaser</div>
-          {!canvas && (
-            <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
-              Ny tilkobling
-            </button>
-          )}
+          <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
+            Ny tilkobling
+          </button>
         </div>
         <div className={styles.sectionDesc}>
           Koble til bedriftens egne databaser og velg hva AI-en får se.
         </div>
 
-        {canvas && (
-          <ChatWizard
-            initialConn={canvas.conn}
-            onClose={() => {
-              setCanvas(null);
-              reload();
-            }}
-          />
-        )}
-
-        {conns.length === 0 && !canvas && (
+        {conns.length === 0 && (
           <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
         )}
         {conns.map((c) => (
