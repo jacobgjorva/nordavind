@@ -1131,7 +1131,6 @@
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  overflow-y: auto;
 }
 
 .headActions {
@@ -1167,16 +1166,18 @@
 
 .nodePopover {
   position: absolute;
-  bottom: calc(100% + 12px);
+  top: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  width: 320px;
-  padding: 14px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: #1a1a1c;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  width: 340px;
+  padding: 16px;
+  border: 0.5px solid #3e3f41;
+  border-radius: var(--radius-lg);
+  background: rgba(38, 38, 42, 0.72);
+  backdrop-filter: blur(48px) saturate(160%);
+  -webkit-backdrop-filter: blur(48px) saturate(160%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   text-align: left;
   cursor: default;
   animation: popIn 0.16s var(--ease-out) backwards;
@@ -1185,7 +1186,7 @@
 @keyframes popIn {
   from {
     opacity: 0;
-    transform: translate(-50%, 6px);
+    transform: translate(-50%, -6px);
   }
   to {
     opacity: 1;
@@ -1197,18 +1198,42 @@
 .nodePopover::after {
   content: "";
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   border: 6px solid transparent;
-  border-top-color: #1a1a1c;
+  border-bottom-color: rgba(38, 38, 42, 0.72);
+}
+
+.popHead {
+  margin-bottom: 16px;
 }
 
 .popTitle {
   font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.popSub {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.popField {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.popFieldLabel {
+  padding-top: 7px;
+  color: var(--text-muted);
   font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
 }
 
 .popLabel {

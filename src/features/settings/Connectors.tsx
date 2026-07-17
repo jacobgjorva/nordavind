@@ -339,16 +339,23 @@ function NodePopover({
 
   return (
     <div className={styles.nodePopover} onClick={(e) => e.stopPropagation()}>
-      <div className={styles.popTitle}>{table}</div>
+      <div className={styles.popHead}>
+        <div className={styles.popTitle}>{table}</div>
+        <div className={styles.popSub}>
+          Beskriv bordet og koble det til andre bord AI-en kan bruke.
+        </div>
+      </div>
 
-      <div className={styles.popLabel}>Beskrivelse</div>
-      <textarea
-        className={styles.popArea}
-        placeholder="Hva inneholder bordet? (vises til AI-en)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        autoFocus
-      />
+      <div className={styles.popField}>
+        <span className={styles.popFieldLabel}>Beskrivelse</span>
+        <textarea
+          className={styles.popArea}
+          placeholder="Hva inneholder bordet?"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          autoFocus
+        />
+      </div>
 
       <div className={styles.popLabel}>Relasjoner</div>
       {links.length === 0 && <div className={styles.popEmpty}>Ingen relasjoner ennå.</div>}
