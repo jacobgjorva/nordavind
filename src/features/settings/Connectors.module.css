@@ -1976,3 +1976,13 @@
   height: 11px;
   border-radius: 1.5px;
 }
+
+.costSegEmpty {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--border-strong) 0px,
+    var(--border-strong) 1.5px,
+    transparent 1.5px,
+    transparent 3.5px
+  );
+}

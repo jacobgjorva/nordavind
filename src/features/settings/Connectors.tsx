@@ -196,8 +196,8 @@ function CostBar({ cols }: { cols: number }) {
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
-          className={styles.costSeg}
-          style={{ background: i < level ? "#6ef16a" : "rgba(255,255,255,0.1)" }}
+          className={`${styles.costSeg} ${i < level ? "" : styles.costSegEmpty}`}
+          style={i < level ? { background: "#6ef16a" } : undefined}
         />
       ))}
     </span>
