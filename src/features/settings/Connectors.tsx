@@ -743,7 +743,7 @@ function TableManager({
                     <span className={styles.tmLabel}>Spørring</span>
                     <div className={styles.sqlEditor}>
                       <div className={styles.sqlGutter}>
-                        {Array.from({ length: Math.max(lines, 3) }, (_, i) => (
+                        {Array.from({ length: lines }, (_, i) => (
                           <span key={i}>{i + 1}</span>
                         ))}
                       </div>
