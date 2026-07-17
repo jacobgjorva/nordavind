@@ -913,6 +913,9 @@
 .canvasCenter {
   flex: 1;
   min-height: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;

@@ -898,31 +898,28 @@ function ChatWizard(_props: {
 
   return (
     <div className={styles.createPage}>
-      <div className={styles.sectionTitle}>Opprett kobling</div>
-      <div className={styles.canvas}>
-        <div className={styles.canvasCenter}>
-          {log.map((m) => (
-            <div
-              key={m.id}
-              className={m.role === "bot" ? styles.canvasQuestion : styles.canvasChoice}
-            >
-              {m.text}
-            </div>
-          ))}
-          {question && (
-            <div className={styles.canvasQuestion} key={`q-${activeStep?.key ?? "source"}`}>
-              <FadeText text={question} />
-            </div>
-          )}
-          {status && (
-            <div className={chatStyles.step}>
-              <span className={chatStyles.thinkingLogo}>
-                <Logo size={10} flutter glow="#ffffff" />
-              </span>
-              <span className={chatStyles.stepActive}>{status} …</span>
-            </div>
-          )}
-        </div>
+      <div className={styles.canvasCenter}>
+        {log.map((m) => (
+          <div
+            key={m.id}
+            className={m.role === "bot" ? styles.canvasQuestion : styles.canvasChoice}
+          >
+            {m.text}
+          </div>
+        ))}
+        {question && (
+          <div className={styles.canvasQuestion} key={`q-${activeStep?.key ?? "source"}`}>
+            <FadeText text={question} />
+          </div>
+        )}
+        {status && (
+          <div className={chatStyles.step}>
+            <span className={chatStyles.thinkingLogo}>
+              <Logo size={10} flutter glow="#ffffff" />
+            </span>
+            <span className={chatStyles.stepActive}>{status} …</span>
+          </div>
+        )}
       </div>
       <div className={chatStyles.composerDocked}>
         <div className={chatStyles.composerWrap}>
