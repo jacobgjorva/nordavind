@@ -134,9 +134,11 @@ export function Connectors() {
       <div className={styles.section}>
         <div className={styles.head}>
           <div className={styles.sectionTitle}>Databaser</div>
-          <button className={styles.primary} onClick={() => setFormOpen(!formOpen)}>
-            {formOpen ? "Avbryt" : "Ny tilkobling"}
-          </button>
+          {!formOpen && (
+            <button className={styles.primary} onClick={() => setFormOpen(true)}>
+              Ny tilkobling
+            </button>
+          )}
         </div>
         <div className={styles.sectionDesc}>
           Koble til bedriftens egne databaser og velg hva AI-en får se.
@@ -144,6 +146,7 @@ export function Connectors() {
 
         {formOpen && (
           <NewConnectionForm
+            onCancel={() => setFormOpen(false)}
             onCreated={(c) => {
               setFormOpen(false);
               reload();
@@ -295,7 +298,13 @@ export function Connectors() {
   );
 }
 
-function NewConnectionForm({ onCreated }: { onCreated: (c: Connection) => void }) {
+function NewConnectionForm({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void;
+  onCreated: (c: Connection) => void;
+}) {
   const [driver, setDriver] = useState("postgres");
   const [form, setForm] = useState({
     name: "",
@@ -356,9 +365,14 @@ function NewConnectionForm({ onCreated }: { onCreated: (c: Connection) => void }
         <input className={styles.input} type="password" placeholder="Passord" value={form.password} onChange={set("password")} />
       </div>
       {error && <div className={styles.error}>{error}</div>}
-      <button className={styles.primary} disabled={busy}>
-        {busy ? "Kobler til …" : "Koble til"}
-      </button>
+      <div className={styles.formActions}>
+        <button type="button" className={styles.cancel} onClick={onCancel}>
+          Avbryt
+        </button>
+        <button className={styles.primary} disabled={busy}>
+          {busy ? "Kobler til …" : "Koble til"}
+        </button>
+      </div>
     </form>
   );
 }

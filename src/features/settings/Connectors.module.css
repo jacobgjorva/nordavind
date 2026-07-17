@@ -110,9 +110,28 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px;
-  border: 0.5px solid var(--border);
+  padding: 16px 0;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.cancel {
+  padding: 7px 14px;
+  border: none;
   border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cancel:hover {
+  color: var(--text);
 }
 
 .formRow {
@@ -125,7 +144,7 @@
   flex: 1;
   min-width: 0;
   padding: 8px 12px;
-  border: 0.5px solid var(--border-strong);
+  border: 0.5px solid #ffffff;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text);
