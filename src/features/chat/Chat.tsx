@@ -62,43 +62,33 @@ const MODEL_GLOW: Record<string, string> = {
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
 
-// Streamet tekst der hele ord fades inn — aldri halvskrevne ord.
-// Ufullstendige ord holdes tilbake til ordgrensen kommer; markdown tar
-// over når svaret er ferdig.
+// Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
+// nettverks-chunkenes rykkete ankomst. Ufullstendige ord holdes tilbake;
+// markdown tar over når svaret er ferdig.
 function StreamingText({ content }: { content: string }) {
-  const committedRef = useRef(0);
-  const wordsRef = useRef<{ id: number; text: string; delay: number }[]>([]);
+  const [visible, setVisible] = useState(0);
 
   // Commit kun frem til siste ordgrense.
-  const boundary = Math.max(
-    content.lastIndexOf(" "),
-    content.lastIndexOf("\n")
-  );
-  const commitTo = boundary >= 0 ? boundary + 1 : 0;
+  const boundary = Math.max(content.lastIndexOf(" "), content.lastIndexOf("\n"));
+  const committed = boundary >= 0 ? content.slice(0, boundary + 1) : "";
+  const words = committed.match(/\S+\s*|\s+/g) ?? [];
 
-  if (commitTo > committedRef.current) {
-    const fresh = content.slice(committedRef.current, commitTo);
-    // Ett span per ord; ord i samme batch stagges litt for flytende flow.
-    const batch = fresh.match(/\S+\s*|\s+/g) ?? [];
-    batch.forEach((word, i) => {
-      wordsRef.current.push({
-        id: wordsRef.current.length,
-        text: word,
-        delay: Math.min(i * 60, 360),
-      });
-    });
-    committedRef.current = commitTo;
-  }
+  useEffect(() => {
+    if (visible >= words.length) return;
+    // Jevn takt; øker steget hvis vi ligger langt bak streamen.
+    const backlog = words.length - visible;
+    const t = setTimeout(
+      () => setVisible((v) => Math.min(v + Math.ceil(backlog / 25), words.length)),
+      45
+    );
+    return () => clearTimeout(t);
+  }, [visible, words.length]);
 
   return (
     <span className={styles.streamingText}>
-      {wordsRef.current.map((w) => (
-        <span
-          key={w.id}
-          className={styles.fadeSeg}
-          style={{ animationDelay: `${w.delay}ms` }}
-        >
-          {w.text}
+      {words.slice(0, visible).map((w, i) => (
+        <span key={i} className={styles.fadeSeg}>
+          {w}
         </span>
       ))}
     </span>
