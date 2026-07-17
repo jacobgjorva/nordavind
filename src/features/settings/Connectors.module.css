@@ -918,8 +918,8 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  /* Bunnluft løfter aktivt spørsmål til vertikalt senter */
-  padding: 24px 24px 20%;
+  /* Bunnluft: nyeste systemmelding lander på vertikalt senter */
+  padding: 24px 24px calc(50% - 40px);
   overflow-y: hidden;
   /* Eldre meldinger fader raskt ut oppover */
   -webkit-mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
