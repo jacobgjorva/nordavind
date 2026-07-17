@@ -1856,7 +1856,6 @@
   flex-direction: column;
   gap: 12px;
   padding-right: 6px;
-  border-right: 0.5px solid var(--border);
 }
 
 .connSidebar > .primary {
