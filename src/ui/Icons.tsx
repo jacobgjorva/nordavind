@@ -70,6 +70,16 @@ export function AttachIcon(props: IconProps) {
   );
 }
 
+export function DotsIcon(props: IconProps) {
+  return (
+    <svg {...svgProps(props)}>
+      <circle cx="5" cy="12" r="0.75" />
+      <circle cx="12" cy="12" r="0.75" />
+      <circle cx="19" cy="12" r="0.75" />
+    </svg>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <svg {...svgProps(props)}>

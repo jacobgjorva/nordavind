@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Logo } from "../../ui/Logo";
-import { AttachIcon, CopyIcon, SearchIcon, ShareIcon } from "../../ui/Icons";
+import {
+  AttachIcon,
+  CopyIcon,
+  DotsIcon,
+  SearchIcon,
+  ShareIcon,
+} from "../../ui/Icons";
 import {
   apiConfigured,
   appendChatMessage,
@@ -178,6 +184,14 @@ export function Chat({
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [title, setTitle] = useState<string | null>(initialTitle ?? null);
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!titleMenuOpen) return;
+    const close = () => setTitleMenuOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [titleMenuOpen]);
   const chatIdRef = useRef<string | null>(chatId);
 
   // Last inn lagrede meldinger når en eksisterende samtale åpnes.
@@ -474,7 +488,24 @@ export function Chat({
   return (
     <div className={styles.chatRoot}>
       {title && hasMessages && (
-        <div className={styles.titlePill}>{title}</div>
+        <div className={styles.titlePill}>
+          <span className={styles.titleText}>{title}</span>
+          <button
+            className={styles.titleMenuBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              setTitleMenuOpen((o) => !o);
+            }}
+            aria-label="Samtalemeny"
+          >
+            <DotsIcon size={15} />
+          </button>
+          {titleMenuOpen && (
+            <div className={styles.titleMenu}>
+              <span className={styles.titleMenuEmpty}>Kommer snart</span>
+            </div>
+          )}
+        </div>
       )}
       {hasMessages ? (
         <div className={styles.conversation}>

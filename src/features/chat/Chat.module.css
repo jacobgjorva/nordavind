@@ -14,15 +14,60 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   max-width: 60%;
   padding: 5px 0;
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
+  animation: titleIn 0.5s var(--ease-out) backwards;
+}
+
+.titleText {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  animation: titleIn 0.5s var(--ease-out) backwards;
+}
+
+.titleMenuBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.titleMenuBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.titleMenu {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  min-width: 140px;
+  padding: 6px;
+  background: #232326;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.titleMenuEmpty {
+  display: block;
+  padding: 6px 8px;
+  color: var(--text-faint);
+  font-size: 13px;
 }
 
 @keyframes titleIn {
