@@ -355,6 +355,60 @@ function ConnectStep({ onConnected }: { onConnected: (c: Connection) => void }) 
   );
 }
 
+// SQL-editor med syntaksfarging: et gjennomsiktig textarea over et
+// farget speil-lag, pluss linjenummer-renne.
+const SQL_KEYWORDS = new Set(
+  ("select from where join left right inner outer full cross on group order by " +
+    "limit offset having distinct count sum avg min max as and or not in is null " +
+    "like between union all case when then else end with asc desc").split(" ")
+);
+
+function highlightSql(sql: string) {
+  return sql.split(/([a-zA-Z_]+|[^a-zA-Z_]+)/).map((tok, i) =>
+    SQL_KEYWORDS.has(tok.toLowerCase()) ? (
+      <span key={i} className={styles.sqlKw}>
+        {tok}
+      </span>
+    ) : (
+      <span key={i}>{tok}</span>
+    )
+  );
+}
+
+function SqlEditor({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const lines = value.split("\n").length;
+  return (
+    <div className={styles.sqlEditor}>
+      <div className={styles.sqlGutter}>
+        {Array.from({ length: Math.max(lines, 4) }, (_, i) => (
+          <span key={i}>{i + 1}</span>
+        ))}
+      </div>
+      <div className={styles.sqlField}>
+        <pre className={styles.sqlHighlight} aria-hidden="true">
+          {highlightSql(value)}
+          {"\n"}
+        </pre>
+        <textarea
+          className={styles.sqlInput}
+          value={value}
+          placeholder={placeholder}
+          spellCheck={false}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
 // Steg 2: bordvalg med søk/paginering + custom SQL-spørringer.
 const PAGE_SIZE = 5;
 
@@ -374,7 +428,6 @@ function TableStep({
   const [tab, setTab] = useState<"tables" | "sql">("tables");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<DbView>({ name: "", sql: "", description: "" });
 
   const filtered = useMemo(
@@ -395,7 +448,6 @@ function TableStep({
     if (!draft.name.trim() || !draft.sql.trim()) return;
     setViews([...views.filter((v) => v.name !== draft.name), draft]);
     setDraft({ name: "", sql: "", description: "" });
-    setEditorOpen(false);
   }
 
   return (
@@ -429,41 +481,30 @@ function TableStep({
           </button>
         </div>
       ))}
-      {editorOpen ? (
-        <div className={styles.viewEditor}>
-          <input
-            className={styles.input}
-            placeholder="Navn (f.eks. ordre_per_kunde)"
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          />
-          <textarea
-            className={styles.sqlArea}
-            placeholder="SELECT c.name, SUM(o.total) FROM orders o JOIN customers c ON …"
-            value={draft.sql}
-            spellCheck={false}
-            onChange={(e) => setDraft({ ...draft, sql: e.target.value })}
-          />
-          <input
-            className={styles.input}
-            placeholder="Beskrivelse (valgfri)"
-            value={draft.description}
-            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-          />
-          <div className={styles.formActions}>
-            <button className={styles.cancel} onClick={() => setEditorOpen(false)}>
-              Avbryt
-            </button>
-            <button className={styles.primary} onClick={addView} disabled={!draft.name.trim() || !draft.sql.trim()}>
-              Legg til
-            </button>
-          </div>
+      <div className={styles.viewEditor}>
+        <input
+          className={styles.input}
+          placeholder="Navn (f.eks. ordre_per_kunde)"
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+        />
+        <SqlEditor
+          value={draft.sql}
+          placeholder="SELECT c.name, SUM(o.total) FROM orders o JOIN customers c ON …"
+          onChange={(sql) => setDraft({ ...draft, sql })}
+        />
+        <input
+          className={styles.input}
+          placeholder="Beskrivelse (valgfri)"
+          value={draft.description}
+          onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+        />
+        <div className={styles.formActions}>
+          <button className={styles.primary} onClick={addView} disabled={!draft.name.trim() || !draft.sql.trim()}>
+            Legg til
+          </button>
         </div>
-      ) : (
-        <button className={styles.secondaryWide} onClick={() => setEditorOpen(true)}>
-          Ny SQL-spørring
-        </button>
-      )}
+      </div>
         </>
       )}
 

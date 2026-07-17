@@ -542,6 +542,72 @@
   gap: 10px;
 }
 
+.sqlEditor {
+  display: flex;
+  gap: 14px;
+  min-height: 110px;
+  padding: 14px 16px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #1b1b1e;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sqlGutter {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--text-faint);
+  user-select: none;
+}
+
+.sqlField {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.sqlHighlight,
+.sqlInput {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sqlHighlight {
+  color: var(--text);
+  pointer-events: none;
+  min-height: 100%;
+}
+
+.sqlKw {
+  color: #c2defc;
+}
+
+.sqlInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  resize: none;
+  outline: none;
+}
+
+.sqlInput::placeholder {
+  color: var(--text-faint);
+}
+
 .sqlArea {
   min-height: 90px;
   padding: 10px 12px;
