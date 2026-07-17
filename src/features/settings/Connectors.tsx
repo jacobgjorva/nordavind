@@ -92,6 +92,28 @@ export function Connectors() {
 }
 
 // Canvas som åpnes ved «Ny tilkobling» — innholdet bygges videre senere.
+// Ord-for-ord fade-in, samme animasjon som hovedchatten.
+function FadeText({ text }: { text: string }) {
+  const words = text.match(/\S+\s*/g) ?? [];
+  const [visible, setVisible] = useState(0);
+
+  useEffect(() => {
+    if (visible >= words.length) return;
+    const t = setTimeout(() => setVisible((v) => v + 1), 120);
+    return () => clearTimeout(t);
+  }, [visible, words.length]);
+
+  return (
+    <span className={chatStyles.streamingText}>
+      {words.slice(0, visible).map((w, i) => (
+        <span key={i} className={chatStyles.fadeSeg}>
+          {w}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function ChatWizard(_props: {
   initialConn: Connection | null;
   onClose: () => void;
@@ -109,7 +131,11 @@ function ChatWizard(_props: {
     <div className={styles.createPage}>
       <div className={styles.sectionTitle}>Opprett kobling</div>
       <div className={styles.canvas}>
-        <div className={styles.canvasScroll} />
+        <div className={styles.canvasCenter}>
+          <div className={styles.canvasQuestion}>
+            <FadeText text="Hva skal vi koble til?" />
+          </div>
+        </div>
       </div>
       <div className={chatStyles.composerDocked}>
         <div className={chatStyles.composerWrap}>
