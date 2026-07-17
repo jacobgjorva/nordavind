@@ -913,20 +913,21 @@
 .canvasCenter {
   flex: 1;
   min-height: 0;
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 14px;
-  /* Bunnluft: nyeste systemmelding lander på vertikalt senter */
-  /* %-padding følger bredden, så halv canvashøyde regnes fra viewport */
-  padding: 24px 24px calc((100vh - 532px) / 2 - 40px);
-  overflow-y: hidden;
-  /* Eldre meldinger fader raskt ut oppover */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
-  mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
+  gap: 24px;
+  /* Samme kolonne/padding som meldingene i hovedchatten */
+  padding: 72px 20px 12px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.canvasCenter::-webkit-scrollbar {
+  display: none;
 }
 
 .canvasQuestion {
