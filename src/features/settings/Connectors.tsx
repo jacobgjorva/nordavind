@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import chatStyles from "../chat/Chat.module.css";
 import {
   deleteConnection,
   fetchConnections,
@@ -95,11 +96,41 @@ function ChatWizard(_props: {
   initialConn: Connection | null;
   onClose: () => void;
 }) {
+  const [input, setInput] = useState("");
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      setInput("");
+    }
+  }
+
   return (
     <div className={styles.content}>
       <div className={styles.sectionTitle}>Opprett kobling</div>
       <div className={styles.canvas}>
-      <div className={styles.canvasScroll} />
+        <div className={styles.canvasScroll} />
+        <div className={styles.canvasComposer}>
+          <div className={chatStyles.composer}>
+            <div className={chatStyles.inputRow}>
+              <textarea
+                className={chatStyles.input}
+                rows={1}
+                placeholder="Spør om hva som helst …"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoFocus
+              />
+            </div>
+            <div className={chatStyles.footer}>
+              <span className={chatStyles.modelInfo}>Modell: Bris</span>
+              <span className={chatStyles.sendHint}>
+                Send <span className={chatStyles.kbd}>↵</span>
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

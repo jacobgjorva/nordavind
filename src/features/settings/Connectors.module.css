@@ -889,3 +889,7 @@
 .canvasInput:disabled {
   opacity: 0.5;
 }
+
+.canvasComposer {
+  padding: 12px 16px 16px;
+}
