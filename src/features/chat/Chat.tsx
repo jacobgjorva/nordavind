@@ -29,6 +29,8 @@ interface ChatMessage extends ApiMessage {
   loading?: boolean;
   error?: boolean;
   reasoning?: string;
+  /** Svar under streaming — rendres med fade-in i stedet for markdown */
+  streaming?: boolean;
   /** Faktisk modell backend valgte (fra streamen) */
   resolvedModel?: string;
   /** Kilder fra backendens websøk */
@@ -59,6 +61,31 @@ const MODEL_GLOW: Record<string, string> = {
 // Kollisjonsfrie ID-er: en teller nullstilles ved hot reload og gjenbruker
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
+
+// Streamet tekst med fade-in per mottatt segment i stedet for "skriving".
+// Rendres som ren tekst under streaming; markdown tar over når svaret er ferdig.
+function StreamingText({ content }: { content: string }) {
+  const prevLenRef = useRef(0);
+  const segmentsRef = useRef<{ id: number; text: string }[]>([]);
+
+  if (content.length > prevLenRef.current) {
+    segmentsRef.current = [
+      ...segmentsRef.current,
+      { id: segmentsRef.current.length, text: content.slice(prevLenRef.current) },
+    ];
+    prevLenRef.current = content.length;
+  }
+
+  return (
+    <span className={styles.streamingText}>
+      {segmentsRef.current.map((s) => (
+        <span key={s.id} className={styles.fadeSeg}>
+          {s.text}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 // Handlingsrad under hvert assistentsvar: kopier, del, kilder.
 function MessageActions({
@@ -362,6 +389,7 @@ export function Chat({
             loading: !acc && !think && steps.length === 0,
             content: acc,
             reasoning: acc ? undefined : think,
+            streaming: true,
             resolvedModel: resolved,
             sources: [...sources],
             steps: [...steps],
@@ -369,6 +397,7 @@ export function Chat({
         },
         abortRef.current.signal
       );
+      update(replyId, { streaming: false });
       if (!acc) update(replyId, { loading: false, content: "(tomt svar)" });
 
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
@@ -528,7 +557,9 @@ export function Chat({
                     }`}
                   >
                     {m.content ? (
-                      m.role === "assistant" && !m.error ? (
+                      m.role === "assistant" && m.streaming ? (
+                        <StreamingText content={m.content} />
+                      ) : m.role === "assistant" && !m.error ? (
                         <div className={styles.markdown}>
                           <Markdown
                             remarkPlugins={[remarkGfm]}
