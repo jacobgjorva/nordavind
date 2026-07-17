@@ -417,17 +417,21 @@ function TableManager({
           const lines = s.sql.split("\n").length;
           return (
             <div key={t.name} className={`${styles.tmRow} ${s.on ? styles.tmRowOn : ""}`}>
-              <label className={styles.tmTop}>
+              <div
+                className={styles.tmTop}
+                onClick={() => s.on && patch(t.name, { open: !s.open })}
+              >
                 <input
                   type="checkbox"
                   checked={s.on}
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => toggleTableOn(t.name, e.target.checked)}
                 />
                 <span className={styles.tableName}>{t.name}</span>
                 <span className={styles.colCount}>{t.columns.length} felt</span>
-              </label>
+              </div>
 
-              {s.on && (
+              {s.on && s.open && (
                 <div className={styles.tmPanel}>
                   <div className={styles.tmField}>
                     <input
