@@ -385,3 +385,239 @@
   gap: 6px;
   align-items: flex-start;
 }
+
+/* --- Wizard --- */
+
+.wizardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 20px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.wizStep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.wizStepActive {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.wizStepDone {
+  color: var(--text-muted);
+}
+
+.wizNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 11px;
+}
+
+.wizStepActive .wizNum {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.wizardHead .cancel {
+  margin-left: auto;
+}
+
+.wizardFoot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+  margin-top: 24px;
+  border-top: 0.5px solid var(--border);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+}
+
+/* Bordvalg */
+
+.pickRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.pickRow:hover {
+  background: var(--bg-hover);
+}
+
+.pickRow input {
+  accent-color: #fff;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.pagerInfo {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+/* Custom SQL */
+
+.viewRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.viewSql {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.viewEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sqlArea {
+  min-height: 90px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: #2a2a2a;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.sqlArea:focus {
+  border-color: #4299e0;
+}
+
+.secondaryWide {
+  align-self: flex-start;
+  padding: 7px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.secondaryWide:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Relasjonsgraf */
+
+.graphWrap {
+  position: relative;
+  padding: 8px 0;
+}
+
+.graphLinks {
+  position: absolute;
+  inset: 8px auto auto 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.wire {
+  fill: none;
+  stroke: #4299e0;
+  stroke-width: 1.5;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.wire:hover {
+  stroke: #e8888d;
+  stroke-width: 2;
+}
+
+.node {
+  display: inline-flex;
+  flex-direction: column;
+  position: absolute;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #161618;
+  overflow: hidden;
+}
+
+.nodeHead {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.nodeCol {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.nodeCol:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.nodeColActive {
+  background: rgba(66, 153, 224, 0.25);
+  color: var(--text);
+}
