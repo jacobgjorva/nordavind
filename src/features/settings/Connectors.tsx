@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import chatStyles from "../chat/Chat.module.css";
 import { Logo } from "../../ui/Logo";
+import { SearchIcon } from "../../ui/Icons";
 import {
   completeChat,
   createConnection,
@@ -235,7 +236,7 @@ interface LogMsg {
 
 let logId = 0;
 
-// Tilgang per bord: søk + Enter legger til bruker som rad. Tom = alle.
+// Tilgang per bord: full brukertabell med søk, avkrysning og «alle»-modus.
 function AccessEditor({
   users,
   userIds,
@@ -246,68 +247,63 @@ function AccessEditor({
   onChange: (ids: string[]) => void;
 }) {
   const [query, setQuery] = useState("");
-  const added = users.filter((u) => userIds.includes(u.id));
-  const matches = users.filter(
-    (u) =>
-      !userIds.includes(u.id) &&
-      u.email.toLowerCase().includes(query.trim().toLowerCase())
-  );
+  const all = userIds.length === 0;
+  const q = query.trim().toLowerCase();
+  const rows = users.filter((u) => u.email.toLowerCase().includes(q));
 
-  function add(id: string) {
-    onChange([...userIds, id]);
-    setQuery("");
+  function toggle(id: string) {
+    if (userIds.includes(id)) {
+      onChange(userIds.filter((x) => x !== id));
+    } else {
+      onChange([...userIds, id]);
+    }
   }
 
   return (
     <div className={styles.acc}>
       <div className={styles.accSearchWrap}>
+        <SearchIcon size={14} className={styles.accSearchIcon} />
         <input
           className={styles.accSearch}
-          placeholder="Søk og legg til bruker …"
+          placeholder="Søk brukere …"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && matches.length > 0) {
-              e.preventDefault();
-              add(matches[0].id);
-            }
-          }}
         />
-        {query.trim() && matches.length > 0 && (
-          <div className={styles.accMenu}>
-            {matches.slice(0, 5).map((u) => (
-              <button key={u.id} className={styles.accMenuItem} onClick={() => add(u.id)}>
-                {u.email}
-              </button>
-            ))}
-          </div>
-        )}
+        <span className={styles.accCount}>
+          {all ? `Alle (${users.length})` : `${userIds.length} valgt`}
+        </span>
       </div>
 
-      <table className={styles.accTable}>
-        <tbody>
-          {added.length === 0 ? (
-            <tr>
-              <td className={styles.accAllCell}>Alle brukere</td>
-              <td className={styles.accAllCell}>Full</td>
-            </tr>
-          ) : (
-            added.map((u) => (
-              <tr key={u.id}>
-                <td>{u.email}</td>
-                <td className={styles.accTh2}>
-                  <button
-                    className={styles.remove}
-                    onClick={() => onChange(userIds.filter((id) => id !== u.id))}
-                  >
-                    Fjern
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+      <label className={`${styles.accRow} ${styles.accMaster}`}>
+        <input
+          type="checkbox"
+          checked={all}
+          onChange={() => onChange(all ? users.map((u) => u.id) : [])}
+        />
+        <span className={styles.accEmail}>Alle brukere</span>
+        <span className={styles.accRole}>hele tenanten</span>
+      </label>
+
+      <div className={styles.accBody}>
+        {rows.length === 0 && <div className={styles.accEmpty}>Ingen treff.</div>}
+        {rows.map((u) => {
+          const on = all || userIds.includes(u.id);
+          return (
+            <label key={u.id} className={styles.accRow}>
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={all}
+                onChange={() => toggle(u.id)}
+              />
+              <span className={`${styles.accEmail} ${all ? styles.accDim : ""}`}>
+                {u.email}
+              </span>
+              <span className={styles.accRole}>{u.role}</span>
+            </label>
+          );
+        })}
+      </div>
     </div>
   );
 }
