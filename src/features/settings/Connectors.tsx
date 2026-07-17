@@ -19,14 +19,63 @@ const DB_TYPES = [
   { key: "mssql", label: "SQL Server", port: 1433 },
 ];
 
+// Flowchart-data per tilkobling: valgte bord + relasjoner mellom dem.
+interface FlowInfo {
+  tables: string[];
+  links: { from: string; to: string }[];
+}
+
+// Kjederekkefølge: forbundne bord legges ved siden av hverandre.
+function chainOrder(tables: string[], links: { from: string; to: string }[]): string[] {
+  const adj = new Map<string, string[]>();
+  for (const l of links) {
+    adj.set(l.from, [...(adj.get(l.from) ?? []), l.to]);
+    adj.set(l.to, [...(adj.get(l.to) ?? []), l.from]);
+  }
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of tables) {
+    if (seen.has(t)) continue;
+    const stack = [t];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+      out.push(cur);
+      for (const n of adj.get(cur) ?? []) if (!seen.has(n)) stack.push(n);
+    }
+  }
+  return out;
+}
+
 export function Connectors() {
   const [conns, setConns] = useState<Connection[] | null>(null);
+  const [flows, setFlows] = useState<Record<string, FlowInfo>>({});
   const [error, setError] = useState<string | null>(null);
   const [canvas, setCanvas] = useState<{ conn: Connection | null } | null>(null);
 
   function reload() {
     fetchConnections()
-      .then(setConns)
+      .then((list) => {
+        setConns(list);
+        for (const c of list) {
+          fetchConnectionSchema(c.id)
+            .then((sch) => {
+              const chosen = new Set((sch.config.tables ?? []).map((t) => t.name));
+              const links = [
+                ...(sch.config.links ?? []),
+                ...(sch.suggested_links ?? []),
+              ]
+                .filter((l) => chosen.has(l.from_table) && chosen.has(l.to_table))
+                .map((l) => ({ from: l.from_table, to: l.to_table }));
+              setFlows((prev) => ({
+                ...prev,
+                [c.id]: { tables: [...chosen], links },
+              }));
+            })
+            .catch(() => {});
+        }
+      })
       .catch(() => setError("Kunne ikke hente tilkoblinger."));
   }
 
@@ -74,23 +123,66 @@ export function Connectors() {
         {conns.length === 0 && (
           <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
         )}
-        {conns.map((c) => (
-          <div key={c.id} className={styles.connRow} onClick={() => setCanvas({ conn: c })}>
-            <span className={styles.connName}>{c.name}</span>
-            <span className={styles.connDriver}>
-              {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
-            </span>
-            <button
-              className={styles.remove}
-              onClick={(e) => {
-                e.stopPropagation();
-                remove(c);
-              }}
-            >
-              Fjern
-            </button>
-          </div>
-        ))}
+        {conns.map((c) => {
+          const flow = flows[c.id];
+          const order = flow ? chainOrder(flow.tables, flow.links) : [];
+          const linked = (a: string, b: string) =>
+            flow?.links.some(
+              (l) => (l.from === a && l.to === b) || (l.from === b && l.to === a)
+            );
+          return (
+            <div key={c.id} className={styles.connCard} onClick={() => setCanvas({ conn: c })}>
+              <div className={styles.connCardHead}>
+                <span className={styles.connName}>{c.name}</span>
+                <span className={styles.connDriver}>
+                  {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
+                </span>
+                <button
+                  className={styles.remove}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    remove(c);
+                  }}
+                >
+                  Fjern
+                </button>
+              </div>
+              <div className={styles.flowRow}>
+                <div className={`${styles.flowNode} ${styles.flowNodeStart}`}>
+                  <span className={`${styles.flowBadge} ${styles.flowBadgeGreen}`}>
+                    <PlayGlyph />
+                  </span>
+                  <span className={styles.flowText}>
+                    <span className={styles.flowTitle}>{c.name}</span>
+                  </span>
+                </div>
+                {order.map((t, i) => (
+                  <span key={t} className={styles.flowSeg}>
+                    <span
+                      className={
+                        i === 0 || linked(order[i - 1], t)
+                          ? styles.flowWire
+                          : styles.flowGap
+                      }
+                    />
+                    <span className={styles.flowNode}>
+                      <span className={`${styles.flowBadge} ${styles.flowBadgeBlue}`}>
+                        <PlayGlyph />
+                      </span>
+                      <span className={styles.flowText}>
+                        <span className={styles.flowTitle}>{t}</span>
+                        <span className={styles.flowSub}>Bord</span>
+                      </span>
+                    </span>
+                  </span>
+                ))}
+                {flow && order.length === 0 && (
+                  <span className={styles.flowEmpty}>Ingen bord valgt ennå</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {error && <div className={styles.error}>{error}</div>}
       </div>
     </div>
@@ -117,6 +209,14 @@ function FadeText({ text }: { text: string }) {
         </span>
       ))}
     </span>
+  );
+}
+
+function PlayGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="6 3 20 12 6 21 6 3" />
+    </svg>
   );
 }
 
