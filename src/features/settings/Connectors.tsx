@@ -5,9 +5,12 @@ import {
   completeChat,
   createConnection,
   deleteConnection,
+  fetchAdminUsers,
   fetchConnections,
   fetchConnectionSchema,
+  fetchMe,
   saveConnectionConfig,
+  type AdminUser,
   type Connection,
   type ConnectionSchema,
   type DbLink,
@@ -606,6 +609,20 @@ function ChatWizard(_props: {
   // Pågående handling: vises med logo-animasjon som i hovedchatten.
   const [status, setStatus] = useState<string | null>(null);
 
+  // Etter bordvalg: AI sparrer om beskrivelser, så settes tilganger.
+  // stage2: "" | "describe" | "access" | "done"
+  const [stage2, setStage2] = useState("");
+  const [descQueue, setDescQueue] = useState<string[]>([]);
+  const [descs, setDescs] = useState<Record<string, string>>({});
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [meId, setMeId] = useState("");
+  const [selUsers, setSelUsers] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetchAdminUsers().then(setUsers).catch(() => {});
+    fetchMe().then((r) => setMeId(r.user.id)).catch(() => {});
+  }, []);
+
   // Aktivt felt utledes av svarene: eksplisitt korrigering vinner, ellers
   // første ubesvarte felt. Alt besvart -> null (klar/tilkoblet).
   const activeStep: FlowStep | null = !sourceChosen
@@ -615,30 +632,43 @@ function ChatWizard(_props: {
       null;
 
   const tablesPhase = Boolean(savedConn && schema && !tablesDone && !activeStep);
+  const describePhase = stage2 === "describe";
+  const accessPhase = stage2 === "access";
+  const curDescTable = describePhase ? descQueue[0] : undefined;
+
+  const DONE_ITEM = "__done__";
+  const ALL_ITEM = "__all__";
+  const ME_ITEM = "__me__";
 
   const question = !sourceChosen
     ? "Hva skal vi koble til?"
     : activeStep?.question ??
-      (tablesPhase ? "Hvilke bord skal AI-en få bruke?" : null);
+      (tablesPhase
+        ? "Hvilke bord skal AI-en få bruke?"
+        : accessPhase
+          ? "Hvem skal ha tilgang til dataene?"
+          : null);
 
-  const DONE_ITEM = "__done__";
   const rawOptions = !sourceChosen
     ? SOURCE_OPTIONS
     : activeStep
       ? activeStep.options(answers)
       : tablesPhase && schema
         ? schema.tables.map((t) => t.name)
-        : [];
+        : accessPhase
+          ? users.map((u) => u.email)
+          : [];
   const filtered = rawOptions.filter((o) =>
     o.toLowerCase().includes(input.trim().toLowerCase())
   );
-  // Bordvalg: maks 5 treff om gangen + Ferdig-element når noe er valgt.
   const options = tablesPhase
-    ? [
-        ...(selTables.size > 0 ? [DONE_ITEM] : []),
-        ...filtered.slice(0, 5),
-      ]
-    : filtered;
+    ? [...(selTables.size > 0 ? [DONE_ITEM] : []), ...filtered.slice(0, 5)]
+    : accessPhase
+      ? [
+          ...(selUsers.size > 0 ? [DONE_ITEM] : [ALL_ITEM, ME_ITEM]),
+          ...filtered.slice(0, 5),
+        ]
+      : filtered;
 
   function say(role: "bot" | "user", text: string) {
     setLog((prev) => [...prev, { id: ++logId, role, text }]);
@@ -846,37 +876,137 @@ function ChatWizard(_props: {
     setHilite(0);
   }
 
-  // Lagrer kurateringen: valgte bord, åpne for alle brukere.
+  // Etter bordvalg: AI vurderer skjemaene, foreslår beskrivelser og flagger
+  // det den mener er unødvendig. Ett samlekall = token-effektivt.
   async function finishTables() {
-    if (!savedConn) return;
+    if (!savedConn || !schema) return;
     say("user", `Valgte bord: ${[...selTables].join(", ")}`);
     setTablesDone(true);
+    setStatus("Vurderer skjemaene");
+    const picked = [...selTables];
+    const schemaText = picked
+      .map((name) => {
+        const cols = schema.tables.find((t) => t.name === name)?.columns ?? [];
+        return `${name}(${cols.map((c) => `${c.name} ${c.type}`).join(", ")})`;
+      })
+      .join("\n");
+    try {
+      const raw = await completeChat("bris", [
+        {
+          role: "system",
+          content:
+            "Du hjelper en admin å sette opp en database for et AI-verktøy. " +
+            "For hvert bord: skriv en kort norsk beskrivelse (én setning) og flagg " +
+            "bord eller kolonner som virker unødvendige/sensitive for en AI-assistent " +
+            "(f.eks. passord-hasher, interne id-er, tekniske logger). " +
+            'Svar KUN med JSON: {"tables":[{"name":"...","description":"...","note":"kort råd eller tom"}]}.',
+        },
+        { role: "user", content: schemaText },
+      ]);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      const byName: Record<string, { description: string; note: string }> = {};
+      for (const t of parsed.tables ?? []) {
+        byName[t.name] = { description: t.description ?? "", note: t.note ?? "" };
+      }
+      const suggestions: Record<string, string> = {};
+      for (const name of picked) suggestions[name] = byName[name]?.description ?? "";
+      setDescs(suggestions);
+      setStatus(null);
+      const flagged = picked.filter((n) => byName[n]?.note);
+      if (flagged.length > 0) {
+        say(
+          "bot",
+          "Noen ting jeg vil peke på: " +
+            flagged.map((n) => `${n} — ${byName[n].note}`).join(" · ")
+        );
+      }
+      setDescQueue(picked);
+      setStage2("describe");
+      say(
+        "bot",
+        `Forslag til beskrivelse for ${picked[0]}: «${suggestions[picked[0]]}». Trykk Enter for å godta, eller skriv din egen.`
+      );
+    } catch {
+      // AI feilet: hopp rett til tilgang uten forslag.
+      setDescs(Object.fromEntries(picked.map((n) => [n, ""])));
+      setStatus(null);
+      setStage2("access");
+      say("bot", "Hvem skal ha tilgang til dataene?");
+    }
+  }
+
+  function answerDescribe(text: string) {
+    const [current, ...rest] = descQueue;
+    const value = text.trim() || descs[current] || "";
+    setDescs((d) => ({ ...d, [current]: value }));
+    say("user", value || "(ingen beskrivelse)");
+    setInput("");
+    if (rest.length > 0) {
+      setDescQueue(rest);
+      say(
+        "bot",
+        `Forslag for ${rest[0]}: «${descs[rest[0]] ?? ""}». Enter for å godta, eller skriv din egen.`
+      );
+    } else {
+      setDescQueue([]);
+      setStage2("access");
+      say("bot", "Hvem skal ha tilgang til dataene?");
+    }
+  }
+
+  async function finishAccess(ids: string[], label: string) {
+    if (!savedConn) return;
+    say("user", label);
     setStatus("Lagrer");
     try {
       await saveConnectionConfig(
         savedConn.id,
         [...selTables].map((name) => ({
           name,
-          description: "",
+          description: descs[name] ?? "",
           columns: {},
-          user_ids: [],
+          user_ids: ids,
         })),
         [],
         []
       );
       setStatus(null);
+      setStage2("done");
       say("bot", `Ferdig! ${savedConn.name} er klar til bruk i chatten.`);
     } catch {
       setStatus(null);
-      setTablesDone(false);
       say("bot", "Kunne ikke lagre. Prøv igjen.");
     }
+  }
+
+  function toggleUser(email: string) {
+    const u = users.find((x) => x.email === email);
+    if (!u) return;
+    setSelUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(u.id)) next.delete(u.id);
+      else next.add(u.id);
+      return next;
+    });
+    setInput("");
+    setHilite(0);
   }
 
   function pick(option: string) {
     if (tablesPhase) {
       if (option === DONE_ITEM) finishTables();
       else toggleTable(option);
+      return;
+    }
+    if (accessPhase) {
+      if (option === ALL_ITEM) finishAccess([], "Alle brukere");
+      else if (option === ME_ITEM) finishAccess(meId ? [meId] : [], "Kun meg");
+      else if (option === DONE_ITEM)
+        finishAccess(
+          [...selUsers],
+          `Tilgang: ${users.filter((u) => selUsers.has(u.id)).map((u) => u.email).join(", ")}`
+        );
+      else toggleUser(option);
       return;
     }
     answer(option);
@@ -895,7 +1025,11 @@ function ChatWizard(_props: {
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (tablesPhase) {
+      if (describePhase) {
+        answerDescribe(input);
+        return;
+      }
+      if (tablesPhase || accessPhase) {
         if (options.length > 0) pick(options[hilite]);
         return;
       }
@@ -939,7 +1073,13 @@ function ChatWizard(_props: {
               <textarea
                 className={chatStyles.input}
                 rows={1}
-                placeholder={status ? "Vent litt …" : "Spør om hva som helst …"}
+                placeholder={
+                  status
+                    ? "Vent litt …"
+                    : describePhase && curDescTable
+                      ? `Beskrivelse for ${curDescTable} …`
+                      : "Spør om hva som helst …"
+                }
                 value={input}
                 disabled={status !== null || busy}
                 onChange={(e) => setInput(e.target.value)}
@@ -947,10 +1087,16 @@ function ChatWizard(_props: {
                 autoFocus
               />
             </div>
-            {options.length > 0 && (
+            {options.length > 0 && !describePhase && (
               <div className={styles.comboBody}>
                 <div className={styles.comboLabel}>
-                  {!sourceChosen ? "Kilder" : tablesPhase ? "Bord" : "Forslag"}
+                  {!sourceChosen
+                    ? "Kilder"
+                    : tablesPhase
+                      ? "Bord"
+                      : accessPhase
+                        ? "Tilgang"
+                        : "Forslag"}
                 </div>
                 {options.map((o, i) => (
                   <button
@@ -962,13 +1108,22 @@ function ChatWizard(_props: {
                   >
                     <span
                       className={`${styles.comboDot} ${
-                        tablesPhase && (o === DONE_ITEM || selTables.has(o))
+                        (tablesPhase && (o === DONE_ITEM || selTables.has(o))) ||
+                        (accessPhase &&
+                          (o === DONE_ITEM ||
+                            selUsers.has(users.find((u) => u.email === o)?.id ?? "")))
                           ? styles.comboDotOn
                           : ""
                       }`}
                     />
                     <span className={styles.comboItemLabel}>
-                      {o === DONE_ITEM ? `Ferdig (${selTables.size} valgt)` : o}
+                      {o === DONE_ITEM
+                        ? `Ferdig (${(tablesPhase ? selTables.size : selUsers.size)} valgt)`
+                        : o === ALL_ITEM
+                          ? "Alle brukere"
+                          : o === ME_ITEM
+                            ? "Kun meg"
+                            : o}
                     </span>
                     {tablesPhase && o !== DONE_ITEM && (
                       <span className={styles.comboHint}>
