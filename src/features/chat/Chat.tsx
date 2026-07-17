@@ -619,7 +619,7 @@ export function Chat({
                         <div className={styles.step}>
                           <span className={styles.thinkingLogo}>
                             <Logo
-                              size={12}
+                              size={10}
                               flutter
                               glow={
                                 MODEL_GLOW[m.resolvedModel ?? ""] ?? "#ffffff"

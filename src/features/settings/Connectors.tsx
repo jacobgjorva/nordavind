@@ -321,7 +321,7 @@ function ChatWizard(_props: {
           {status && (
             <div className={chatStyles.step}>
               <span className={chatStyles.thinkingLogo}>
-                <Logo size={12} flutter glow="#ffffff" />
+                <Logo size={10} flutter glow="#ffffff" />
               </span>
               <span className={chatStyles.stepActive}>{status} …</span>
             </div>
