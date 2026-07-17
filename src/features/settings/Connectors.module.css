@@ -1900,7 +1900,7 @@
 .connSideList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
   overflow-y: auto;
   scrollbar-width: none;
 }
