@@ -247,16 +247,17 @@ function AccessEditor({
   onChange: (ids: string[]) => void;
 }) {
   const [query, setQuery] = useState("");
-  const all = userIds.length === 0;
   const q = query.trim().toLowerCase();
-  const rows = users.filter((u) => u.email.toLowerCase().includes(q));
+  const searching = q !== "";
+  // Tomt søk: vis de som har tilgang. Søk: vis treff (for å legge til/fjerne).
+  const rows = searching
+    ? users.filter((u) => u.email.toLowerCase().includes(q))
+    : users.filter((u) => userIds.includes(u.id));
 
   function toggle(id: string) {
-    if (userIds.includes(id)) {
-      onChange(userIds.filter((x) => x !== id));
-    } else {
-      onChange([...userIds, id]);
-    }
+    onChange(
+      userIds.includes(id) ? userIds.filter((x) => x !== id) : [...userIds, id]
+    );
   }
 
   return (
@@ -265,44 +266,30 @@ function AccessEditor({
         <SearchIcon size={14} className={styles.accSearchIcon} />
         <input
           className={styles.accSearch}
-          placeholder="Søk brukere …"
+          placeholder="Søk og legg til bruker …"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <span className={styles.accCount}>
-          {all ? `Alle (${users.length})` : `${userIds.length} valgt`}
-        </span>
+        <span className={styles.accCount}>{userIds.length} med tilgang</span>
       </div>
 
-      <label className={`${styles.accRow} ${styles.accMaster}`}>
-        <input
-          type="checkbox"
-          checked={all}
-          onChange={() => onChange(all ? users.map((u) => u.id) : [])}
-        />
-        <span className={styles.accEmail}>Alle brukere</span>
-        <span className={styles.accRole}>hele tenanten</span>
-      </label>
-
       <div className={styles.accBody}>
-        {rows.length === 0 && <div className={styles.accEmpty}>Ingen treff.</div>}
-        {rows.map((u) => {
-          const on = all || userIds.includes(u.id);
-          return (
-            <label key={u.id} className={styles.accRow}>
-              <input
-                type="checkbox"
-                checked={on}
-                disabled={all}
-                onChange={() => toggle(u.id)}
-              />
-              <span className={`${styles.accEmail} ${all ? styles.accDim : ""}`}>
-                {u.email}
-              </span>
-              <span className={styles.accRole}>{u.role}</span>
-            </label>
-          );
-        })}
+        {rows.length === 0 && (
+          <div className={styles.accEmpty}>
+            {searching ? "Ingen treff." : "Ingen brukere har tilgang ennå."}
+          </div>
+        )}
+        {rows.map((u) => (
+          <label key={u.id} className={styles.accRow}>
+            <input
+              type="checkbox"
+              checked={userIds.includes(u.id)}
+              onChange={() => toggle(u.id)}
+            />
+            <span className={styles.accEmail}>{u.email}</span>
+            <span className={styles.accRole}>{u.role}</span>
+          </label>
+        ))}
       </div>
     </div>
   );
@@ -356,6 +343,7 @@ function TableManager({
     fetchAdminUsers().then(setUsers).catch(() => {});
   }, []);
 
+  const adminId = users.find((u) => u.role === "admin")?.id ?? "";
   const tables = schema.tables.filter((t) =>
     t.name.toLowerCase().includes(query.trim().toLowerCase())
   );
@@ -363,6 +351,16 @@ function TableManager({
 
   function patch(name: string, p: Partial<(typeof state)[string]>) {
     setState((prev) => ({ ...prev, [name]: { ...prev[name], ...p } }));
+  }
+
+  // Slår man på et bord uten definert tilgang: standard er kun admin.
+  function toggleTableOn(name: string, on: boolean) {
+    setState((prev) => {
+      const cur = prev[name];
+      const userIds =
+        on && cur.userIds.length === 0 && adminId ? [adminId] : cur.userIds;
+      return { ...prev, [name]: { ...cur, on, open: on, userIds } };
+    });
   }
 
   async function save() {
@@ -431,7 +429,7 @@ function TableManager({
                 <input
                   type="checkbox"
                   checked={s.on}
-                  onChange={(e) => patch(t.name, { on: e.target.checked, open: e.target.checked })}
+                  onChange={(e) => toggleTableOn(t.name, e.target.checked)}
                 />
                 <span className={styles.tableName}>{t.name}</span>
                 <span className={styles.colCount}>{t.columns.length} felt</span>
