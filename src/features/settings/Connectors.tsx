@@ -312,7 +312,8 @@ function NodeEditor({
   onSaved: () => void;
 }) {
   const cfgTables = schema.config.tables ?? [];
-  const others = cfgTables.map((t) => t.name).filter((n) => n !== table);
+  // Alle bord i databasen kan kobles til — ikke bare de allerede valgte.
+  const others = schema.tables.map((t) => t.name).filter((n) => n !== table);
   const myCols = schema.tables.find((t) => t.name === table)?.columns ?? [];
   const viewName = `${table}_query`;
 
@@ -355,6 +356,16 @@ function NodeEditor({
         (l) => l.from_table !== table && l.to_table !== table
       );
       const keptLinks = relOn ? [...otherLinks, ...links] : otherLinks;
+      // Bord som en relasjon peker på må også være tilgjengelige for AI-en.
+      const known = new Set(tables.map((t) => t.name));
+      for (const l of keptLinks) {
+        for (const name of [l.from_table, l.to_table]) {
+          if (!known.has(name)) {
+            known.add(name);
+            tables.push({ name, description: "", columns: {}, user_ids: [] });
+          }
+        }
+      }
       const otherViews = (schema.config.views ?? []).filter((v) => v.name !== viewName);
       const views =
         sqlOn && sql.trim()
@@ -464,7 +475,7 @@ function NodeEditor({
             </span>
           ) : (
             <span className={styles.nodeHint}>
-              Legg til flere bord i denne tilkoblingen for å koble dem sammen.
+              Ingen andre bord i denne databasen.
             </span>
           )}
         </span>
