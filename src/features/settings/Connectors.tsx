@@ -181,21 +181,6 @@ export function Connectors() {
             );
           return (
             <div key={c.id} className={styles.connCard} onClick={() => setCanvas({ conn: c })}>
-              <div className={styles.connCardHead}>
-                <span className={styles.connName}>{c.name}</span>
-                <span className={styles.connDriver}>
-                  {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
-                </span>
-                <button
-                  className={styles.remove}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    remove(c);
-                  }}
-                >
-                  Fjern
-                </button>
-              </div>
               <div className={styles.flowRow}>
                 <div className={`${styles.flowNode} ${styles.flowNodeStart}`}>
                   <span className={`${styles.flowBadge} ${styles.flowBadgeGreen}`}>
