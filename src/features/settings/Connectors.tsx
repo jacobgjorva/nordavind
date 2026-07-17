@@ -371,6 +371,7 @@ function TableStep({
   views: DbView[];
   setViews: (v: DbView[]) => void;
 }) {
+  const [tab, setTab] = useState<"tables" | "sql">("tables");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -399,7 +400,23 @@ function TableStep({
 
   return (
     <div className={styles.stepBody}>
-      <div className={styles.subLabel}>Custom SQL</div>
+      <div className={styles.tabRow}>
+        <button
+          className={`${styles.tab} ${tab === "tables" ? styles.tabActive : ""}`}
+          onClick={() => setTab("tables")}
+        >
+          Bord{selected.size > 0 ? ` (${selected.size})` : ""}
+        </button>
+        <button
+          className={`${styles.tab} ${tab === "sql" ? styles.tabActive : ""}`}
+          onClick={() => setTab("sql")}
+        >
+          SQL Query{views.length > 0 ? ` (${views.length})` : ""}
+        </button>
+      </div>
+
+      {tab === "sql" && (
+        <>
       <div className={styles.sectionDesc}>
         Lag egne spørringer (f.eks. joins) som AI-en kan bruke i stedet for enkeltbord.
       </div>
@@ -447,8 +464,11 @@ function TableStep({
           Ny SQL-spørring
         </button>
       )}
+        </>
+      )}
 
-      <div className={styles.subLabel}>Bord ({selected.size} valgt)</div>
+      {tab === "tables" && (
+        <>
       <input
         className={styles.input}
         placeholder="Søk i bord …"
@@ -477,6 +497,8 @@ function TableStep({
             Neste
           </button>
         </div>
+      )}
+        </>
       )}
     </div>
   );
