@@ -721,3 +721,55 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+
+/* Steg 2: velger til venstre, valgt-liste til høyre på en stiplet skinne */
+
+.stepCols {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.stepSide {
+  flex: 0 0 240px;
+  padding-top: 4px;
+}
+
+.sideLabel {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 14px;
+}
+
+.sideRail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-left: 16px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.sideItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sideItem .remove {
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.sideItem:hover .remove {
+  opacity: 1;
+}
+
+.sideEmpty {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
