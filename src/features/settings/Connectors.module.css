@@ -1968,11 +1968,11 @@
 
 .costBar {
   display: inline-flex;
-  gap: 3px;
+  gap: 2px;
 }
 
 .costSeg {
-  width: 7px;
-  height: 16px;
-  border-radius: 3px;
+  width: 5px;
+  height: 9px;
+  border-radius: 2px;
 }
