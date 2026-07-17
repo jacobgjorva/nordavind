@@ -120,6 +120,7 @@ export function Connectors() {
           Koble til bedriftens egne databaser og velg hva AI-en får se.
         </div>
 
+        <div className={styles.flowsCenter}>
         {conns.length === 0 && (
           <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
         )}
@@ -183,6 +184,7 @@ export function Connectors() {
             </div>
           );
         })}
+        </div>
         {error && <div className={styles.error}>{error}</div>}
       </div>
     </div>
