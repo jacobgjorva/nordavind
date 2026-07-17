@@ -1,485 +1,451 @@
-
-import { useState } from "react";
-import { CopyIcon, PlusIcon } from "../../ui/Icons";
+import { useEffect, useState } from "react";
+import {
+  createConnection,
+  deleteConnection,
+  fetchAdminUsers,
+  fetchConnections,
+  fetchConnectionSchema,
+  saveConnectionConfig,
+  type AdminUser,
+  type Connection,
+  type ConnectionSchema,
+  type DbLink,
+  type TableConfig,
+} from "../../lib/api";
 import styles from "./Connectors.module.css";
 
-type DbType = "postgres" | "mysql" | "mssql" | "sqlite";
-
-const DB_TYPES: { key: DbType; label: string }[] = [
-  { key: "postgres", label: "PostgreSQL" },
-  { key: "mysql", label: "MySQL" },
-  { key: "mssql", label: "SQL Server" },
-  { key: "sqlite", label: "SQLite" },
+const DB_TYPES = [
+  { key: "postgres", label: "PostgreSQL", port: 5432 },
+  { key: "mysql", label: "MySQL", port: 3306 },
 ];
 
-const PROVIDERS = ["Anthropic", "OpenAI", "Google", "Mistral", "Ollama"];
-
-type ApiKey = { id: string; provider: string; key: string };
-
-let keyCounter = 0;
-const nextKeyId = () => `k${++keyCounter}`;
-
-const SQL_KEYWORDS = new Set([
-  "SELECT",
-  "FROM",
-  "WHERE",
-  "INSERT",
-  "INTO",
-  "VALUES",
-  "UPDATE",
-  "SET",
-  "DELETE",
-  "JOIN",
-  "LEFT",
-  "RIGHT",
-  "INNER",
-  "OUTER",
-  "ON",
-  "GROUP",
-  "ORDER",
-  "BY",
-  "LIMIT",
-  "AND",
-  "OR",
-  "AS",
-  "DISTINCT",
-  "COUNT",
-]);
-
-function tableTag(sql: string): string {
-  const match = sql.match(/\bfrom\s+([a-zA-Z0-9_."[\]]+)/i);
-  if (!match) return "dbo.—";
-  const table = match[1].replace(/["[\]]/g, "");
-  return table.includes(".") ? table : `dbo.${table}`;
-}
-
-function highlightSql(sql: string) {
-  return sql.split(/(\s+|;|,|\*|\(|\))/).map((tok, i) => {
-    if (SQL_KEYWORDS.has(tok.toUpperCase())) {
-      return (
-        <span key={i} className={styles.sqlKw}>
-          {tok}
-        </span>
-      );
-    }
-    return <span key={i}>{tok}</span>;
-  });
+// Kuratering per tabell mens admin redigerer.
+interface TableDraft {
+  enabled: boolean;
+  description: string;
+  columns: Record<string, string>;
+  userIds: string[];
+  open: boolean;
 }
 
 export function Connectors() {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [adding, setAdding] = useState<{ provider: string; key: string } | null>(
-    null
-  );
+  const [conns, setConns] = useState<Connection[] | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [dbType, setDbType] = useState<DbType>("postgres");
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("");
-  const [database, setDatabase] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [useSsh, setUseSsh] = useState(false);
-  const [sshHost, setSshHost] = useState("");
-  const [sshUser, setSshUser] = useState("");
-  const [sshPort, setSshPort] = useState("");
-  const [connected, setConnected] = useState(false);
-  const [query, setQuery] = useState("SELECT * FROM customers;");
-  const [linkState, setLinkState] = useState<"idle" | "connecting" | "linked">(
-    "idle"
-  );
-  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok">("idle");
 
-  function handleLink() {
-    setLinkState("connecting");
-    setTimeout(() => setLinkState("linked"), 5000);
+  const [selected, setSelected] = useState<Connection | null>(null);
+  const [schema, setSchema] = useState<ConnectionSchema | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, TableDraft>>({});
+  const [links, setLinks] = useState<DbLink[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function reload() {
+    fetchConnections()
+      .then(setConns)
+      .catch(() => setError("Kunne ikke hente tilkoblinger."));
   }
 
-  const canConnect = host.trim() && database.trim() && username.trim();
+  useEffect(() => {
+    reload();
+    fetchAdminUsers().then(setUsers).catch(() => {});
+  }, []);
 
-  function handleTest() {
-    setTestStatus("testing");
-    setTimeout(() => setTestStatus("ok"), 900);
+  async function open(conn: Connection) {
+    setSelected(conn);
+    setSchema(null);
+    setError(null);
+    setLoading(true);
+    try {
+      const s = await fetchConnectionSchema(conn.id);
+      setSchema(s);
+      const cfg = new Map(
+        (s.config.tables ?? []).map((t: TableConfig) => [t.name, t])
+      );
+      const d: Record<string, TableDraft> = {};
+      for (const t of s.tables) {
+        const c = cfg.get(t.name);
+        d[t.name] = {
+          enabled: Boolean(c),
+          description: c?.description ?? "",
+          columns: c?.columns ?? {},
+          userIds: c?.user_ids ?? [],
+          open: false,
+        };
+      }
+      setDrafts(d);
+      setLinks(s.config.links ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke koble til.");
+      setSelected(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handleConnect() {
-    setConnected(true);
-    setFormOpen(false);
+  async function save() {
+    if (!selected) return;
+    const tables: TableConfig[] = Object.entries(drafts)
+      .filter(([, d]) => d.enabled)
+      .map(([name, d]) => ({
+        name,
+        description: d.description,
+        columns: d.columns,
+        user_ids: d.userIds,
+      }));
+    const names = new Set(tables.map((t) => t.name));
+    try {
+      await saveConnectionConfig(
+        selected.id,
+        tables,
+        links.filter((l) => names.has(l.from_table) && names.has(l.to_table))
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError("Kunne ikke lagre.");
+    }
   }
 
-  function handleDisconnect() {
-    setConnected(false);
-    setFormOpen(false);
-    setLinkState("idle");
-    setTestStatus("idle");
-    setHost("");
-    setPort("");
-    setDatabase("");
-    setUsername("");
-    setPassword("");
-    setUseSsh(false);
-    setSshHost("");
-    setSshUser("");
-    setSshPort("");
+  async function remove(conn: Connection) {
+    if (!confirm(`Fjerne tilkoblingen ${conn.name}?`)) return;
+    try {
+      await deleteConnection(conn.id);
+      if (selected?.id === conn.id) {
+        setSelected(null);
+        setSchema(null);
+      }
+      reload();
+    } catch {
+      setError("Kunne ikke fjerne tilkoblingen.");
+    }
   }
 
-  function updateKey(id: string, patch: Partial<ApiKey>) {
-    setApiKeys((prev) => prev.map((k) => (k.id === id ? { ...k, ...patch } : k)));
+  function patch(name: string, p: Partial<TableDraft>) {
+    setDrafts((prev) => ({ ...prev, [name]: { ...prev[name], ...p } }));
   }
 
-  function commitNewKey() {
-    if (!adding || !adding.provider || !adding.key.trim()) return;
-    setApiKeys((prev) => [
-      ...prev,
-      { id: nextKeyId(), provider: adding.provider, key: adding.key.trim() },
-    ]);
-    setAdding(null);
-  }
-
-  function removeKey(id: string) {
-    setApiKeys((prev) => prev.filter((k) => k.id !== id));
-  }
+  if (error && !conns) return <div>{error}</div>;
+  if (!conns) return null;
 
   return (
     <div className={styles.content}>
-      <div className={styles.card}>
-        <div className={styles.cardTitle}>API-nøkler</div>
-        <div className={styles.cardBody}>
-          <div className={styles.keyList}>
-            {apiKeys.map((k) => (
-              <div key={k.id} className={styles.keyRow}>
-                <span className={styles.providerTag}>{k.provider}</span>
-
-                <div className={`${styles.terminal} ${styles.terminalSmall}`}>
-                  <div className={styles.terminalInner}>
-                    <input
-                      type="password"
-                      className={styles.keyInput}
-                      value={k.key}
-                      onChange={(e) => updateKey(k.id, { key: e.target.value })}
-                      placeholder="sk-…"
-                    />
-                    <button
-                      type="button"
-                      className={styles.copyIconButton}
-                      onClick={() => k.key && navigator.clipboard?.writeText(k.key)}
-                      aria-label="Kopier"
-                    >
-                      <CopyIcon size={15} />
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className={styles.removeKey}
-                  onClick={() => removeKey(k.id)}
-                  aria-label="Fjern nøkkel"
-                >
-                  <PlusIcon size={16} />
-                </button>
-              </div>
-            ))}
-
-            {adding ? (
-              <div className={styles.addForm}>
-                {!adding.provider ? (
-                  <div className={styles.providerMenu}>
-                    {PROVIDERS.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        className={styles.providerOption}
-                        onClick={() => setAdding({ ...adding, provider: p })}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      className={styles.providerCancel}
-                      onClick={() => setAdding(null)}
-                    >
-                      Avbryt
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.addKeyRow}>
-                    <span className={styles.providerTag}>{adding.provider}</span>
-                    <div className={`${styles.terminal} ${styles.terminalSmall}`}>
-                      <div className={styles.terminalInner}>
-                        <input
-                          type="password"
-                          className={styles.keyInput}
-                          value={adding.key}
-                          onChange={(e) =>
-                            setAdding({ ...adding, key: e.target.value })
-                          }
-                          placeholder="sk-…"
-                          autoFocus
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.ghostButton}
-                      onClick={() => setAdding(null)}
-                    >
-                      Avbryt
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.btnDark}
-                      disabled={!adding.key.trim()}
-                      onClick={commitNewKey}
-                    >
-                      Legg til
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                className={styles.addKey}
-                onClick={() => setAdding({ provider: "", key: "" })}
-              >
-                Legg til nøkkel
-              </button>
-            )}
-          </div>
+      <div className={styles.section}>
+        <div className={styles.head}>
+          <div className={styles.sectionTitle}>Databaser</div>
+          <button className={styles.primary} onClick={() => setFormOpen(!formOpen)}>
+            {formOpen ? "Avbryt" : "Ny tilkobling"}
+          </button>
         </div>
+        <div className={styles.sectionDesc}>
+          Koble til bedriftens egne databaser og velg hva AI-en får se.
+        </div>
+
+        {formOpen && (
+          <NewConnectionForm
+            onCreated={(c) => {
+              setFormOpen(false);
+              reload();
+              open(c);
+            }}
+          />
+        )}
+
+        {conns.length === 0 && !formOpen && (
+          <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
+        )}
+        {conns.map((c) => (
+          <div
+            key={c.id}
+            className={`${styles.connRow} ${selected?.id === c.id ? styles.connActive : ""}`}
+            onClick={() => open(c)}
+          >
+            <span className={styles.connName}>{c.name}</span>
+            <span className={styles.connDriver}>
+              {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
+            </span>
+            <button
+              className={styles.remove}
+              onClick={(e) => {
+                e.stopPropagation();
+                remove(c);
+              }}
+            >
+              Fjern
+            </button>
+          </div>
+        ))}
       </div>
 
-      <div className={`${styles.card} ${styles.cardStack}`}>
-        <div className={styles.cardTitle}>Intern database</div>
+      {error && conns && <div className={styles.error}>{error}</div>}
+      {loading && <div className={styles.empty}>Henter skjema …</div>}
 
-        <div className={styles.cardBody}>
-          {formOpen ? (
-            <>
-              <div className={`${styles.dbPanel} ${styles.formStack}`}>
-                <div className={styles.formCols}>
-                <div className={styles.formCol}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Type</span>
-                    <select
-                      className={styles.select}
-                      value={dbType}
-                      onChange={(e) => setDbType(e.target.value as DbType)}
+      {schema && selected && (
+        <div className={styles.section}>
+          <div className={styles.head}>
+            <div className={styles.sectionTitle}>Tabeller i {selected.name}</div>
+            <button className={styles.primary} onClick={save}>
+              {saved ? "Lagret ✓" : "Lagre"}
+            </button>
+          </div>
+          <div className={styles.sectionDesc}>
+            Velg tabellene AI-en får bruke, beskriv innholdet og styr hvem som
+            har tilgang.
+          </div>
+
+          {schema.tables.map((t) => {
+            const d = drafts[t.name];
+            if (!d) return null;
+            return (
+              <div key={t.name} className={styles.tableCard}>
+                <div className={styles.tableHead}>
+                  <label className={styles.check}>
+                    <input
+                      type="checkbox"
+                      checked={d.enabled}
+                      onChange={(e) => patch(t.name, { enabled: e.target.checked })}
+                    />
+                    <span className={styles.tableName}>{t.name}</span>
+                    <span className={styles.colCount}>{t.columns.length} felt</span>
+                  </label>
+                  {d.enabled && (
+                    <button
+                      className={styles.expand}
+                      onClick={() => patch(t.name, { open: !d.open })}
                     >
-                      {DB_TYPES.map((t) => (
-                        <option key={t.key} value={t.key}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Host</span>
-                    <input
-                      className={styles.input}
-                      value={host}
-                      onChange={(e) => setHost(e.target.value)}
-                      placeholder="localhost"
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Port</span>
-                    <input
-                      className={styles.input}
-                      value={port}
-                      onChange={(e) => setPort(e.target.value)}
-                      placeholder="5432"
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Database</span>
-                    <input
-                      className={styles.input}
-                      value={database}
-                      onChange={(e) => setDatabase(e.target.value)}
-                      placeholder="crm_db"
-                    />
-                  </label>
-                </div>
-
-                <div className={styles.formCol}>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Brukernavn</span>
-                    <input
-                      className={styles.input}
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="postgres"
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={styles.fieldLabel}>Passord</span>
-                    <input
-                      type="password"
-                      className={styles.input}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                    />
-                  </label>
-
-                  <button
-                    type="button"
-                    className={styles.sshToggle}
-                    role="switch"
-                    aria-checked={useSsh}
-                    onClick={() => setUseSsh((v) => !v)}
-                  >
-                    <span
-                      className={`${styles.switch} ${useSsh ? styles.switchOn : ""}`}
-                    >
-                      <span className={styles.switchKnob} />
-                    </span>
-                    SSH-tunnel
-                  </button>
-
-                  {useSsh && (
-                    <>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>SSH host</span>
-                        <input
-                          className={styles.input}
-                          value={sshHost}
-                          onChange={(e) => setSshHost(e.target.value)}
-                          placeholder="bastion.example.com"
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>SSH bruker</span>
-                        <input
-                          className={styles.input}
-                          value={sshUser}
-                          onChange={(e) => setSshUser(e.target.value)}
-                          placeholder="ubuntu"
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.fieldLabel}>SSH port</span>
-                        <input
-                          className={styles.input}
-                          value={sshPort}
-                          onChange={(e) => setSshPort(e.target.value)}
-                          placeholder="22"
-                        />
-                      </label>
-                    </>
+                      {d.open ? "Skjul detaljer" : "Detaljer"}
+                    </button>
                   )}
                 </div>
-              </div>
-            </div>
 
-            <div className={styles.formActions}>
-                {testStatus === "ok" && (
-                  <span className={styles.testOk}>Tilkobling OK</span>
-                )}
-                <button
-                  type="button"
-                  className={styles.ghostButton}
-                  onClick={() => setFormOpen(false)}
-                >
-                  Avbryt
-                </button>
-                <button
-                  type="button"
-                  className={styles.btnDark}
-                  disabled={!canConnect || testStatus === "testing"}
-                  onClick={handleTest}
-                >
-                  {testStatus === "testing" ? "Tester…" : "Test tilkobling"}
-                </button>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  disabled={!canConnect}
-                  onClick={handleConnect}
-                >
-                  Koble til
-                </button>
-              </div>
-            </>
-          ) : connected && linkState === "linked" ? (
-            <div className={styles.dbLinked}>
-              <div className={styles.topo}>
-                <div className={`${styles.topoNode} ${styles.topoNodeGreen}`}>
-                  <div className={styles.topoTitle}>
-                    {DB_TYPES.find((t) => t.key === dbType)?.label}
-                  </div>
-                </div>
-
-                <div className={styles.topoWire}>
-                  <button
-                    type="button"
-                    className={styles.topoBreak}
-                    onClick={handleDisconnect}
-                    aria-label="Bryt koblingen"
-                    title="Bryt koblingen"
-                  >
-                    <PlusIcon size={13} />
-                  </button>
-                </div>
-
-                <div className={`${styles.topoNode} ${styles.topoNodePurple}`}>
-                  <div className={styles.topoTitle}>Client</div>
-                </div>
-              </div>
-            </div>
-          ) : connected ? (
-            <>
-              <div className={styles.sqlTag}>{tableTag(query)}</div>
-              <div className={styles.sqlEditor}>
-                <div className={styles.sqlGutter}>
-                  {query.split("\n").map((_, i) => (
-                    <span key={i}>{i + 1}</span>
-                  ))}
-                </div>
-                <div className={styles.sqlField}>
-                  <pre className={styles.sqlHighlight} aria-hidden="true">
-                    {highlightSql(query)}
-                  </pre>
-                  <textarea
-                    className={styles.sqlInput}
-                    value={query}
-                    spellCheck={false}
-                    onChange={(e) => setQuery(e.target.value)}
+                {d.enabled && (
+                  <input
+                    className={styles.input}
+                    placeholder="Hva inneholder tabellen? (vises til AI-en)"
+                    value={d.description}
+                    onChange={(e) => patch(t.name, { description: e.target.value })}
                   />
-                </div>
+                )}
+
+                {d.enabled && d.open && (
+                  <div className={styles.details}>
+                    <div className={styles.detailLabel}>Felt (beskrivelse valgfri)</div>
+                    {t.columns.map((col) => (
+                      <div key={col.name} className={styles.colRow}>
+                        <span className={styles.colName}>
+                          {col.name}
+                          <span className={styles.colType}>{col.type}</span>
+                        </span>
+                        <input
+                          className={styles.colInput}
+                          placeholder="Beskrivelse"
+                          value={d.columns[col.name] ?? ""}
+                          onChange={(e) =>
+                            patch(t.name, {
+                              columns: { ...d.columns, [col.name]: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+
+                    <div className={styles.detailLabel}>Tilgang</div>
+                    <div className={styles.userChips}>
+                      <button
+                        className={`${styles.chip} ${d.userIds.length === 0 ? styles.chipOn : ""}`}
+                        onClick={() => patch(t.name, { userIds: [] })}
+                      >
+                        Alle
+                      </button>
+                      {users.map((u) => {
+                        const on = d.userIds.includes(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            className={`${styles.chip} ${on ? styles.chipOn : ""}`}
+                            onClick={() =>
+                              patch(t.name, {
+                                userIds: on
+                                  ? d.userIds.filter((id) => id !== u.id)
+                                  : [...d.userIds, u.id],
+                              })
+                            }
+                          >
+                            {u.email}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className={styles.formActions}>
-                <button
-                  type="button"
-                  className={styles.btnDark}
-                  disabled={linkState === "connecting"}
-                  onClick={handleLink}
-                >
-                  {linkState === "connecting" ? (
-                    <>
-                      <span className={styles.spinner} />
-                      Connecting…
-                    </>
-                  ) : (
-                    "Connect"
-                  )}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className={styles.dbEmpty}>
-              <div className={styles.dbEmptyText}>Ingen database tilkoblet</div>
-              <button
-                type="button"
-                className={styles.btnDark}
-                onClick={() => setFormOpen(true)}
-              >
-                Koble til
-              </button>
-            </div>
-          )}
+            );
+          })}
+
+          <LinkEditor
+            schema={schema}
+            drafts={drafts}
+            links={links}
+            setLinks={setLinks}
+          />
         </div>
+      )}
+    </div>
+  );
+}
+
+function NewConnectionForm({ onCreated }: { onCreated: (c: Connection) => void }) {
+  const [driver, setDriver] = useState("postgres");
+  const [form, setForm] = useState({
+    name: "",
+    host: "",
+    port: 5432,
+    database: "",
+    user: "",
+    password: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const conn = await createConnection({ ...form, driver });
+      onCreated(conn);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke koble til.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: k === "port" ? Number(e.target.value) : e.target.value }));
+
+  return (
+    <form className={styles.form} onSubmit={submit}>
+      <div className={styles.formRow}>
+        <select
+          className={styles.select}
+          value={driver}
+          onChange={(e) => {
+            setDriver(e.target.value);
+            const t = DB_TYPES.find((x) => x.key === e.target.value);
+            if (t) setForm((f) => ({ ...f, port: t.port }));
+          }}
+        >
+          {DB_TYPES.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <input className={styles.input} placeholder="Navn (f.eks. Regnskap)" value={form.name} onChange={set("name")} required />
+      </div>
+      <div className={styles.formRow}>
+        <input className={styles.input} placeholder="Host" value={form.host} onChange={set("host")} required />
+        <input className={styles.inputSmall} type="number" placeholder="Port" value={form.port} onChange={set("port")} required />
+      </div>
+      <div className={styles.formRow}>
+        <input className={styles.input} placeholder="Database" value={form.database} onChange={set("database")} required />
+        <input className={styles.input} placeholder="Bruker" value={form.user} onChange={set("user")} required />
+        <input className={styles.input} type="password" placeholder="Passord" value={form.password} onChange={set("password")} />
+      </div>
+      {error && <div className={styles.error}>{error}</div>}
+      <button className={styles.primary} disabled={busy}>
+        {busy ? "Kobler til …" : "Koble til"}
+      </button>
+    </form>
+  );
+}
+
+// Join-nøkler: foreslåtte fremmednøkler + manuell kobling tabell.kolonne = tabell.kolonne.
+function LinkEditor({
+  schema,
+  drafts,
+  links,
+  setLinks,
+}: {
+  schema: ConnectionSchema;
+  drafts: Record<string, TableDraft>;
+  links: DbLink[];
+  setLinks: (l: DbLink[]) => void;
+}) {
+  const enabled = schema.tables.filter((t) => drafts[t.name]?.enabled);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const key = (l: DbLink) => `${l.from_table}.${l.from_column}=${l.to_table}.${l.to_column}`;
+  const have = new Set(links.map(key));
+  const suggestions = (schema.suggested_links ?? []).filter(
+    (l) =>
+      !have.has(key(l)) &&
+      drafts[l.from_table]?.enabled &&
+      drafts[l.to_table]?.enabled
+  );
+
+  const options = enabled.flatMap((t) =>
+    t.columns.map((c) => `${t.name}.${c.name}`)
+  );
+
+  function addManual() {
+    const [ft, fc] = from.split(".");
+    const [tt, tc] = to.split(".");
+    if (!ft || !fc || !tt || !tc) return;
+    const l = { from_table: ft, from_column: fc, to_table: tt, to_column: tc };
+    if (!have.has(key(l))) setLinks([...links, l]);
+    setFrom("");
+    setTo("");
+  }
+
+  if (enabled.length < 2) return null;
+
+  return (
+    <div className={styles.linkSection}>
+      <div className={styles.detailLabel}>Koblinger mellom tabeller (join-nøkler)</div>
+
+      {links.map((l) => (
+        <div key={key(l)} className={styles.linkRow}>
+          <span className={styles.linkText}>
+            {l.from_table}.{l.from_column} <span className={styles.linkEq}>=</span> {l.to_table}.{l.to_column}
+          </span>
+          <button className={styles.remove} onClick={() => setLinks(links.filter((x) => key(x) !== key(l)))}>
+            Fjern
+          </button>
+        </div>
+      ))}
+
+      {suggestions.length > 0 && (
+        <div className={styles.suggestions}>
+          <span className={styles.detailLabel}>Funnet i databasen:</span>
+          {suggestions.map((l) => (
+            <button key={key(l)} className={styles.chip} onClick={() => setLinks([...links, l])}>
+              + {l.from_table}.{l.from_column} = {l.to_table}.{l.to_column}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.formRow}>
+        <select className={styles.select} value={from} onChange={(e) => setFrom(e.target.value)}>
+          <option value="">Fra kolonne …</option>
+          {options.map((o) => (
+            <option key={o}>{o}</option>
+          ))}
+        </select>
+        <select className={styles.select} value={to} onChange={(e) => setTo(e.target.value)}>
+          <option value="">Til kolonne …</option>
+          {options.map((o) => (
+            <option key={o}>{o}</option>
+          ))}
+        </select>
+        <button type="button" className={styles.primary} onClick={addManual} disabled={!from || !to}>
+          Koble
+        </button>
       </div>
     </div>
   );

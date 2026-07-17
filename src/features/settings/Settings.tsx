@@ -10,14 +10,17 @@ type Tab = "general" | "usage" | "connectors" | "admin";
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
   { key: "usage", label: "Usage" },
-  { key: "connectors", label: "Connectors" },
 ];
 
 export function Settings({ user }: { user: AuthUser }) {
   const [tab, setTab] = useState<Tab>("general");
   const tabs =
     user.role === "admin"
-      ? [...TABS, { key: "admin" as Tab, label: "Admin" }]
+      ? [
+          ...TABS,
+          { key: "connectors" as Tab, label: "Connectors" },
+          { key: "admin" as Tab, label: "Admin" },
+        ]
       : TABS;
   const [name, setName] = useState("Ola Nordmann");
   const [email, setEmail] = useState("ola@nordmann.no");
