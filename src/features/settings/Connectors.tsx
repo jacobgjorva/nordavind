@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { PlusIcon } from "../../ui/Icons";
 import {
   createConnection,
   deleteConnection,
@@ -110,7 +109,7 @@ export function Connectors() {
   }
 
   async function remove(conn: Connection) {
-    if (!confirm(`Bryte koblingen til ${conn.name}?`)) return;
+    if (!confirm(`Fjerne tilkoblingen ${conn.name}?`)) return;
     try {
       await deleteConnection(conn.id);
       if (selected?.id === conn.id) {
@@ -127,206 +126,176 @@ export function Connectors() {
     setDrafts((prev) => ({ ...prev, [name]: { ...prev[name], ...p } }));
   }
 
-  if (!conns) return error ? <div className={styles.connError}>{error}</div> : null;
+  if (error && !conns) return <div>{error}</div>;
+  if (!conns) return null;
 
   return (
     <div className={styles.content}>
-      <div className={`${styles.card} ${styles.cardStack}`}>
-        <div className={styles.cardTitle}>Intern database</div>
-
-        <div className={styles.cardBody}>
-          {formOpen ? (
-            <NewConnectionForm
-              onCancel={() => setFormOpen(false)}
-              onCreated={(c) => {
-                setFormOpen(false);
-                reload();
-                open(c);
-              }}
-            />
-          ) : conns.length === 0 ? (
-            <div className={styles.dbEmpty}>
-              <div className={styles.dbEmptyText}>Ingen database tilkoblet</div>
-              <button
-                type="button"
-                className={styles.btnDark}
-                onClick={() => setFormOpen(true)}
-              >
-                Koble til
-              </button>
-            </div>
-          ) : (
-            <div className={styles.dbLinked}>
-              {conns.map((c) => (
-                <div key={c.id} className={styles.topo}>
-                  <button
-                    type="button"
-                    className={`${styles.topoNode} ${styles.topoNodeGreen}`}
-                    onClick={() => open(c)}
-                    title="Åpne tabellvalg"
-                  >
-                    <div className={styles.topoTitle}>
-                      {c.name} ({DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver})
-                    </div>
-                  </button>
-
-                  <div className={styles.topoWire}>
-                    <button
-                      type="button"
-                      className={styles.topoBreak}
-                      onClick={() => remove(c)}
-                      aria-label="Bryt koblingen"
-                      title="Bryt koblingen"
-                    >
-                      <PlusIcon size={13} />
-                    </button>
-                  </div>
-
-                  <div className={`${styles.topoNode} ${styles.topoNodePurple}`}>
-                    <div className={styles.topoTitle}>Nordavind</div>
-                  </div>
-                </div>
-              ))}
-              <div className={styles.formActions}>
-                <button
-                  type="button"
-                  className={styles.ghostButton}
-                  onClick={() => setFormOpen(true)}
-                >
-                  Ny tilkobling
-                </button>
-              </div>
-            </div>
-          )}
-          {error && <div className={styles.connError}>{error}</div>}
+      <div className={styles.section}>
+        <div className={styles.head}>
+          <div className={styles.sectionTitle}>Databaser</div>
+          <button className={styles.primary} onClick={() => setFormOpen(!formOpen)}>
+            {formOpen ? "Avbryt" : "Ny tilkobling"}
+          </button>
         </div>
+        <div className={styles.sectionDesc}>
+          Koble til bedriftens egne databaser og velg hva AI-en får se.
+        </div>
+
+        {formOpen && (
+          <NewConnectionForm
+            onCreated={(c) => {
+              setFormOpen(false);
+              reload();
+              open(c);
+            }}
+          />
+        )}
+
+        {conns.length === 0 && !formOpen && (
+          <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
+        )}
+        {conns.map((c) => (
+          <div
+            key={c.id}
+            className={`${styles.connRow} ${selected?.id === c.id ? styles.connActive : ""}`}
+            onClick={() => open(c)}
+          >
+            <span className={styles.connName}>{c.name}</span>
+            <span className={styles.connDriver}>
+              {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
+            </span>
+            <button
+              className={styles.remove}
+              onClick={(e) => {
+                e.stopPropagation();
+                remove(c);
+              }}
+            >
+              Fjern
+            </button>
+          </div>
+        ))}
       </div>
 
-      {loading && (
-        <div className={`${styles.card} ${styles.cardStack}`}>
-          <div className={styles.cardTitle}>Henter skjema …</div>
-        </div>
-      )}
+      {error && conns && <div className={styles.error}>{error}</div>}
+      {loading && <div className={styles.empty}>Henter skjema …</div>}
 
       {schema && selected && (
-        <div className={`${styles.card} ${styles.cardStack}`}>
-          <div className={styles.cardTitle}>Tabeller i {selected.name}</div>
-          <div className={styles.cardBody}>
-            <div className={styles.tableList}>
-              {schema.tables.map((t) => {
-                const d = drafts[t.name];
-                if (!d) return null;
-                return (
-                  <div key={t.name} className={styles.tableRow}>
-                    <div className={styles.tableHead}>
-                      <label className={styles.tableCheck}>
-                        <input
-                          type="checkbox"
-                          checked={d.enabled}
-                          onChange={(e) => patch(t.name, { enabled: e.target.checked })}
-                        />
-                        <span className={styles.tableName}>{t.name}</span>
-                        <span className={styles.colCount}>{t.columns.length} felt</span>
-                      </label>
-                      {d.enabled && (
-                        <button
-                          type="button"
-                          className={styles.expandBtn}
-                          onClick={() => patch(t.name, { open: !d.open })}
-                        >
-                          {d.open ? "Skjul detaljer" : "Detaljer"}
-                        </button>
-                      )}
-                    </div>
-
-                    {d.enabled && (
-                      <input
-                        className={styles.input}
-                        placeholder="Hva inneholder tabellen? (vises til AI-en)"
-                        value={d.description}
-                        onChange={(e) => patch(t.name, { description: e.target.value })}
-                      />
-                    )}
-
-                    {d.enabled && d.open && (
-                      <>
-                        <div className={styles.subLabel}>Felt (beskrivelse valgfri)</div>
-                        {t.columns.map((col) => (
-                          <div key={col.name} className={styles.colRow}>
-                            <span className={styles.colName}>
-                              {col.name}
-                              <span className={styles.colType}>{col.type}</span>
-                            </span>
-                            <input
-                              className={styles.input}
-                              placeholder="Beskrivelse"
-                              value={d.columns[col.name] ?? ""}
-                              onChange={(e) =>
-                                patch(t.name, {
-                                  columns: { ...d.columns, [col.name]: e.target.value },
-                                })
-                              }
-                            />
-                          </div>
-                        ))}
-
-                        <div className={styles.subLabel}>Tilgang</div>
-                        <div className={styles.chips}>
-                          <button
-                            type="button"
-                            className={`${styles.chip} ${d.userIds.length === 0 ? styles.chipOn : ""}`}
-                            onClick={() => patch(t.name, { userIds: [] })}
-                          >
-                            Alle
-                          </button>
-                          {users.map((u) => {
-                            const on = d.userIds.includes(u.id);
-                            return (
-                              <button
-                                key={u.id}
-                                type="button"
-                                className={`${styles.chip} ${on ? styles.chipOn : ""}`}
-                                onClick={() =>
-                                  patch(t.name, {
-                                    userIds: on
-                                      ? d.userIds.filter((id) => id !== u.id)
-                                      : [...d.userIds, u.id],
-                                  })
-                                }
-                              >
-                                {u.email}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <LinkEditor schema={schema} drafts={drafts} links={links} setLinks={setLinks} />
-
-            <div className={styles.formActions}>
-              <button type="button" className={styles.primaryButton} onClick={save}>
-                {saved ? "Lagret ✓" : "Lagre"}
-              </button>
-            </div>
+        <div className={styles.section}>
+          <div className={styles.head}>
+            <div className={styles.sectionTitle}>Tabeller i {selected.name}</div>
+            <button className={styles.primary} onClick={save}>
+              {saved ? "Lagret ✓" : "Lagre"}
+            </button>
           </div>
+          <div className={styles.sectionDesc}>
+            Velg tabellene AI-en får bruke, beskriv innholdet og styr hvem som
+            har tilgang.
+          </div>
+
+          {schema.tables.map((t) => {
+            const d = drafts[t.name];
+            if (!d) return null;
+            return (
+              <div key={t.name} className={styles.tableCard}>
+                <div className={styles.tableHead}>
+                  <label className={styles.check}>
+                    <input
+                      type="checkbox"
+                      checked={d.enabled}
+                      onChange={(e) => patch(t.name, { enabled: e.target.checked })}
+                    />
+                    <span className={styles.tableName}>{t.name}</span>
+                    <span className={styles.colCount}>{t.columns.length} felt</span>
+                  </label>
+                  {d.enabled && (
+                    <button
+                      className={styles.expand}
+                      onClick={() => patch(t.name, { open: !d.open })}
+                    >
+                      {d.open ? "Skjul detaljer" : "Detaljer"}
+                    </button>
+                  )}
+                </div>
+
+                {d.enabled && (
+                  <input
+                    className={styles.input}
+                    placeholder="Hva inneholder tabellen? (vises til AI-en)"
+                    value={d.description}
+                    onChange={(e) => patch(t.name, { description: e.target.value })}
+                  />
+                )}
+
+                {d.enabled && d.open && (
+                  <div className={styles.details}>
+                    <div className={styles.detailLabel}>Felt (beskrivelse valgfri)</div>
+                    {t.columns.map((col) => (
+                      <div key={col.name} className={styles.colRow}>
+                        <span className={styles.colName}>
+                          {col.name}
+                          <span className={styles.colType}>{col.type}</span>
+                        </span>
+                        <input
+                          className={styles.colInput}
+                          placeholder="Beskrivelse"
+                          value={d.columns[col.name] ?? ""}
+                          onChange={(e) =>
+                            patch(t.name, {
+                              columns: { ...d.columns, [col.name]: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+
+                    <div className={styles.detailLabel}>Tilgang</div>
+                    <div className={styles.userChips}>
+                      <button
+                        className={`${styles.chip} ${d.userIds.length === 0 ? styles.chipOn : ""}`}
+                        onClick={() => patch(t.name, { userIds: [] })}
+                      >
+                        Alle
+                      </button>
+                      {users.map((u) => {
+                        const on = d.userIds.includes(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            className={`${styles.chip} ${on ? styles.chipOn : ""}`}
+                            onClick={() =>
+                              patch(t.name, {
+                                userIds: on
+                                  ? d.userIds.filter((id) => id !== u.id)
+                                  : [...d.userIds, u.id],
+                              })
+                            }
+                          >
+                            {u.email}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <LinkEditor
+            schema={schema}
+            drafts={drafts}
+            links={links}
+            setLinks={setLinks}
+          />
         </div>
       )}
     </div>
   );
 }
 
-function NewConnectionForm({
-  onCancel,
-  onCreated,
-}: {
-  onCancel: () => void;
-  onCreated: (c: Connection) => void;
-}) {
+function NewConnectionForm({ onCreated }: { onCreated: (c: Connection) => void }) {
   const [driver, setDriver] = useState("postgres");
   const [form, setForm] = useState({
     name: "",
@@ -339,7 +308,8 @@ function NewConnectionForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit() {
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -356,84 +326,40 @@ function NewConnectionForm({
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: k === "port" ? Number(e.target.value) : e.target.value }));
 
-  const canConnect = form.name.trim() && form.host.trim() && form.database.trim() && form.user.trim();
-
   return (
-    <>
-      <div className={`${styles.dbPanel} ${styles.formStack}`}>
-        <div className={styles.formCols}>
-          <div className={styles.formCol}>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Navn</span>
-              <input className={styles.input} value={form.name} onChange={set("name")} placeholder="Regnskap" />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Type</span>
-              <select
-                className={styles.select}
-                value={driver}
-                onChange={(e) => {
-                  setDriver(e.target.value);
-                  const t = DB_TYPES.find((x) => x.key === e.target.value);
-                  if (t) setForm((f) => ({ ...f, port: t.port }));
-                }}
-              >
-                {DB_TYPES.map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Host</span>
-              <input className={styles.input} value={form.host} onChange={set("host")} placeholder="localhost" />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Port</span>
-              <input className={styles.input} type="number" value={form.port} onChange={set("port")} placeholder="5432" />
-            </label>
-          </div>
-
-          <div className={styles.formCol}>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Database</span>
-              <input className={styles.input} value={form.database} onChange={set("database")} placeholder="crm_db" />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Brukernavn</span>
-              <input className={styles.input} value={form.user} onChange={set("user")} placeholder="postgres" />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Passord</span>
-              <input className={styles.input} type="password" value={form.password} onChange={set("password")} placeholder="••••••••" />
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.formActions}>
-        {error && <span className={styles.connError}>{error}</span>}
-        <button type="button" className={styles.ghostButton} onClick={onCancel}>
-          Avbryt
-        </button>
-        <button
-          type="button"
-          className={styles.primaryButton}
-          disabled={!canConnect || busy}
-          onClick={submit}
+    <form className={styles.form} onSubmit={submit}>
+      <div className={styles.formRow}>
+        <select
+          className={styles.select}
+          value={driver}
+          onChange={(e) => {
+            setDriver(e.target.value);
+            const t = DB_TYPES.find((x) => x.key === e.target.value);
+            if (t) setForm((f) => ({ ...f, port: t.port }));
+          }}
         >
-          {busy ? (
-            <>
-              <span className={styles.spinner} />
-              Kobler til …
-            </>
-          ) : (
-            "Koble til"
-          )}
-        </button>
+          {DB_TYPES.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <input className={styles.input} placeholder="Navn (f.eks. Regnskap)" value={form.name} onChange={set("name")} required />
       </div>
-    </>
+      <div className={styles.formRow}>
+        <input className={styles.input} placeholder="Host" value={form.host} onChange={set("host")} required />
+        <input className={styles.inputSmall} type="number" placeholder="Port" value={form.port} onChange={set("port")} required />
+      </div>
+      <div className={styles.formRow}>
+        <input className={styles.input} placeholder="Database" value={form.database} onChange={set("database")} required />
+        <input className={styles.input} placeholder="Bruker" value={form.user} onChange={set("user")} required />
+        <input className={styles.input} type="password" placeholder="Passord" value={form.password} onChange={set("password")} />
+      </div>
+      {error && <div className={styles.error}>{error}</div>}
+      <button className={styles.primary} disabled={busy}>
+        {busy ? "Kobler til …" : "Koble til"}
+      </button>
+    </form>
   );
 }
 
@@ -462,7 +388,9 @@ function LinkEditor({
       drafts[l.to_table]?.enabled
   );
 
-  const options = enabled.flatMap((t) => t.columns.map((c) => `${t.name}.${c.name}`));
+  const options = enabled.flatMap((t) =>
+    t.columns.map((c) => `${t.name}.${c.name}`)
+  );
 
   function addManual() {
     const [ft, fc] = from.split(".");
@@ -477,42 +405,32 @@ function LinkEditor({
   if (enabled.length < 2) return null;
 
   return (
-    <>
-      <div className={styles.subLabel}>Koblinger mellom tabeller (join-nøkler)</div>
+    <div className={styles.linkSection}>
+      <div className={styles.detailLabel}>Koblinger mellom tabeller (join-nøkler)</div>
 
       {links.map((l) => (
         <div key={key(l)} className={styles.linkRow}>
-          <span>
-            {l.from_table}.{l.from_column}
-            <span className={styles.linkEq}>=</span>
-            {l.to_table}.{l.to_column}
+          <span className={styles.linkText}>
+            {l.from_table}.{l.from_column} <span className={styles.linkEq}>=</span> {l.to_table}.{l.to_column}
           </span>
-          <button
-            type="button"
-            className={styles.linkRemove}
-            onClick={() => setLinks(links.filter((x) => key(x) !== key(l)))}
-          >
+          <button className={styles.remove} onClick={() => setLinks(links.filter((x) => key(x) !== key(l)))}>
             Fjern
           </button>
         </div>
       ))}
 
       {suggestions.length > 0 && (
-        <div className={styles.chips}>
+        <div className={styles.suggestions}>
+          <span className={styles.detailLabel}>Funnet i databasen:</span>
           {suggestions.map((l) => (
-            <button
-              key={key(l)}
-              type="button"
-              className={styles.chip}
-              onClick={() => setLinks([...links, l])}
-            >
+            <button key={key(l)} className={styles.chip} onClick={() => setLinks([...links, l])}>
               + {l.from_table}.{l.from_column} = {l.to_table}.{l.to_column}
             </button>
           ))}
         </div>
       )}
 
-      <div className={styles.linkAdd}>
+      <div className={styles.formRow}>
         <select className={styles.select} value={from} onChange={(e) => setFrom(e.target.value)}>
           <option value="">Fra kolonne …</option>
           {options.map((o) => (
@@ -525,10 +443,10 @@ function LinkEditor({
             <option key={o}>{o}</option>
           ))}
         </select>
-        <button type="button" className={styles.btnDark} onClick={addManual} disabled={!from || !to}>
+        <button type="button" className={styles.primary} onClick={addManual} disabled={!from || !to}>
           Koble
         </button>
       </div>
-    </>
+    </div>
   );
 }

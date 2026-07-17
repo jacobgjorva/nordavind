@@ -1,19 +1,18 @@
 .wrap {
-  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   justify-content: center;
+  gap: 24px;
   overflow-y: auto;
 }
 
 .nav {
-  position: absolute;
-  top: 40px;
-  right: calc(50% + 500px + 12px);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   width: 200px;
+  padding-top: 40px;
 }
 
 .navHead {
@@ -52,7 +51,7 @@
 
 .panel {
   width: 1000px;
-  max-width: 100%;
+  max-width: calc(100% - 224px);
   flex-shrink: 0;
   padding: 40px 24px;
 }
