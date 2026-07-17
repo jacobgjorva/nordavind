@@ -147,7 +147,7 @@ const DB_FLOW: FlowStep[] = [
   {
     key: "name",
     question: "Hva skal tilkoblingen hete?",
-    options: () => ["Regnskap", "CRM", "Salg", "Lager"],
+    options: () => [],
   },
   {
     key: "host",
