@@ -1690,23 +1690,17 @@
 }
 
 .tmDesc {
-  height: 34px;
-  padding: 0 12px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text);
   font-size: 13.5px;
   outline: none;
-  transition: border-color var(--dur-fast) var(--ease);
 }
 
 .tmDesc::placeholder {
   color: var(--text-faint);
-}
-
-.tmDesc:focus {
-  border-color: #4299e0;
 }
 
 .acc {
