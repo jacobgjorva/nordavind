@@ -1,26 +1,50 @@
 import { useEffect, useState } from "react";
 import { PlusIcon, SearchIcon, SettingsIcon, SidebarIcon } from "../ui/Icons";
 import { Logo } from "../ui/Logo";
+import type { ChatSummary } from "../lib/api";
 import styles from "./Sidebar.module.css";
 
 type SidebarProps = {
-  chatTitle: string | null;
+  chats: ChatSummary[];
+  activeChatId: string | null;
   userEmail: string;
   onNewChat: () => void;
   onOpenSettings: () => void;
-  onOpenChat: () => void;
+  onOpenChat: (id: string) => void;
   onLogout: () => void;
-  inSettings: boolean;
 };
 
+// Grupperer samtaler på dato: i dag / siste 7 dager / eldre.
+function groupChats(chats: ChatSummary[]) {
+  const today: ChatSummary[] = [];
+  const week: ChatSummary[] = [];
+  const older: ChatSummary[] = [];
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(startOfDay);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  for (const c of chats) {
+    const t = new Date(c.updated_at);
+    if (t >= startOfDay) today.push(c);
+    else if (t >= weekAgo) week.push(c);
+    else older.push(c);
+  }
+  return [
+    { label: "I DAG", chats: today },
+    { label: "SISTE 7 DAGER", chats: week },
+    { label: "ELDRE", chats: older },
+  ].filter((g) => g.chats.length > 0);
+}
+
 export function Sidebar({
-  chatTitle,
+  chats,
+  activeChatId,
   userEmail,
   onNewChat,
   onOpenSettings,
   onOpenChat,
   onLogout,
-  inSettings,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
 
@@ -105,19 +129,25 @@ export function Sidebar({
       </button>
 
       <nav className={styles.list}>
-        <div className={styles.group}>
-          <div className={styles.groupLabel}>I DAG</div>
-          {chatTitle ? (
-            <button
-              className={`${styles.chat} ${!inSettings ? styles.chatActive : ""}`}
-              onClick={onOpenChat}
-            >
-              {chatTitle}
-            </button>
-          ) : (
-            <div className={styles.emptyList}>Ingen chatter ennå</div>
-          )}
-        </div>
+        {chats.length === 0 && (
+          <div className={styles.emptyList}>Ingen chatter ennå</div>
+        )}
+        {groupChats(chats).map((g) => (
+          <div key={g.label} className={styles.group}>
+            <div className={styles.groupLabel}>{g.label}</div>
+            {g.chats.map((c) => (
+              <button
+                key={c.id}
+                className={`${styles.chat} ${
+                  c.id === activeChatId ? styles.chatActive : ""
+                }`}
+                onClick={() => onOpenChat(c.id)}
+              >
+                {c.title}
+              </button>
+            ))}
+          </div>
+        ))}
       </nav>
 
       <div className={styles.footer}>

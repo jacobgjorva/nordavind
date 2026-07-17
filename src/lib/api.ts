@@ -79,6 +79,60 @@ export async function fetchDailyUsage(
   return { usage: body.usage ?? [], usdNok: body.usd_nok ?? 0 };
 }
 
+export interface ChatSummary {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
+export interface StoredMessage {
+  role: Role;
+  content: string;
+  sources?: string;
+}
+
+export async function fetchChats(): Promise<ChatSummary[]> {
+  const res = await fetch(`${BASE_URL}/chats`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).chats ?? [];
+}
+
+export async function createChat(title: string): Promise<ChatSummary> {
+  const res = await fetch(`${BASE_URL}/chats`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchChatMessages(id: string): Promise<StoredMessage[]> {
+  const res = await fetch(`${BASE_URL}/chats/${id}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).messages ?? [];
+}
+
+export async function appendChatMessage(
+  id: string,
+  msg: StoredMessage
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/chats/${id}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(msg),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function deleteChat(id: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/chats/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 export interface AdminUser extends AuthUser {
   usage: {
     requests: number;

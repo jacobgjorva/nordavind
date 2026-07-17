@@ -5,10 +5,14 @@ import { Logo } from "../../ui/Logo";
 import { AttachIcon, CopyIcon, SearchIcon, ShareIcon } from "../../ui/Icons";
 import {
   apiConfigured,
+  appendChatMessage,
+  createChat,
   extractFile,
+  fetchChatMessages,
   streamChat,
   type ApiMessage,
   type Attachment,
+  type ChatSummary,
   type SourceRef,
 } from "../../lib/api";
 import styles from "./Chat.module.css";
@@ -160,8 +164,32 @@ function thinkingLabel(reasoning?: string): string {
   return words || "Tenker";
 }
 
-export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
+export function Chat({
+  chatId,
+  onChatCreated,
+}: {
+  chatId: string | null;
+  onChatCreated?: (chat: ChatSummary) => void;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const chatIdRef = useRef<string | null>(chatId);
+
+  // Last inn lagrede meldinger når en eksisterende samtale åpnes.
+  useEffect(() => {
+    if (!chatId) return;
+    fetchChatMessages(chatId)
+      .then((stored) =>
+        setMessages(
+          stored.map((m) => ({
+            id: nextId(),
+            role: m.role,
+            content: m.content,
+            sources: m.sources ? JSON.parse(m.sources) : undefined,
+          }))
+        )
+      )
+      .catch(() => {});
+  }, [chatId]);
   const [input, setInput] = useState("");
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -231,7 +259,17 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
     setInput("");
     setUploadError(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    if (messages.length === 0) onTitle?.(text.slice(0, 60));
+
+    // Opprett samtalen i backend ved første melding.
+    if (!chatIdRef.current) {
+      try {
+        const chat = await createChat(text.slice(0, 60) || "Ny samtale");
+        chatIdRef.current = chat.id;
+        onChatCreated?.(chat);
+      } catch {
+        // Persistens er ikke kritisk for å svare
+      }
+    }
 
     // Vedleggstekst sendes til modellen, men vises ikke i bobla.
     const files = attachments;
@@ -312,6 +350,24 @@ export function Chat({ onTitle }: { onTitle?: (title: string) => void }) {
         abortRef.current.signal
       );
       if (!acc) update(replyId, { loading: false, content: "(tomt svar)" });
+
+      // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
+      if (chatIdRef.current && acc) {
+        const displayContent =
+          files.length > 0
+            ? `${text}\n\n[Vedlegg: ${files.map((a) => a.name).join(", ")}]`
+            : text;
+        const cid = chatIdRef.current;
+        appendChatMessage(cid, { role: "user", content: displayContent })
+          .then(() =>
+            appendChatMessage(cid, {
+              role: "assistant",
+              content: acc,
+              sources: sources.length ? JSON.stringify(sources) : undefined,
+            })
+          )
+          .catch(() => {});
+      }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "Ukjent feil";

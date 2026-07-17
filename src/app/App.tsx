@@ -3,13 +3,26 @@ import { Chat } from "../features/chat/Chat";
 import { Login } from "../features/auth/Login";
 import { Settings } from "../features/settings/Settings";
 import { Sidebar } from "../layout/Sidebar";
-import { clearToken, fetchMe, getToken, type AuthUser } from "../lib/api";
+import {
+  clearToken,
+  fetchChats,
+  fetchMe,
+  getToken,
+  type AuthUser,
+  type ChatSummary,
+} from "../lib/api";
 import styles from "./App.module.css";
 
 export default function App() {
   const [view, setView] = useState<"chat" | "settings">("chat");
-  const [chatKey, setChatKey] = useState(0);
-  const [chatTitle, setChatTitle] = useState<string | null>(null);
+  // session styrer remount av Chat; activeChatId er kun sidebar-markering.
+  // De er adskilt slik at opprettelse av samtale midt i en stream ikke
+  // remonter komponenten og dreper streamen.
+  const [session, setSession] = useState<{ key: number; chatId: string | null }>(
+    { key: 0, chatId: null }
+  );
+  const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   // null = ukjent (validerer token), false = ikke innlogget
   const [user, setUser] = useState<AuthUser | null | false>(
     getToken() ? null : false
@@ -25,10 +38,27 @@ export default function App() {
       });
   }, [user]);
 
+  useEffect(() => {
+    if (user && user !== null) {
+      fetchChats().then(setChats).catch(() => {});
+    }
+  }, [user]);
+
   const newChat = useCallback(() => {
-    setChatKey((k) => k + 1);
-    setChatTitle(null);
+    setActiveChatId(null);
+    setSession((s) => ({ key: s.key + 1, chatId: null }));
     setView("chat");
+  }, []);
+
+  const openChat = useCallback((id: string) => {
+    setActiveChatId(id);
+    setSession((s) => ({ key: s.key + 1, chatId: id }));
+    setView("chat");
+  }, []);
+
+  const onChatCreated = useCallback((chat: ChatSummary) => {
+    setActiveChatId(chat.id);
+    fetchChats().then(setChats).catch(() => {});
   }, []);
 
   const logout = useCallback(() => {
@@ -37,7 +67,6 @@ export default function App() {
   }, []);
 
   const openSettings = useCallback(() => setView("settings"), []);
-  const openChat = useCallback(() => setView("chat"), []);
 
   if (user === null) return null; // validerer sesjon
   if (user === false) return <Login onLogin={setUser} />;
@@ -45,18 +74,22 @@ export default function App() {
   return (
     <div className={styles.app}>
       <Sidebar
-        chatTitle={chatTitle}
+        chats={chats}
+        activeChatId={view === "chat" ? activeChatId : null}
         userEmail={user.email}
         onNewChat={newChat}
         onOpenSettings={openSettings}
         onOpenChat={openChat}
         onLogout={logout}
-        inSettings={view === "settings"}
       />
       <div className={styles.main}>
         <header className={styles.topBar} />
         {view === "chat" ? (
-          <Chat key={chatKey} onTitle={setChatTitle} />
+          <Chat
+            key={session.key}
+            chatId={session.chatId}
+            onChatCreated={onChatCreated}
+          />
         ) : (
           <Settings user={user} />
         )}
