@@ -120,6 +120,26 @@
   margin-top: 4px;
 }
 
+.secondary {
+  padding: 7px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.secondary:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.secondary:disabled {
+  opacity: 0.6;
+}
+
 .cancel {
   padding: 7px 14px;
   border: none;

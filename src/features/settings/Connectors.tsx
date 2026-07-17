@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   createConnection,
+  testConnection,
   deleteConnection,
   fetchAdminUsers,
   fetchConnections,
@@ -316,6 +317,21 @@ function NewConnectionForm({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testState, setTestState] = useState<"idle" | "testing" | "ok">("idle");
+
+  async function test() {
+    if (busy || testState === "testing") return;
+    setTestState("testing");
+    setError(null);
+    try {
+      await testConnection({ ...form, driver });
+      setTestState("ok");
+      setTimeout(() => setTestState("idle"), 3000);
+    } catch (err) {
+      setTestState("idle");
+      setError(err instanceof Error ? err.message : "Kunne ikke koble til.");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -385,6 +401,18 @@ function NewConnectionForm({
       <div className={styles.formActions}>
         <button type="button" className={styles.cancel} onClick={onCancel}>
           Avbryt
+        </button>
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={test}
+          disabled={testState === "testing"}
+        >
+          {testState === "testing"
+            ? "Tester …"
+            : testState === "ok"
+              ? "Tilkobling OK ✓"
+              : "Test tilkobling"}
         </button>
         <button className={styles.primary} disabled={busy}>
           {busy ? "Kobler til …" : "Koble til"}
