@@ -164,22 +164,7 @@ function ChatWizard(_props: {
         </div>
       </div>
       <div className={chatStyles.composerDocked}>
-        <div className={`${chatStyles.composerWrap} ${styles.composerAnchor}`}>
-          {!choice && options.length > 0 && (
-            <div className={styles.palette}>
-              {options.map((o, i) => (
-                <button
-                  key={o}
-                  type="button"
-                  className={`${styles.paletteItem} ${i === hilite ? styles.paletteActive : ""}`}
-                  onMouseEnter={() => setHilite(i)}
-                  onClick={() => pick(o)}
-                >
-                  {o}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className={chatStyles.composerWrap}>
           <div className={chatStyles.composer}>
             <div className={chatStyles.inputRow}>
               <textarea
@@ -192,6 +177,23 @@ function ChatWizard(_props: {
                 autoFocus
               />
             </div>
+            {!choice && options.length > 0 && (
+              <div className={styles.comboBody}>
+                <div className={styles.comboLabel}>Kilder</div>
+                {options.map((o, i) => (
+                  <button
+                    key={o}
+                    type="button"
+                    className={`${styles.comboItem} ${i === hilite ? styles.comboItemActive : ""}`}
+                    onMouseEnter={() => setHilite(i)}
+                    onClick={() => pick(o)}
+                  >
+                    <span className={styles.comboDot} />
+                    <span className={styles.comboItemLabel}>{o}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={chatStyles.footer}>
               <span className={chatStyles.modelInfo}>Modell: Bris</span>
               <span className={chatStyles.sendHint}>
