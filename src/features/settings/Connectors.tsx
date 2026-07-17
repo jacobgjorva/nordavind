@@ -98,12 +98,15 @@ function ChatWizard({
   onClose: () => void;
 }) {
   return (
-    <div className={styles.canvas}>
+    <div className={styles.content}>
+      <div className={styles.sectionTitle}>Opprett kobling</div>
+      <div className={styles.canvas}>
       <div className={styles.canvasScroll} />
       <div className={styles.canvasInputRow}>
         <button type="button" className={styles.cancel} onClick={onClose}>
           Avbryt
         </button>
+      </div>
       </div>
     </div>
   );
