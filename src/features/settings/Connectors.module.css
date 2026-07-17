@@ -140,6 +140,10 @@
   opacity: 0.6;
 }
 
+.testOk {
+  color: #4ade80;
+}
+
 .cancel {
   padding: 7px 14px;
   border: none;

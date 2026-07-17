@@ -405,7 +405,7 @@ function NewConnectionForm({
         </button>
         <button
           type="button"
-          className={styles.primary}
+          className={`${styles.primary} ${testState === "ok" ? styles.testOk : ""}`}
           onClick={test}
           disabled={testState === "testing"}
         >
