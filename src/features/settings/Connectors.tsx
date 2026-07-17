@@ -188,12 +188,13 @@ let logId = 0;
 // Kostnadsindikator: flere kolonner = mer kontekst per melding = dyrere.
 // 5 segmenter fylles og skifter farge grønt → gult → rødt.
 function CostBar({ cols }: { cols: number }) {
-  const level = cols <= 5 ? 1 : cols <= 10 ? 2 : cols <= 20 ? 3 : cols <= 35 ? 4 : 5;
+  const SEGS = 7;
+  const level = Math.max(1, Math.min(SEGS, Math.ceil(cols / 6)));
   const label =
-    level <= 2 ? "Lav kontekstkostnad" : level <= 3 ? "Middels — vurder å begrense kolonner" : "Høy — begrens kolonner via egen SQL";
+    level <= 3 ? "Lav kontekstkostnad" : level <= 5 ? "Middels — vurder å begrense kolonner" : "Høy — begrens kolonner via egen SQL";
   return (
     <span className={styles.costBar} title={`${cols} kolonner. ${label}.`}>
-      {Array.from({ length: 5 }, (_, i) => (
+      {Array.from({ length: SEGS }, (_, i) => (
         <span
           key={i}
           className={`${styles.costSeg} ${i < level ? "" : styles.costSegEmpty}`}
