@@ -1091,16 +1091,16 @@
 
 .flowWire {
   display: inline-block;
-  width: 20px;
+  width: 28px;
   height: 2px;
   border-radius: 1px;
   background: #4a4a4e;
-  margin: 0 6px;
+  margin: 0 10px;
 }
 
 .flowGap {
   display: inline-block;
-  width: 28px;
+  width: 48px;
 }
 
 .flowEmpty {
