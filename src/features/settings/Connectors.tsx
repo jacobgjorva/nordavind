@@ -210,6 +210,8 @@ function Wizard({
           selected={[...selected]}
           descriptions={descriptions}
           setDescriptions={setDescriptions}
+          views={views}
+          setViews={setViews}
         />
       )}
 
@@ -490,12 +492,6 @@ function TableStep({
           placeholder="SELECT c.name, SUM(o.total) FROM orders o JOIN customers c ON …"
           onChange={(sql) => setDraft({ ...draft, sql })}
         />
-        <input
-          className={styles.input}
-          placeholder="Beskrivelse (valgfri)"
-          value={draft.description}
-          onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-        />
         <div className={styles.formActions}>
           <button className={styles.primary} onClick={addView} disabled={!draft.name.trim() || !draft.sql.trim()}>
             Legg til
@@ -547,13 +543,17 @@ function DescribeStep({
   selected,
   descriptions,
   setDescriptions,
+  views,
+  setViews,
 }: {
   selected: string[];
   descriptions: Record<string, string>;
   setDescriptions: (d: Record<string, string>) => void;
+  views: DbView[];
+  setViews: (v: DbView[]) => void;
 }) {
-  if (selected.length === 0) {
-    return <div className={styles.empty}>Ingen bord valgt.</div>;
+  if (selected.length === 0 && views.length === 0) {
+    return <div className={styles.empty}>Ingen bord eller spørringer valgt.</div>;
   }
   return (
     <div className={styles.stepBody}>
@@ -565,6 +565,19 @@ function DescribeStep({
             placeholder="Hva inneholder bordet?"
             value={descriptions[name] ?? ""}
             onChange={(e) => setDescriptions({ ...descriptions, [name]: e.target.value })}
+          />
+        </label>
+      ))}
+      {views.map((v) => (
+        <label key={v.name} className={styles.field}>
+          <span className={`${styles.fieldLabel} ${styles.tableName}`}>{v.name} (SQL)</span>
+          <input
+            className={styles.input}
+            placeholder="Hva gir spørringen?"
+            value={v.description}
+            onChange={(e) =>
+              setViews(views.map((x) => (x.name === v.name ? { ...x, description: e.target.value } : x)))
+            }
           />
         </label>
       ))}
