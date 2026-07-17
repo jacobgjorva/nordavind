@@ -78,17 +78,9 @@ export function Connectors() {
   return (
     <div className={styles.connLayout}>
       <aside className={styles.connSidebar}>
-        <div className={styles.connSideHead}>
-          <span className={styles.connSideTitle}>Tilkoblinger</span>
-          <button
-            className={styles.connAdd}
-            onClick={() => setCanvas({ conn: null })}
-            title="Ny tilkobling"
-            aria-label="Ny tilkobling"
-          >
-            +
-          </button>
-        </div>
+        <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
+          Ny kobling
+        </button>
         <div className={styles.connSideList}>
           {conns.length === 0 && (
             <div className={styles.empty}>Ingen ennå.</div>

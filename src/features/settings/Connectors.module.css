@@ -1854,9 +1854,13 @@
   flex: 0 0 240px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   padding-right: 6px;
   border-right: 0.5px solid var(--border);
+}
+
+.connSidebar .primary {
+  width: 100%;
 }
 
 .connSideHead {
