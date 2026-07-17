@@ -153,6 +153,8 @@
 
 .user {
   justify-content: flex-end;
+  /* Luft over spørsmål: skyver forrige svar helt inn i skjult sone ved ankring */
+  margin-top: 32px;
 }
 
 .assistant {
