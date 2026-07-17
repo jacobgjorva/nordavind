@@ -456,8 +456,6 @@
 .tabRow {
   display: flex;
   gap: 4px;
-  padding-bottom: 4px;
-  border-bottom: 0.5px solid var(--border);
 }
 
 .tab {
