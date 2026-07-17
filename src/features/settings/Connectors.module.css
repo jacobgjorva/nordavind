@@ -390,7 +390,7 @@
 
 .wizardCols {
   display: flex;
-  gap: 48px;
+  gap: 24px;
   align-items: flex-start;
 }
 
@@ -400,12 +400,10 @@
 }
 
 .wizardSide {
-  /* Speiler settings-naven: 200px bred, 24px fra panelet (panel = 1000px
-     sentrert sammen med nav 200 + gap 24 -> høyre kant ved 50% + 612px). */
-  position: fixed;
-  top: 96px;
-  left: calc(50% + 612px + 24px);
-  width: 200px;
+  /* Speiler settings-naven: 200px bred, 24px gap fra innholdet, i flyt. */
+  flex: 0 0 200px;
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
