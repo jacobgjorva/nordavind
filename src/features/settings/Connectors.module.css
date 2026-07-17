@@ -1859,6 +1859,10 @@
   border-right: 0.5px solid var(--border);
 }
 
+.connSidebar > .primary {
+  align-self: flex-start;
+}
+
 .connSideHead {
   display: flex;
   align-items: center;
