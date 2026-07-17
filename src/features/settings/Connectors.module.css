@@ -1980,8 +1980,8 @@
 .costSegEmpty {
   background-image: repeating-linear-gradient(
     45deg,
-    var(--border-strong) 0px,
-    var(--border-strong) 1.5px,
+    rgba(255, 255, 255, 0.35) 0px,
+    rgba(255, 255, 255, 0.35) 1.5px,
     transparent 1.5px,
     transparent 3.5px
   );
