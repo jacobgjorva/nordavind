@@ -337,32 +337,49 @@ function NewConnectionForm({
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <div className={styles.formRow}>
-        <select
-          className={styles.select}
-          value={driver}
-          onChange={(e) => {
-            setDriver(e.target.value);
-            const t = DB_TYPES.find((x) => x.key === e.target.value);
-            if (t) setForm((f) => ({ ...f, port: t.port }));
-          }}
-        >
-          {DB_TYPES.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <input className={styles.input} placeholder="Navn (f.eks. Regnskap)" value={form.name} onChange={set("name")} required />
-      </div>
-      <div className={styles.formRow}>
-        <input className={styles.input} placeholder="Host" value={form.host} onChange={set("host")} required />
-        <input className={styles.inputSmall} type="number" placeholder="Port" value={form.port} onChange={set("port")} required />
-      </div>
-      <div className={styles.formRow}>
-        <input className={styles.input} placeholder="Database" value={form.database} onChange={set("database")} required />
-        <input className={styles.input} placeholder="Bruker" value={form.user} onChange={set("user")} required />
-        <input className={styles.input} type="password" placeholder="Passord" value={form.password} onChange={set("password")} />
+      <div className={styles.formGrid}>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Type</span>
+          <select
+            className={styles.select}
+            value={driver}
+            onChange={(e) => {
+              setDriver(e.target.value);
+              const t = DB_TYPES.find((x) => x.key === e.target.value);
+              if (t) setForm((f) => ({ ...f, port: t.port }));
+            }}
+          >
+            {DB_TYPES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Navn</span>
+          <input className={styles.input} placeholder="Regnskap" value={form.name} onChange={set("name")} required />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Host</span>
+          <input className={styles.input} placeholder="localhost" value={form.host} onChange={set("host")} required />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Port</span>
+          <input className={styles.input} type="number" placeholder="5432" value={form.port} onChange={set("port")} required />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Database</span>
+          <input className={styles.input} placeholder="crm_db" value={form.database} onChange={set("database")} required />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Bruker</span>
+          <input className={styles.input} placeholder="postgres" value={form.user} onChange={set("user")} required />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Passord</span>
+          <input className={styles.input} type="password" placeholder="••••••••" value={form.password} onChange={set("password")} />
+        </label>
       </div>
       {error && <div className={styles.error}>{error}</div>}
       <div className={styles.formActions}>

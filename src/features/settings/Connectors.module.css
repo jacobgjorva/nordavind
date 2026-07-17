@@ -139,6 +139,31 @@
   gap: 10px;
 }
 
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+  max-width: 640px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field .input,
+.field .select {
+  flex: none;
+  width: 100%;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 .input,
 .select {
   flex: 1;
@@ -149,7 +174,7 @@
   color: var(--text);
   font-family: inherit;
   outline: none;
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: #2a2a2a;
   border: 0.5px solid var(--border-strong);
   font-size: 13.5px;
   transition: border-color var(--dur-fast) var(--ease);
