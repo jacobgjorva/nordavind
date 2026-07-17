@@ -102,6 +102,13 @@ export function Usage() {
           </div>
 
           <div className={styles.stat}>
+            <div className={styles.statLabel}>Totalt</div>
+            <div className={styles.statValue}>
+              {formatNok(data.totalCost * (1 + SERVICE_FEE_RATE) * usdNok)}
+            </div>
+          </div>
+
+          <div className={styles.stat}>
             <div className={styles.statLabel}>Forespørsler</div>
             <div className={styles.statValue}>{data.totalRequests}</div>
           </div>
