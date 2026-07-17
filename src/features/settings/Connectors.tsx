@@ -6,7 +6,9 @@ import {
   createConnection,
   deleteConnection,
   fetchConnections,
+  fetchConnectionSchema,
   type Connection,
+  type ConnectionSchema,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
 
@@ -193,6 +195,9 @@ function ChatWizard(_props: {
   // Felt under korrigering — overstyrer den lineære rekkefølgen.
   const [editKey, setEditKey] = useState<string | null>(null);
   const [savedConn, setSavedConn] = useState<Connection | null>(null);
+  const [schema, setSchema] = useState<ConnectionSchema | null>(null);
+  const [selTables, setSelTables] = useState<Set<string>>(new Set());
+  const [tablesDone, setTablesDone] = useState(false);
   const [busy, setBusy] = useState(false);
   // Pågående handling: vises med logo-animasjon som i hovedchatten.
   const [status, setStatus] = useState<string | null>(null);
@@ -205,18 +210,31 @@ function ChatWizard(_props: {
       DB_FLOW.find((f) => !(f.key in answers)) ||
       null;
 
+  const tablesPhase = Boolean(savedConn && schema && !tablesDone && !activeStep);
+
   const question = !sourceChosen
     ? "Hva skal vi koble til?"
-    : activeStep?.question ?? null;
+    : activeStep?.question ??
+      (tablesPhase ? "Hvilke bord skal AI-en få bruke?" : null);
 
+  const DONE_ITEM = "__done__";
   const rawOptions = !sourceChosen
     ? SOURCE_OPTIONS
     : activeStep
       ? activeStep.options(answers)
-      : [];
-  const options = rawOptions.filter((o) =>
+      : tablesPhase && schema
+        ? schema.tables.map((t) => t.name)
+        : [];
+  const filtered = rawOptions.filter((o) =>
     o.toLowerCase().includes(input.trim().toLowerCase())
   );
+  // Bordvalg: maks 5 treff om gangen + Ferdig-element når noe er valgt.
+  const options = tablesPhase
+    ? [
+        ...(selTables.size > 0 ? [DONE_ITEM] : []),
+        ...filtered.slice(0, 5),
+      ]
+    : filtered;
 
   function say(role: "bot" | "user", text: string) {
     setLog((prev) => [...prev, { id: ++logId, role, text }]);
@@ -239,8 +257,11 @@ function ChatWizard(_props: {
       // Korrigering etter vellykket oppkobling: den nye erstatter den gamle.
       if (savedConn) await deleteConnection(savedConn.id).catch(() => {});
       setSavedConn(conn);
+      setStatus("Henter skjemaet");
+      const sch = await fetchConnectionSchema(conn.id);
+      setSchema(sch);
       setStatus(null);
-      say("bot", `Tilkoblet! ${conn.name} er lagret. Si fra om noe skal endres.`);
+      say("bot", `Tilkoblet! Jeg fant ${sch.tables.length} bord i databasen.`);
     } catch (err) {
       setStatus(null);
       say("bot", (err instanceof Error ? err.message : "Kunne ikke koble til.") + " Prøv passordet igjen.");
@@ -377,7 +398,29 @@ function ChatWizard(_props: {
     }
   }
 
+  function toggleTable(name: string) {
+    setSelTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+    setInput("");
+    setHilite(0);
+  }
+
+  function finishTables() {
+    say("user", `Valgte bord: ${[...selTables].join(", ")}`);
+    setTablesDone(true);
+    say("bot", "Notert! Neste steg kommer snart.");
+  }
+
   function pick(option: string) {
+    if (tablesPhase) {
+      if (option === DONE_ITEM) finishTables();
+      else toggleTable(option);
+      return;
+    }
     answer(option);
   }
 
@@ -394,6 +437,10 @@ function ChatWizard(_props: {
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (tablesPhase) {
+        if (options.length > 0) pick(options[hilite]);
+        return;
+      }
       if (input.trim()) answer(input);
       else if (options.length > 0) answer(options[hilite]);
     }
@@ -434,8 +481,9 @@ function ChatWizard(_props: {
               <textarea
                 className={chatStyles.input}
                 rows={1}
-                placeholder="Spør om hva som helst …"
+                placeholder={status ? "Vent litt …" : "Spør om hva som helst …"}
                 value={input}
+                disabled={status !== null || busy}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 autoFocus
@@ -444,7 +492,7 @@ function ChatWizard(_props: {
             {options.length > 0 && (
               <div className={styles.comboBody}>
                 <div className={styles.comboLabel}>
-                  {!sourceChosen ? "Kilder" : "Forslag"}
+                  {!sourceChosen ? "Kilder" : tablesPhase ? "Bord" : "Forslag"}
                 </div>
                 {options.map((o, i) => (
                   <button
@@ -454,8 +502,21 @@ function ChatWizard(_props: {
                     onMouseEnter={() => setHilite(i)}
                     onClick={() => pick(o)}
                   >
-                    <span className={styles.comboDot} />
-                    <span className={styles.comboItemLabel}>{o}</span>
+                    <span
+                      className={`${styles.comboDot} ${
+                        (o === DONE_ITEM || selTables.has(o)) && tablesPhase
+                          ? styles.comboDotOn
+                          : ""
+                      }`}
+                    />
+                    <span className={styles.comboItemLabel}>
+                      {o === DONE_ITEM ? `Ferdig (${selTables.size} valgt)` : o}
+                    </span>
+                    {tablesPhase && o !== DONE_ITEM && (
+                      <span className={styles.comboHint}>
+                        {schema?.tables.find((t) => t.name === o)?.columns.length} felt
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

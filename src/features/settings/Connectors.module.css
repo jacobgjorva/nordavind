@@ -998,3 +998,13 @@
   font-weight: 450;
   line-height: 1.6;
 }
+
+.comboDotOn {
+  background: #006be9;
+}
+
+.comboHint {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
