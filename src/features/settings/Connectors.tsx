@@ -471,15 +471,6 @@ function TableStep({
 
       {tab === "sql" && (
         <>
-      {views.map((v) => (
-        <div key={v.name} className={styles.viewRow}>
-          <span className={styles.tableName}>{v.name}</span>
-          <code className={styles.viewSql}>{v.sql}</code>
-          <button className={styles.remove} onClick={() => setViews(views.filter((x) => x.name !== v.name))}>
-            Fjern
-          </button>
-        </div>
-      ))}
       <div className={styles.viewEditor}>
         <input
           className={styles.input}
@@ -534,6 +525,33 @@ function TableStep({
       )}
         </>
       )}
+
+      <div className={styles.subLabel}>
+        Valgt ({selected.size + views.length})
+      </div>
+      {selected.size === 0 && views.length === 0 && (
+        <div className={styles.empty}>Ingenting valgt ennå.</div>
+      )}
+      {[...selected].map((name) => (
+        <div key={name} className={styles.viewRow}>
+          <span className={styles.tableName}>{name}</span>
+          <span className={styles.colCount}>bord</span>
+          <span className={styles.viewSql} />
+          <button className={styles.remove} onClick={() => toggle(name)}>
+            Fjern
+          </button>
+        </div>
+      ))}
+      {views.map((v) => (
+        <div key={v.name} className={styles.viewRow}>
+          <span className={styles.tableName}>{v.name}</span>
+          <span className={styles.colCount}>SQL</span>
+          <code className={styles.viewSql}>{v.sql}</code>
+          <button className={styles.remove} onClick={() => setViews(views.filter((x) => x.name !== v.name))}>
+            Fjern
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
