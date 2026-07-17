@@ -62,25 +62,34 @@ const MODEL_GLOW: Record<string, string> = {
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
 
-// Streamet tekst med fade-in per mottatt segment i stedet for "skriving".
-// Rendres som ren tekst under streaming; markdown tar over når svaret er ferdig.
+// Streamet tekst der hele ord fades inn — aldri halvskrevne ord.
+// Ufullstendige ord holdes tilbake til ordgrensen kommer; markdown tar
+// over når svaret er ferdig.
 function StreamingText({ content }: { content: string }) {
-  const prevLenRef = useRef(0);
-  const segmentsRef = useRef<{ id: number; text: string }[]>([]);
+  const committedRef = useRef(0);
+  const wordsRef = useRef<{ id: number; text: string }[]>([]);
 
-  if (content.length > prevLenRef.current) {
-    segmentsRef.current = [
-      ...segmentsRef.current,
-      { id: segmentsRef.current.length, text: content.slice(prevLenRef.current) },
-    ];
-    prevLenRef.current = content.length;
+  // Commit kun frem til siste ordgrense.
+  const boundary = Math.max(
+    content.lastIndexOf(" "),
+    content.lastIndexOf("\n")
+  );
+  const commitTo = boundary >= 0 ? boundary + 1 : 0;
+
+  if (commitTo > committedRef.current) {
+    const fresh = content.slice(committedRef.current, commitTo);
+    // Ett span per ord (med etterfølgende whitespace) så hvert ord fader inn.
+    for (const word of fresh.match(/\S+\s*|\s+/g) ?? []) {
+      wordsRef.current.push({ id: wordsRef.current.length, text: word });
+    }
+    committedRef.current = commitTo;
   }
 
   return (
     <span className={styles.streamingText}>
-      {segmentsRef.current.map((s) => (
-        <span key={s.id} className={styles.fadeSeg}>
-          {s.text}
+      {wordsRef.current.map((w) => (
+        <span key={w.id} className={styles.fadeSeg}>
+          {w.text}
         </span>
       ))}
     </span>
