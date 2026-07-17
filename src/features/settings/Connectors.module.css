@@ -1171,6 +1171,7 @@
   transform: translateX(-50%);
   z-index: 20;
   width: 340px;
+  min-height: 160px;
   padding: 16px;
   border: 0.5px solid #3e3f41;
   border-radius: var(--radius-lg);
@@ -1192,17 +1193,6 @@
     opacity: 1;
     transform: translate(-50%, 0);
   }
-}
-
-/* Liten pil ned mot noden */
-.nodePopover::after {
-  content: "";
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-bottom-color: rgba(38, 38, 42, 0.72);
 }
 
 .popHead {

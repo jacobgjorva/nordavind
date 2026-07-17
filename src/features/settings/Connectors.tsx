@@ -10,7 +10,6 @@ import {
   saveConnectionConfig,
   type Connection,
   type ConnectionSchema,
-  type DbLink,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
 
@@ -282,158 +281,13 @@ function NodePopover({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const cfgTables = schema.config.tables ?? [];
-  const others = cfgTables.map((t) => t.name).filter((n) => n !== table);
-  const myCols = schema.tables.find((t) => t.name === table)?.columns ?? [];
-
-  const initialLinks = (schema.config.links ?? []).filter(
-    (l) => l.from_table === table || l.to_table === table
-  );
-  const [description, setDescription] = useState(
-    cfgTables.find((t) => t.name === table)?.description ?? ""
-  );
-  const [links, setLinks] = useState<DbLink[]>(initialLinks);
-  const [saving, setSaving] = useState(false);
-
-  const [toTable, setToTable] = useState("");
-  const [fromCol, setFromCol] = useState("");
-  const [toCol, setToCol] = useState("");
-  const toCols =
-    schema.tables.find((t) => t.name === toTable)?.columns ?? [];
-
-  function addLink() {
-    if (!toTable || !fromCol || !toCol) return;
-    const l: DbLink = {
-      from_table: table,
-      from_column: fromCol,
-      to_table: toTable,
-      to_column: toCol,
-    };
-    setLinks((prev) => [...prev, l]);
-    setToTable("");
-    setFromCol("");
-    setToCol("");
-  }
-
-  async function save() {
-    setSaving(true);
-    const tables = cfgTables.map((t) =>
-      t.name === table ? { ...t, description } : t
-    );
-    // Behold alle lenker som ikke rører dette bordet, legg til de redigerte.
-    const otherLinks = (schema.config.links ?? []).filter(
-      (l) => l.from_table !== table && l.to_table !== table
-    );
-    try {
-      await saveConnectionConfig(
-        schema.connection.id,
-        tables,
-        [...otherLinks, ...links],
-        schema.config.views ?? []
-      );
-      onSaved();
-    } catch {
-      setSaving(false);
-    }
-  }
+  void schema;
+  void table;
+  void onClose;
+  void onSaved;
 
   return (
-    <div className={styles.nodePopover} onClick={(e) => e.stopPropagation()}>
-      <div className={styles.popHead}>
-        <div className={styles.popTitle}>{table}</div>
-        <div className={styles.popSub}>
-          Beskriv bordet og koble det til andre bord AI-en kan bruke.
-        </div>
-      </div>
-
-      <div className={styles.popField}>
-        <span className={styles.popFieldLabel}>Beskrivelse</span>
-        <textarea
-          className={styles.popArea}
-          placeholder="Hva inneholder bordet?"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          autoFocus
-        />
-      </div>
-
-      <div className={styles.popLabel}>Relasjoner</div>
-      {links.length === 0 && <div className={styles.popEmpty}>Ingen relasjoner ennå.</div>}
-      {links.map((l, i) => (
-        <div key={i} className={styles.popLink}>
-          <span className={styles.popLinkText}>
-            {l.from_table}.{l.from_column} = {l.to_table}.{l.to_column}
-          </span>
-          <button
-            className={styles.remove}
-            onClick={() => setLinks((prev) => prev.filter((_, j) => j !== i))}
-          >
-            Fjern
-          </button>
-        </div>
-      ))}
-
-      {others.length > 0 && (
-        <div className={styles.popAddRow}>
-          <select
-            className={styles.popSelect}
-            value={fromCol}
-            onChange={(e) => setFromCol(e.target.value)}
-          >
-            <option value="">{table}-kolonne</option>
-            {myCols.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.popSelect}
-            value={toTable}
-            onChange={(e) => {
-              setToTable(e.target.value);
-              setToCol("");
-            }}
-          >
-            <option value="">Bord …</option>
-            {others.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.popSelect}
-            value={toCol}
-            onChange={(e) => setToCol(e.target.value)}
-            disabled={!toTable}
-          >
-            <option value="">Kolonne …</option>
-            {toCols.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <button
-            className={styles.popAdd}
-            onClick={addLink}
-            disabled={!fromCol || !toTable || !toCol}
-          >
-            +
-          </button>
-        </div>
-      )}
-
-      <div className={styles.popActions}>
-        <button className={styles.cancel} onClick={onClose}>
-          Avbryt
-        </button>
-        <button className={styles.primary} onClick={save} disabled={saving}>
-          {saving ? "Lagrer …" : "Lagre"}
-        </button>
-      </div>
-    </div>
+    <div className={styles.nodePopover} onClick={(e) => e.stopPropagation()} />
   );
 }
 
