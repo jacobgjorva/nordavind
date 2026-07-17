@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Usage } from "./Usage";
+import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
+import type { AuthUser } from "../../lib/api";
 import styles from "./Settings.module.css";
 
-type Tab = "general" | "usage" | "connectors";
+type Tab = "general" | "usage" | "connectors" | "admin";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
@@ -11,8 +13,12 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "connectors", label: "Connectors" },
 ];
 
-export function Settings() {
+export function Settings({ user }: { user: AuthUser }) {
   const [tab, setTab] = useState<Tab>("general");
+  const tabs =
+    user.role === "admin"
+      ? [...TABS, { key: "admin" as Tab, label: "Admin" }]
+      : TABS;
   const [name, setName] = useState("Ola Nordmann");
   const [email, setEmail] = useState("ola@nordmann.no");
   const [language, setLanguage] = useState("nb");
@@ -22,7 +28,7 @@ export function Settings() {
     <div className={styles.wrap}>
       <nav className={styles.nav}>
         <div className={styles.navHead}>Settings</div>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
@@ -37,6 +43,8 @@ export function Settings() {
       <div className={styles.panel}>
         {tab === "usage" ? (
           <Usage />
+        ) : tab === "admin" ? (
+          <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (
           <Connectors />
         ) : (

@@ -58,7 +58,7 @@ export default function App() {
         {view === "chat" ? (
           <Chat key={chatKey} onTitle={setChatTitle} />
         ) : (
-          <Settings />
+          <Settings user={user} />
         )}
       </div>
     </div>
