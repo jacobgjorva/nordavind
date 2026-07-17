@@ -615,27 +615,9 @@ function AccessEditor({
 
   return (
     <div className={styles.acc}>
-      {added.length === 0 ? (
-        <div className={styles.accAll}>Alle brukere har tilgang</div>
-      ) : (
-        <div className={styles.accRows}>
-          {added.map((u) => (
-            <div key={u.id} className={styles.accRow}>
-              <span className={styles.tmAccessName}>{u.email}</span>
-              <button
-                className={styles.remove}
-                onClick={() => onChange(userIds.filter((id) => id !== u.id))}
-              >
-                Fjern
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className={styles.accSearchWrap}>
         <input
-          className={styles.tmDesc}
+          className={styles.accSearch}
           placeholder="Søk og legg til bruker …"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -656,6 +638,37 @@ function AccessEditor({
           </div>
         )}
       </div>
+
+      <table className={styles.accTable}>
+        <thead>
+          <tr>
+            <th>Bruker</th>
+            <th className={styles.accTh2}>Tilgang</th>
+          </tr>
+        </thead>
+        <tbody>
+          {added.length === 0 ? (
+            <tr>
+              <td className={styles.accAllCell}>Alle brukere</td>
+              <td className={styles.accAllCell}>Full</td>
+            </tr>
+          ) : (
+            added.map((u) => (
+              <tr key={u.id}>
+                <td>{u.email}</td>
+                <td className={styles.accTh2}>
+                  <button
+                    className={styles.remove}
+                    onClick={() => onChange(userIds.filter((id) => id !== u.id))}
+                  >
+                    Fjern
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
