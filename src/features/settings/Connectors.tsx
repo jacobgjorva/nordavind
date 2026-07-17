@@ -7,7 +7,6 @@ import {
   createConnection,
   deleteConnection,
   fetchAdminUsers,
-  fetchConnections,
   fetchConnectionSchema,
   fetchMe,
   saveConnectionConfig,
@@ -17,109 +16,67 @@ import {
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
 
-const DB_TYPES = [
-  { key: "postgres", label: "PostgreSQL", port: 5432 },
-  { key: "mysql", label: "MySQL", port: 3306 },
-  { key: "mssql", label: "SQL Server", port: 1433 },
-];
+// Styrt visning: valget skjer i settings-navigasjonen (undersider av Connectors).
+export function Connectors({
+  conn,
+  creating,
+  onReload,
+  onNew,
+  onDoneCreate,
+}: {
+  conn: Connection | null;
+  creating: boolean;
+  onReload: () => void;
+  onNew: () => void;
+  onDoneCreate: () => void;
+}) {
+  const [schema, setSchema] = useState<ConnectionSchema | null>(null);
 
-export function Connectors() {
-  const [conns, setConns] = useState<Connection[] | null>(null);
-  const [schemas, setSchemas] = useState<Record<string, ConnectionSchema>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [canvas, setCanvas] = useState<{ conn: Connection | null } | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  function reload() {
-    fetchConnections()
-      .then((list) => {
-        setConns(list);
-        setSelectedId((cur) => cur ?? list[0]?.id ?? null);
-        for (const c of list) {
-          fetchConnectionSchema(c.id)
-            .then((sch) => setSchemas((prev) => ({ ...prev, [c.id]: sch })))
-            .catch(() => {});
-        }
-      })
-      .catch(() => setError("Kunne ikke hente tilkoblinger."));
-  }
-
-  useEffect(reload, []);
-
-  async function remove(conn: Connection) {
-    if (!confirm(`Fjerne tilkoblingen ${conn.name}?`)) return;
-    try {
-      await deleteConnection(conn.id);
-      setSelectedId((cur) => (cur === conn.id ? null : cur));
-      reload();
-    } catch {
-      setError("Kunne ikke fjerne tilkoblingen.");
+  useEffect(() => {
+    setSchema(null);
+    if (conn) {
+      fetchConnectionSchema(conn.id).then(setSchema).catch(() => {});
     }
+  }, [conn?.id]);
+
+  async function remove() {
+    if (!conn || !confirm(`Fjerne tilkoblingen ${conn.name}?`)) return;
+    await deleteConnection(conn.id).catch(() => {});
+    onReload();
   }
 
-  if (error && !conns) return <div className={styles.error}>{error}</div>;
-  if (!conns) return null;
-
-  // Ny tilkobling tar over hele siden.
-  if (canvas) {
+  if (creating) {
     return (
       <ChatWizard
-        initialConn={canvas.conn}
+        initialConn={null}
         onClose={() => {
-          setCanvas(null);
-          reload();
+          onDoneCreate();
+          onReload();
         }}
       />
     );
   }
 
-  const selected = conns.find((c) => c.id === selectedId) ?? null;
-
-  return (
-    <div className={styles.connLayout}>
-      <aside className={styles.connSidebar}>
-        <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
+  if (!conn) {
+    return (
+      <div className={styles.connEmpty}>
+        <button className={styles.primary} onClick={onNew}>
           Ny kobling
         </button>
-        <div className={styles.connSideList}>
-          {conns.length === 0 && (
-            <div className={styles.empty}>Ingen ennå.</div>
-          )}
-          {conns.map((c) => (
-            <button
-              key={c.id}
-              className={`${styles.connSideItem} ${
-                c.id === selectedId ? styles.connSideItemOn : ""
-              }`}
-              onClick={() => setSelectedId(c.id)}
-            >
-              <span className={styles.connName}>{c.name}</span>
-              <span className={styles.connDriver}>
-                {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
-              </span>
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <div className={styles.connMain}>
-        {selected && schemas[selected.id] ? (
-          <TableManager
-            key={selected.id}
-            conn={selected}
-            schema={schemas[selected.id]}
-            onClose={reload}
-            onRemove={() => remove(selected)}
-          />
-        ) : (
-          <div className={styles.empty}>
-            {conns.length === 0
-              ? "Legg til din første databasetilkobling."
-              : "Velg en tilkobling."}
-          </div>
-        )}
       </div>
-    </div>
+    );
+  }
+
+  if (!schema) return <div className={styles.empty}>Henter …</div>;
+
+  return (
+    <TableManager
+      key={conn.id}
+      conn={conn}
+      schema={schema}
+      onClose={onReload}
+      onRemove={remove}
+    />
   );
 }
 

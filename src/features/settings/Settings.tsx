@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Usage } from "./Usage";
 import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
-import type { AuthUser } from "../../lib/api";
+import {
+  fetchConnections,
+  type AuthUser,
+  type Connection,
+} from "../../lib/api";
 import styles from "./Settings.module.css";
 
 type Tab = "general" | "usage" | "connectors" | "admin";
@@ -27,19 +31,69 @@ export function Settings({ user }: { user: AuthUser }) {
   const [language, setLanguage] = useState("nb");
   const [theme, setTheme] = useState("system");
 
+  // Tilkoblinger som undersider av «Connectors».
+  const [conns, setConns] = useState<Connection[]>([]);
+  const [connId, setConnId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  function reloadConns() {
+    fetchConnections().then(setConns).catch(() => {});
+  }
+
+  useEffect(() => {
+    if (user.role === "admin") reloadConns();
+  }, []);
+
+  const activeConn = conns.find((c) => c.id === connId) ?? null;
+
   return (
     <div className={styles.wrap}>
       <nav className={styles.nav}>
         <div className={styles.navHead}>Settings</div>
         {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className={`${styles.navItem} ${tab === t.key ? styles.navItemActive : ""}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
+          <div key={t.key}>
+            <button
+              type="button"
+              className={`${styles.navItem} ${tab === t.key ? styles.navItemActive : ""}`}
+              onClick={() => {
+                setTab(t.key);
+                if (t.key === "connectors") {
+                  setConnId(null);
+                  setCreating(false);
+                }
+              }}
+            >
+              {t.label}
+            </button>
+            {t.key === "connectors" && tab === "connectors" && (
+              <div className={styles.navSub}>
+                {conns.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`${styles.navSubItem} ${
+                      !creating && connId === c.id ? styles.navSubItemActive : ""
+                    }`}
+                    onClick={() => {
+                      setCreating(false);
+                      setConnId(c.id);
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${styles.navSubAdd} ${
+                    creating ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setCreating(true)}
+                >
+                  + Ny kobling
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </nav>
 
@@ -49,7 +103,13 @@ export function Settings({ user }: { user: AuthUser }) {
         ) : tab === "admin" ? (
           <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (
-          <Connectors />
+          <Connectors
+            conn={activeConn}
+            creating={creating}
+            onReload={reloadConns}
+            onNew={() => setCreating(true)}
+            onDoneCreate={() => setCreating(false)}
+          />
         ) : (
         <div className={styles.content}>
           <div className={styles.section}>

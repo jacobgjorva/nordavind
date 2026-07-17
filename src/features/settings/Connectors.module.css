@@ -1949,3 +1949,10 @@
   min-width: 0;
   overflow: hidden;
 }
+
+.connEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 56px - 120px);
+}
