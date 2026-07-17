@@ -216,7 +216,13 @@ export function Connectors() {
                           <span
                             className={styles.flowNodeBody}
                             onClick={(e) => e.stopPropagation()}
-                          />
+                          >
+                            <NodeEditor
+                              schema={schemas[c.id]}
+                              table={t}
+                              onSaved={reload}
+                            />
+                          </span>
                         )}
                       </span>
                     );
@@ -257,6 +263,56 @@ function FadeText({ text }: { text: string }) {
           {w}
         </span>
       ))}
+    </span>
+  );
+}
+
+// Innhold i en ekspandert node: beskrivelse (mer kommer).
+function NodeEditor({
+  schema,
+  table,
+  onSaved,
+}: {
+  schema: ConnectionSchema;
+  table: string;
+  onSaved: () => void;
+}) {
+  const cfgTables = schema.config.tables ?? [];
+  const initial = cfgTables.find((t) => t.name === table)?.description ?? "";
+  const [description, setDescription] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const dirty = description !== initial;
+
+  async function save() {
+    setSaving(true);
+    try {
+      await saveConnectionConfig(
+        schema.connection.id,
+        cfgTables.map((t) => (t.name === table ? { ...t, description } : t)),
+        schema.config.links ?? [],
+        schema.config.views ?? []
+      );
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <span className={styles.nodeField}>
+      <span className={styles.nodeFieldLabel}>Beskrivelse</span>
+      <textarea
+        className={styles.nodeArea}
+        placeholder="Hva inneholder bordet? (vises til AI-en)"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        autoFocus
+      />
+      {dirty && (
+        <button className={styles.nodeSave} onClick={save} disabled={saving}>
+          {saving ? "Lagrer …" : "Lagre"}
+        </button>
+      )}
     </span>
   );
 }

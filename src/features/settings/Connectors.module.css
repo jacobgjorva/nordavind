@@ -1066,10 +1066,58 @@
 
 .flowNodeBody {
   display: block;
-  min-height: 140px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 0.5px solid var(--border);
+}
+
+.nodeField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nodeFieldLabel {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nodeArea {
+  width: 100%;
+  min-height: 70px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #2a2a2a;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.nodeArea:focus {
+  border-color: #4299e0;
+}
+
+.nodeSave {
+  align-self: flex-end;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nodeSave:disabled {
+  opacity: 0.5;
 }
 
 .flowNodeStart {
