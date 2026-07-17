@@ -59,7 +59,7 @@ export function Settings({ user }: { user: AuthUser }) {
                 setTab(t.key);
                 if (t.key === "connectors") {
                   setConnId(null);
-                  setCreating(false);
+                  setCreating(true);
                 }
               }}
             >
