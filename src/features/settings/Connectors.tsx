@@ -469,9 +469,6 @@ function TableStep({
 
       {tab === "sql" && (
         <>
-      <div className={styles.sectionDesc}>
-        Lag egne spørringer (f.eks. joins) som AI-en kan bruke i stedet for enkeltbord.
-      </div>
       {views.map((v) => (
         <div key={v.name} className={styles.viewRow}>
           <span className={styles.tableName}>{v.name}</span>
@@ -560,9 +557,6 @@ function DescribeStep({
   }
   return (
     <div className={styles.stepBody}>
-      <div className={styles.sectionDesc}>
-        Beskriv hva hvert bord inneholder — dette er konteksten AI-en får.
-      </div>
       {selected.map((name) => (
         <label key={name} className={styles.field}>
           <span className={`${styles.fieldLabel} ${styles.tableName}`}>{name}</span>
@@ -656,11 +650,6 @@ function RelationStep({
 
   return (
     <div className={styles.stepBody}>
-      <div className={styles.sectionDesc}>
-        Klikk på en kolonne, deretter kolonnen den henger sammen med i et annet
-        bord. Klikk på en tråd for å fjerne den.
-      </div>
-
       {usable.length > 0 && (
         <div className={styles.chips}>
           {usable.map((l) => (
