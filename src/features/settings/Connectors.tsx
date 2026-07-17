@@ -590,6 +590,76 @@ interface LogMsg {
 
 let logId = 0;
 
+// Tilgang per bord: søk + Enter legger til bruker som rad. Tom = alle.
+function AccessEditor({
+  users,
+  userIds,
+  onChange,
+}: {
+  users: AdminUser[];
+  userIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const added = users.filter((u) => userIds.includes(u.id));
+  const matches = users.filter(
+    (u) =>
+      !userIds.includes(u.id) &&
+      u.email.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  function add(id: string) {
+    onChange([...userIds, id]);
+    setQuery("");
+  }
+
+  return (
+    <div className={styles.acc}>
+      {added.length === 0 ? (
+        <div className={styles.accAll}>Alle brukere har tilgang</div>
+      ) : (
+        <div className={styles.accRows}>
+          {added.map((u) => (
+            <div key={u.id} className={styles.accRow}>
+              <span className={styles.tmAccessName}>{u.email}</span>
+              <button
+                className={styles.remove}
+                onClick={() => onChange(userIds.filter((id) => id !== u.id))}
+              >
+                Fjern
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.accSearchWrap}>
+        <input
+          className={styles.tmDesc}
+          placeholder="Søk og legg til bruker …"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && matches.length > 0) {
+              e.preventDefault();
+              add(matches[0].id);
+            }
+          }}
+        />
+        {query.trim() && matches.length > 0 && (
+          <div className={styles.accMenu}>
+            {matches.slice(0, 5).map((u) => (
+              <button key={u.id} className={styles.accMenuItem} onClick={() => add(u.id)}>
+                {u.email}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Rutenett for bordvalg, beskrivelse og tilgang per bord.
 function TableManager({
   conn,
@@ -760,33 +830,11 @@ function TableManager({
                     </div>
                   </div>
 
-                  <div className={styles.tmAccessList}>
-                    <div className={styles.tmAccessRow}>
-                      <span className={styles.tmAccessName}>Alle brukere</span>
-                      <Toggle
-                        on={s.userIds.length === 0}
-                        onChange={(v) => v && patch(t.name, { userIds: [] })}
-                      />
-                    </div>
-                    {users.map((u) => {
-                      const on = s.userIds.includes(u.id);
-                      return (
-                        <div key={u.id} className={styles.tmAccessRow}>
-                          <span className={styles.tmAccessName}>{u.email}</span>
-                          <Toggle
-                            on={on}
-                            onChange={(v) =>
-                              patch(t.name, {
-                                userIds: v
-                                  ? [...s.userIds, u.id]
-                                  : s.userIds.filter((id) => id !== u.id),
-                              })
-                            }
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <AccessEditor
+                    users={users}
+                    userIds={s.userIds}
+                    onChange={(ids) => patch(t.name, { userIds: ids })}
+                  />
                 </div>
               )}
             </div>

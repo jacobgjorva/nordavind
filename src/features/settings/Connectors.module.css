@@ -1711,7 +1711,18 @@
   border-color: #4299e0;
 }
 
-.tmAccessList {
+.acc {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.accAll {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.accRows {
   display: flex;
   flex-direction: column;
   border: 0.5px solid var(--border);
@@ -1719,18 +1730,52 @@
   overflow: hidden;
 }
 
-.tmAccessRow {
+.accRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 11px 14px;
   border-bottom: 0.5px solid var(--border);
 }
 
-.tmAccessRow:last-child {
+.accRow:last-child {
   border-bottom: none;
 }
 
 .tmAccessName {
   font-size: 13.5px;
+}
+
+.accSearchWrap {
+  position: relative;
+}
+
+.accMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #1c1c1f;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.accMenuItem {
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 13.5px;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.accMenuItem:hover {
+  background: var(--bg-hover);
 }
