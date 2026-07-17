@@ -67,7 +67,7 @@ const nextId = () => crypto.randomUUID();
 // over når svaret er ferdig.
 function StreamingText({ content }: { content: string }) {
   const committedRef = useRef(0);
-  const wordsRef = useRef<{ id: number; text: string }[]>([]);
+  const wordsRef = useRef<{ id: number; text: string; delay: number }[]>([]);
 
   // Commit kun frem til siste ordgrense.
   const boundary = Math.max(
@@ -78,17 +78,26 @@ function StreamingText({ content }: { content: string }) {
 
   if (commitTo > committedRef.current) {
     const fresh = content.slice(committedRef.current, commitTo);
-    // Ett span per ord (med etterfølgende whitespace) så hvert ord fader inn.
-    for (const word of fresh.match(/\S+\s*|\s+/g) ?? []) {
-      wordsRef.current.push({ id: wordsRef.current.length, text: word });
-    }
+    // Ett span per ord; ord i samme batch stagges litt for flytende flow.
+    const batch = fresh.match(/\S+\s*|\s+/g) ?? [];
+    batch.forEach((word, i) => {
+      wordsRef.current.push({
+        id: wordsRef.current.length,
+        text: word,
+        delay: Math.min(i * 60, 360),
+      });
+    });
     committedRef.current = commitTo;
   }
 
   return (
     <span className={styles.streamingText}>
       {wordsRef.current.map((w) => (
-        <span key={w.id} className={styles.fadeSeg}>
+        <span
+          key={w.id}
+          className={styles.fadeSeg}
+          style={{ animationDelay: `${w.delay}ms` }}
+        >
           {w.text}
         </span>
       ))}
