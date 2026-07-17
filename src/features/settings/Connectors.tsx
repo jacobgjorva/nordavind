@@ -188,25 +188,32 @@ function ChatWizard(_props: {
   const [input, setInput] = useState("");
   const [hilite, setHilite] = useState(0);
   const [log, setLog] = useState<LogMsg[]>([]);
-  // stage: -1 = kildevalg, 0..n = DB_FLOW-steg, 100 = kobler til, 101 = ferdig
-  const [stage, setStage] = useState(-1);
+  const [sourceChosen, setSourceChosen] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Felt under korrigering — overstyrer den lineære rekkefølgen.
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [savedConn, setSavedConn] = useState<Connection | null>(null);
+  const [busy, setBusy] = useState(false);
   // Pågående handling: vises med logo-animasjon som i hovedchatten.
   const [status, setStatus] = useState<string | null>(null);
 
-  const question =
-    stage === -1
-      ? "Hva skal vi koble til?"
-      : stage < DB_FLOW.length
-        ? DB_FLOW[stage].question
-        : null;
+  // Aktivt felt utledes av svarene: eksplisitt korrigering vinner, ellers
+  // første ubesvarte felt. Alt besvart -> null (klar/tilkoblet).
+  const activeStep: FlowStep | null = !sourceChosen
+    ? null
+    : (editKey && DB_FLOW.find((f) => f.key === editKey)) ||
+      DB_FLOW.find((f) => !(f.key in answers)) ||
+      null;
 
-  const rawOptions =
-    stage === -1
-      ? SOURCE_OPTIONS
-      : stage >= 0 && stage < DB_FLOW.length
-        ? DB_FLOW[stage].options(answers)
-        : [];
+  const question = !sourceChosen
+    ? "Hva skal vi koble til?"
+    : activeStep?.question ?? null;
+
+  const rawOptions = !sourceChosen
+    ? SOURCE_OPTIONS
+    : activeStep
+      ? activeStep.options(answers)
+      : [];
   const options = rawOptions.filter((o) =>
     o.toLowerCase().includes(input.trim().toLowerCase())
   );
@@ -216,7 +223,8 @@ function ChatWizard(_props: {
   }
 
   async function connect(a: Record<string, string>) {
-    setStage(100);
+    if (busy) return;
+    setBusy(true);
     setStatus("Tester tilkoblingen");
     try {
       const conn = await createConnection({
@@ -228,22 +236,30 @@ function ChatWizard(_props: {
         user: a.user,
         password: a.password ?? "",
       });
+      // Korrigering etter vellykket oppkobling: den nye erstatter den gamle.
+      if (savedConn) await deleteConnection(savedConn.id).catch(() => {});
+      setSavedConn(conn);
       setStatus(null);
-      say("bot", `Tilkoblet! ${conn.name} er lagret. Neste steg kommer snart.`);
-      setStage(101);
+      say("bot", `Tilkoblet! ${conn.name} er lagret. Si fra om noe skal endres.`);
     } catch (err) {
       setStatus(null);
       say("bot", (err instanceof Error ? err.message : "Kunne ikke koble til.") + " Prøv passordet igjen.");
-      setStage(DB_FLOW.length - 1);
+      setAnswers((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    } finally {
+      setBusy(false);
     }
   }
 
   function acceptAnswer(step: FlowStep, value: string) {
     const next = { ...answers, [step.key]: value };
     setAnswers(next);
-    if (stage + 1 < DB_FLOW.length) {
-      setStage(stage + 1);
-    } else {
+    setEditKey(null);
+    // Alt besvart? Da (re)kobler vi.
+    if (DB_FLOW.every((f) => f.key in next)) {
       connect(next);
     }
   }
@@ -253,26 +269,57 @@ function ChatWizard(_props: {
   async function askAgent(step: FlowStep | null, value: string) {
     setStatus("Tenker");
     try {
+      const strictNote =
+        step?.key === "driver"
+          ? ` Feltet har FASTE gyldige verdier: ${Object.keys(DRIVER_MAP).join(", ")}. accept=true KUN hvis svaret entydig er en av disse (value = eksakt verdi fra listen). Andre databasetyper støttes ikke.`
+          : "";
       const context =
         step === null
           ? `Brukeren velger datakilde. Gyldige valg: ${SOURCE_OPTIONS.join(", ")}. Kun Database er støttet foreløpig.`
-          : `Spørsmålet til brukeren var: "${step.question}" (felt: ${step.key} i en databasetilkobling).`;
+          : `Spørsmålet til brukeren var: "${step.question}" (felt: ${step.key} i en databasetilkobling).` + strictNote;
+      const fields = DB_FLOW.map((f) => f.key).join(", ");
+      const answered = Object.entries(answers)
+        .filter(([k]) => k !== "password")
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ");
       const raw = await completeChat("bris", [
         {
           role: "system",
           content:
             "Du hjelper en bruker å sette opp en databasetilkobling, felt for felt. " +
             context +
-            ' Vurder brukerens svar. Svar KUN med JSON: {"accept": true/false, "value": "<feltverdien>", "reply": "<kort norsk melding til brukeren>"}. ' +
-            "accept=true hvis svaret gir mening som verdi for feltet (value = normalisert verdi). " +
-            "accept=false hvis det er tull, et spørsmål eller ikke passer — forklar kort i reply.",
+            (answered ? ` Allerede besvart: ${answered}.` : "") +
+            ' Vurder brukerens svar. Svar KUN med JSON: {"accept": true/false, "value": "<feltverdien>", "goto": "<feltnavn eller null>", "reply": "<kort norsk melding>"}. ' +
+            "accept=true hvis svaret kan brukes som verdi for feltet (value = normalisert verdi). " +
+            "For frie felter (name, host, database, user) er ethvert rimelig ord eller navn gyldig — aksepter det som det er. " +
+            "accept=false KUN hvis svaret åpenbart er tastetull, et spørsmål, eller en instruks om noe annet. " +
+            'Eksempler (felt name): "Flyttest" -> {"accept":true,"value":"Flyttest","goto":null,"reply":""}. ' +
+            '"Regnskapsbasen vår" -> {"accept":true,"value":"Regnskapsbasen","goto":null,"reply":""}. ' +
+            '"asdkjhasd" -> {"accept":false,"goto":null,"reply":"Det ser ut som tastetull - gi tilkoblingen et beskrivende navn."}. ' +
+            '"vent, jeg vil bytte databasetype" -> {"accept":false,"goto":"driver","reply":"Ok, vi tar databasetypen på nytt."}. ' +
+            `Hvis brukeren vil endre et TIDLIGERE felt (${fields}), sett goto til det feltet. ` +
+            "reply skal ALDRI gjenta eller stille selve feltspørsmålet — det stilles automatisk etterpå. Hold reply til én kort setning, eller tom streng.",
         },
         { role: "user", content: value },
       ]);
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       setStatus(null);
-      if (step && parsed.accept && parsed.value) {
-        acceptAnswer(step, String(parsed.value));
+      const gotoStep = parsed.goto ? DB_FLOW.find((f) => f.key === parsed.goto) : null;
+      if (gotoStep) {
+        if (parsed.reply) say("bot", parsed.reply);
+        // Feltet nullstilles slik at flowen naturlig spør om det igjen.
+        setAnswers((prev) => {
+          const next = { ...prev };
+          delete next[gotoStep.key];
+          return next;
+        });
+        setEditKey(gotoStep.key);
+      } else if (step && parsed.accept && parsed.value) {
+        if (step.key === "driver" && !Object.keys(DRIVER_MAP).includes(String(parsed.value))) {
+          say("bot", "Vi støtter PostgreSQL, MySQL og SQL Server foreløpig.");
+        } else {
+          acceptAnswer(step, String(parsed.value));
+        }
       } else {
         say("bot", parsed.reply || "Det forsto jeg ikke — prøv igjen.");
       }
@@ -286,12 +333,12 @@ function ChatWizard(_props: {
     if (!text.trim()) return;
     const value = text.trim();
 
-    if (stage === -1) {
+    if (!sourceChosen) {
       say("user", value);
       setInput("");
       setHilite(0);
       if (value === "Database") {
-        setStage(0);
+        setSourceChosen(true);
         return;
       }
       if (SOURCE_OPTIONS.includes(value)) {
@@ -302,19 +349,23 @@ function ChatWizard(_props: {
       return;
     }
 
-    if (stage >= 0 && stage < DB_FLOW.length) {
-      const step = DB_FLOW[stage];
-      say("user", step.secret ? "••••••••" : value);
-      setInput("");
-      setHilite(0);
-      // Menyvalg (eller passord) går rett gjennom skriptet; annen fritekst
-      // vurderes av agenten.
-      const isSuggestion = step.options(answers).includes(value);
-      if (isSuggestion || step.secret) {
-        acceptAnswer(step, value);
-      } else {
-        askAgent(step, value);
-      }
+    const step = activeStep;
+    say("user", step?.secret ? "••••••••" : value);
+    setInput("");
+    setHilite(0);
+    if (!step) {
+      // Alt er besvart: fritekst her er korrigering eller spørsmål — agenten
+      // ruter til riktig felt via goto.
+      askAgent(null, value);
+      return;
+    }
+    // Menyvalg (eller passord) går rett gjennom skriptet; annen fritekst
+    // vurderes av agenten.
+    const isSuggestion = step.options(answers).includes(value);
+    if (isSuggestion || step.secret) {
+      acceptAnswer(step, value);
+    } else {
+      askAgent(step, value);
     }
   }
 
@@ -354,7 +405,7 @@ function ChatWizard(_props: {
             </div>
           ))}
           {question && (
-            <div className={styles.canvasQuestion} key={`q-${stage}`}>
+            <div className={styles.canvasQuestion} key={`q-${activeStep?.key ?? "source"}`}>
               <FadeText text={question} />
             </div>
           )}
@@ -382,10 +433,10 @@ function ChatWizard(_props: {
                 autoFocus
               />
             </div>
-            {options.length > 0 && stage < DB_FLOW.length && (
+            {options.length > 0 && (
               <div className={styles.comboBody}>
                 <div className={styles.comboLabel}>
-                  {stage === -1 ? "Kilder" : "Forslag"}
+                  {!sourceChosen ? "Kilder" : "Forslag"}
                 </div>
                 {options.map((o, i) => (
                   <button
