@@ -1859,10 +1859,6 @@
   border-right: 0.5px solid var(--border);
 }
 
-.connSidebar .primary {
-  width: 100%;
-}
-
 .connSideHead {
   display: flex;
   align-items: center;
