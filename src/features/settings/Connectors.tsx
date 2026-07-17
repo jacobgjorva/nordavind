@@ -606,18 +606,12 @@ function TableManager({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const views = schema.config.views ?? [];
-  // Per bord: valgt, beskrivelse, tilgang (tom = alle), custom SQL.
+  const defaultSql = (name: string) => `SELECT * FROM ${name};`;
+  // Per bord: valgt, beskrivelse, tilgang (tom = alle), SQL-spørring.
   const [state, setState] = useState<
     Record<
       string,
-      {
-        on: boolean;
-        desc: string;
-        userIds: string[];
-        open: boolean;
-        sqlOn: boolean;
-        sql: string;
-      }
+      { on: boolean; desc: string; userIds: string[]; open: boolean; sql: string }
     >
   >(() =>
     Object.fromEntries(
@@ -631,8 +625,7 @@ function TableManager({
             desc: c?.description ?? "",
             userIds: c?.user_ids ?? [],
             open: false,
-            sqlOn: Boolean(v),
-            sql: v?.sql ?? "",
+            sql: v?.sql ?? defaultSql(t.name),
           },
         ];
       })
@@ -667,9 +660,9 @@ function TableManager({
     const links = (schema.config.links ?? []).filter(
       (l) => names.has(l.from_table) && names.has(l.to_table)
     );
-    // Custom SQL per bord lagres som en view.
+    // SQL lagres kun som view når den avviker fra standard SELECT * FROM.
     const nextViews = Object.entries(state)
-      .filter(([, s]) => s.on && s.sqlOn && s.sql.trim())
+      .filter(([name, s]) => s.on && s.sql.trim() && s.sql.trim() !== defaultSql(name))
       .map(([name, s]) => ({ name: `${name}_query`, sql: s.sql.trim(), description: "" }));
     try {
       await saveConnectionConfig(conn.id, cfgTables, links, nextViews);
@@ -746,13 +739,8 @@ function TableManager({
                     />
                   </div>
 
-                  <div className={styles.tmDivider} />
-
-                  <div className={styles.tmToggleRow}>
-                    <span className={styles.tmLabel}>Custom SQL</span>
-                    <Toggle on={s.sqlOn} onChange={(v) => patch(t.name, { sqlOn: v })} />
-                  </div>
-                  {s.sqlOn && (
+                  <div className={styles.tmField}>
+                    <span className={styles.tmLabel}>Spørring</span>
                     <div className={styles.sqlEditor}>
                       <div className={styles.sqlGutter}>
                         {Array.from({ length: Math.max(lines, 3) }, (_, i) => (
@@ -767,13 +755,12 @@ function TableManager({
                         <textarea
                           className={styles.sqlInput}
                           value={s.sql}
-                          placeholder={`SELECT * FROM ${t.name} …`}
                           spellCheck={false}
                           onChange={(e) => patch(t.name, { sql: e.target.value })}
                         />
                       </div>
                     </div>
-                  )}
+                  </div>
 
                   <div className={styles.tmDivider} />
 
