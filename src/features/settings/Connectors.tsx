@@ -114,16 +114,41 @@ function FadeText({ text }: { text: string }) {
   );
 }
 
+const SOURCE_OPTIONS = ["Database", "Databricks", "CSV", "Excel", "Cloud Storage"];
+
 function ChatWizard(_props: {
   initialConn: Connection | null;
   onClose: () => void;
 }) {
   const [input, setInput] = useState("");
+  const [choice, setChoice] = useState<string | null>(null);
+  const [hilite, setHilite] = useState(0);
+
+  const options = SOURCE_OPTIONS.filter((o) =>
+    o.toLowerCase().includes(input.trim().toLowerCase())
+  );
+
+  function pick(option: string) {
+    setChoice(option);
+    setInput("");
+    setHilite(0);
+  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHilite((h) => Math.min(h + 1, options.length - 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHilite((h) => Math.max(h - 1, 0));
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      setInput("");
+      if (!choice && options.length > 0) pick(options[hilite]);
+      else setInput("");
     }
   }
 
@@ -135,10 +160,26 @@ function ChatWizard(_props: {
           <div className={styles.canvasQuestion}>
             <FadeText text="Hva skal vi koble til?" />
           </div>
+          {choice && <div className={styles.canvasChoice}>{choice}</div>}
         </div>
       </div>
       <div className={chatStyles.composerDocked}>
-        <div className={chatStyles.composerWrap}>
+        <div className={`${chatStyles.composerWrap} ${styles.composerAnchor}`}>
+          {!choice && options.length > 0 && (
+            <div className={styles.palette}>
+              {options.map((o, i) => (
+                <button
+                  key={o}
+                  type="button"
+                  className={`${styles.paletteItem} ${i === hilite ? styles.paletteActive : ""}`}
+                  onMouseEnter={() => setHilite(i)}
+                  onClick={() => pick(o)}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          )}
           <div className={chatStyles.composer}>
             <div className={chatStyles.inputRow}>
               <textarea
