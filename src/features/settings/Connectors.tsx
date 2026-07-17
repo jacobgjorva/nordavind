@@ -358,6 +358,37 @@ function ChatWizard(_props: {
     }
   }
 
+  // Limt inn en hel connection-string? Parse den lokalt og fyll alle felt.
+  function tryConnectionString(text: string): boolean {
+    const m = text.match(
+      /\b(postgres(?:ql)?|mysql|sqlserver|mssql):\/\/(?:([^:@\s]+)(?::([^@\s]+))?@)?([^:\/@\s]+)(?::(\d+))?(?:\/([^?\s]+))?/i
+    );
+    if (!m) return false;
+    const [, proto, user, pass, host, port, db] = m;
+    const driver = /mysql/i.test(proto)
+      ? "MySQL"
+      : /sql(server)?|mssql/i.test(proto)
+        ? "SQL Server"
+        : "PostgreSQL";
+    say("user", text.replace(pass ?? "", pass ? "••••" : ""));
+    const next: Record<string, string> = { ...answers, driver };
+    if (host) next.host = host;
+    next.port = port || String(DRIVER_MAP[driver].port);
+    if (db) next.database = db;
+    if (user) next.user = user;
+    if (pass) next.password = decodeURIComponent(pass);
+    if (!answers.name && !next.name) {
+      // Navn mangler ofte i strengen — behold det som eneste spørsmål.
+    }
+    setAnswers(next);
+    setEditKey(null);
+    setInput("");
+    setHilite(0);
+    say("bot", "Fant tilkoblingsdetaljene i strengen.");
+    if (DB_FLOW.every((f) => f.key in next)) connect(next);
+    return true;
+  }
+
   function answer(text: string) {
     if (!text.trim()) return;
     const value = text.trim();
@@ -377,6 +408,8 @@ function ChatWizard(_props: {
       askAgent(null, value);
       return;
     }
+
+    if (tryConnectionString(value)) return;
 
     const step = activeStep;
     say("user", step?.secret ? "••••••••" : value);
