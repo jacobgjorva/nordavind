@@ -106,8 +106,8 @@
   overflow-anchor: none;
   padding: 72px 20px 12px;
   /* Innhold fader ut mot toppen i stedet for å kollidere med tittelen */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 24px, black 72px);
-  mask-image: linear-gradient(to bottom, transparent 24px, black 72px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 44px, black 96px);
+  mask-image: linear-gradient(to bottom, transparent 44px, black 96px);
 }
 
 .messagesInner {
