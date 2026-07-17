@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import chatStyles from "../chat/Chat.module.css";
 import { Logo } from "../../ui/Logo";
 import {
+  completeChat,
   createConnection,
   deleteConnection,
   fetchConnections,
@@ -237,43 +238,82 @@ function ChatWizard(_props: {
     }
   }
 
+  function acceptAnswer(step: FlowStep, value: string) {
+    const next = { ...answers, [step.key]: value };
+    setAnswers(next);
+    if (stage + 1 < DB_FLOW.length) {
+      setStage(stage + 1);
+    } else {
+      connect(next);
+    }
+  }
+
+  // Fritekst som ikke matcher et forslag: agenten tolker svaret i kontekst
+  // og bestemmer om det er et gyldig feltsvar eller trenger oppfølging.
+  async function askAgent(step: FlowStep | null, value: string) {
+    setStatus("Tenker");
+    try {
+      const context =
+        step === null
+          ? `Brukeren velger datakilde. Gyldige valg: ${SOURCE_OPTIONS.join(", ")}. Kun Database er støttet foreløpig.`
+          : `Spørsmålet til brukeren var: "${step.question}" (felt: ${step.key} i en databasetilkobling).`;
+      const raw = await completeChat("bris", [
+        {
+          role: "system",
+          content:
+            "Du hjelper en bruker å sette opp en databasetilkobling, felt for felt. " +
+            context +
+            ' Vurder brukerens svar. Svar KUN med JSON: {"accept": true/false, "value": "<feltverdien>", "reply": "<kort norsk melding til brukeren>"}. ' +
+            "accept=true hvis svaret gir mening som verdi for feltet (value = normalisert verdi). " +
+            "accept=false hvis det er tull, et spørsmål eller ikke passer — forklar kort i reply.",
+        },
+        { role: "user", content: value },
+      ]);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      setStatus(null);
+      if (step && parsed.accept && parsed.value) {
+        acceptAnswer(step, String(parsed.value));
+      } else {
+        say("bot", parsed.reply || "Det forsto jeg ikke — prøv igjen.");
+      }
+    } catch {
+      setStatus(null);
+      say("bot", "Det forsto jeg ikke helt — prøv igjen.");
+    }
+  }
+
   function answer(text: string) {
     if (!text.trim()) return;
     const value = text.trim();
 
     if (stage === -1) {
-      if (value !== "Database" && !SOURCE_OPTIONS.includes(value)) {
-        // Custom tekst: her skal en AI-agent inn senere.
-        say("user", value);
-        say("bot", "Det forstår jeg ikke helt ennå — velg en kilde fra listen.");
-        setInput("");
-        setHilite(0);
-        return;
-      }
       say("user", value);
-      if (value !== "Database") {
-        say("bot", `${value} kommer snart — foreløpig støtter vi Database.`);
-        setInput("");
-        setHilite(0);
-        return;
-      }
-      setStage(0);
       setInput("");
       setHilite(0);
+      if (value === "Database") {
+        setStage(0);
+        return;
+      }
+      if (SOURCE_OPTIONS.includes(value)) {
+        say("bot", `${value} kommer snart — foreløpig støtter vi Database.`);
+        return;
+      }
+      askAgent(null, value);
       return;
     }
 
     if (stage >= 0 && stage < DB_FLOW.length) {
       const step = DB_FLOW[stage];
       say("user", step.secret ? "••••••••" : value);
-      const next = { ...answers, [step.key]: value };
-      setAnswers(next);
       setInput("");
       setHilite(0);
-      if (stage + 1 < DB_FLOW.length) {
-        setStage(stage + 1);
+      // Menyvalg (eller passord) går rett gjennom skriptet; annen fritekst
+      // vurderes av agenten.
+      const isSuggestion = step.options(answers).includes(value);
+      if (isSuggestion || step.secret) {
+        acceptAnswer(step, value);
       } else {
-        connect(next);
+        askAgent(step, value);
       }
     }
   }

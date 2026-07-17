@@ -227,6 +227,28 @@ export interface StreamDelta {
   step?: string;
 }
 
+// Ett enkelt ikke-streamet chatkall (brukes av connector-agenten).
+export async function completeChat(
+  model: string,
+  messages: ApiMessage[]
+): Promise<string> {
+  const res = await fetch(`${BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      max_tokens: 200,
+      temperature: 0.2,
+      reasoning: { enabled: false },
+    }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const body = await res.json();
+  return body.choices?.[0]?.message?.content ?? "";
+}
+
 export async function streamChat(
   model: string,
   messages: ApiMessage[],
