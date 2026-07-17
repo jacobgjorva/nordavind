@@ -5,8 +5,8 @@ import styles from "./Usage.module.css";
 
 const DAYS = 14;
 
-// Midlertidig: påslag for tjenesten, priset per token.
-const SERVICE_NOK_PER_MTOK = 49; // NOK per million tokens
+// Midlertidig: tjenesteavgift som påslag på EUrouter-kostnaden.
+const SERVICE_FEE_RATE = 0.2;
 
 
 function formatTokens(v: number): string {
@@ -74,7 +74,6 @@ export function Usage() {
       inactive: vals.map((v) => v.req === 0),
       totalCost: vals.reduce((s, v) => s + v.cost, 0),
       totalRequests: vals.reduce((s, v) => s + v.req, 0),
-      totalTokens: vals.reduce((s, v) => s + v.in + v.out, 0),
     };
   }, [rows]);
 
@@ -98,7 +97,7 @@ export function Usage() {
           <div className={styles.stat}>
             <div className={styles.statLabel}>Tjenesteavgift</div>
             <div className={styles.statValue}>
-              {formatNok((data.totalTokens / 1_000_000) * SERVICE_NOK_PER_MTOK)}
+              {formatNok(data.totalCost * SERVICE_FEE_RATE * usdNok)}
             </div>
           </div>
 
