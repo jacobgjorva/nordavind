@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import chatStyles from "../chat/Chat.module.css";
 import {
+  createConnection,
   deleteConnection,
   fetchConnections,
   type Connection,
@@ -116,22 +117,164 @@ function FadeText({ text }: { text: string }) {
 
 const SOURCE_OPTIONS = ["Database", "Databricks", "CSV", "Excel", "Cloud Storage"];
 
+const DRIVER_MAP: Record<string, { key: string; port: number; user: string }> = {
+  PostgreSQL: { key: "postgres", port: 5432, user: "postgres" },
+  MySQL: { key: "mysql", port: 3306, user: "root" },
+  "SQL Server": { key: "mssql", port: 1433, user: "sa" },
+};
+
+// Predefinert skript for database-flyten: ett felt om gangen, med
+// naturlige forslag i komboboksen. Ingen AI = ingen tokens.
+interface FlowStep {
+  key: string;
+  question: string;
+  options: (answers: Record<string, string>) => string[];
+  secret?: boolean;
+}
+
+const DB_FLOW: FlowStep[] = [
+  {
+    key: "driver",
+    question: "Hvilken databasetype?",
+    options: () => Object.keys(DRIVER_MAP),
+  },
+  {
+    key: "name",
+    question: "Hva skal tilkoblingen hete?",
+    options: () => ["Regnskap", "CRM", "Salg", "Lager"],
+  },
+  {
+    key: "host",
+    question: "Hvilken host kjører databasen på?",
+    options: () => ["localhost"],
+  },
+  {
+    key: "port",
+    question: "Hvilken port?",
+    options: (a) => [String(DRIVER_MAP[a.driver]?.port ?? 5432)],
+  },
+  {
+    key: "database",
+    question: "Hva heter databasen?",
+    options: () => [],
+  },
+  {
+    key: "user",
+    question: "Hvilket brukernavn skal jeg logge inn med?",
+    options: (a) => [DRIVER_MAP[a.driver]?.user ?? "postgres"].filter(Boolean),
+  },
+  {
+    key: "password",
+    question: "Og passordet? (lagres kryptert)",
+    options: () => [],
+    secret: true,
+  },
+];
+
+interface LogMsg {
+  id: number;
+  role: "bot" | "user";
+  text: string;
+}
+
+let logId = 0;
+
 function ChatWizard(_props: {
   initialConn: Connection | null;
   onClose: () => void;
 }) {
   const [input, setInput] = useState("");
-  const [choice, setChoice] = useState<string | null>(null);
   const [hilite, setHilite] = useState(0);
+  const [log, setLog] = useState<LogMsg[]>([]);
+  // stage: -1 = kildevalg, 0..n = DB_FLOW-steg, 100 = kobler til, 101 = ferdig
+  const [stage, setStage] = useState(-1);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  const options = SOURCE_OPTIONS.filter((o) =>
+  const question =
+    stage === -1
+      ? "Hva skal vi koble til?"
+      : stage < DB_FLOW.length
+        ? DB_FLOW[stage].question
+        : null;
+
+  const rawOptions =
+    stage === -1
+      ? SOURCE_OPTIONS
+      : stage >= 0 && stage < DB_FLOW.length
+        ? DB_FLOW[stage].options(answers)
+        : [];
+  const options = rawOptions.filter((o) =>
     o.toLowerCase().includes(input.trim().toLowerCase())
   );
 
+  function say(role: "bot" | "user", text: string) {
+    setLog((prev) => [...prev, { id: ++logId, role, text }]);
+  }
+
+  async function connect(a: Record<string, string>) {
+    setStage(100);
+    say("bot", "Tester tilkoblingen …");
+    try {
+      const conn = await createConnection({
+        name: a.name,
+        driver: DRIVER_MAP[a.driver]?.key ?? "postgres",
+        host: a.host,
+        port: Number(a.port) || 5432,
+        database: a.database,
+        user: a.user,
+        password: a.password ?? "",
+      });
+      say("bot", `Tilkoblet! ${conn.name} er lagret. Neste steg kommer snart.`);
+      setStage(101);
+    } catch (err) {
+      say("bot", (err instanceof Error ? err.message : "Kunne ikke koble til.") + " Prøv passordet igjen.");
+      setStage(DB_FLOW.length - 1);
+    }
+  }
+
+  function answer(text: string) {
+    if (!text.trim()) return;
+    const value = text.trim();
+
+    if (stage === -1) {
+      if (value !== "Database" && !SOURCE_OPTIONS.includes(value)) {
+        // Custom tekst: her skal en AI-agent inn senere.
+        say("user", value);
+        say("bot", "Det forstår jeg ikke helt ennå — velg en kilde fra listen.");
+        setInput("");
+        setHilite(0);
+        return;
+      }
+      say("user", value);
+      if (value !== "Database") {
+        say("bot", `${value} kommer snart — foreløpig støtter vi Database.`);
+        setInput("");
+        setHilite(0);
+        return;
+      }
+      setStage(0);
+      setInput("");
+      setHilite(0);
+      return;
+    }
+
+    if (stage >= 0 && stage < DB_FLOW.length) {
+      const step = DB_FLOW[stage];
+      say("user", step.secret ? "••••••••" : value);
+      const next = { ...answers, [step.key]: value };
+      setAnswers(next);
+      setInput("");
+      setHilite(0);
+      if (stage + 1 < DB_FLOW.length) {
+        setStage(stage + 1);
+      } else {
+        connect(next);
+      }
+    }
+  }
+
   function pick(option: string) {
-    setChoice(option);
-    setInput("");
-    setHilite(0);
+    answer(option);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -147,8 +290,8 @@ function ChatWizard(_props: {
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!choice && options.length > 0) pick(options[hilite]);
-      else setInput("");
+      if (input.trim()) answer(input);
+      else if (options.length > 0) answer(options[hilite]);
     }
   }
 
@@ -157,10 +300,19 @@ function ChatWizard(_props: {
       <div className={styles.sectionTitle}>Opprett kobling</div>
       <div className={styles.canvas}>
         <div className={styles.canvasCenter}>
-          <div className={styles.canvasQuestion}>
-            <FadeText text="Hva skal vi koble til?" />
-          </div>
-          {choice && <div className={styles.canvasChoice}>{choice}</div>}
+          {log.map((m) => (
+            <div
+              key={m.id}
+              className={m.role === "bot" ? styles.canvasQuestion : styles.canvasChoice}
+            >
+              {m.text}
+            </div>
+          ))}
+          {question && (
+            <div className={styles.canvasQuestion} key={`q-${stage}`}>
+              <FadeText text={question} />
+            </div>
+          )}
         </div>
       </div>
       <div className={chatStyles.composerDocked}>
@@ -177,9 +329,11 @@ function ChatWizard(_props: {
                 autoFocus
               />
             </div>
-            {!choice && options.length > 0 && (
+            {options.length > 0 && stage < DB_FLOW.length && (
               <div className={styles.comboBody}>
-                <div className={styles.comboLabel}>Kilder</div>
+                <div className={styles.comboLabel}>
+                  {stage === -1 ? "Kilder" : "Forslag"}
+                </div>
                 {options.map((o, i) => (
                   <button
                     key={o}
