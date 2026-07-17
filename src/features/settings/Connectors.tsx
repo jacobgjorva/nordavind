@@ -164,25 +164,8 @@ function Wizard({
 
   return (
     <div className={styles.content}>
-      <div className={styles.wizardHead}>
-        {STEPS.map((s, i) => (
-          <button
-            key={s}
-            className={`${styles.wizStep} ${i === step ? styles.wizStepActive : ""} ${
-              i < step ? styles.wizStepDone : ""
-            }`}
-            disabled={i > 0 && !conn}
-            onClick={() => conn && setStep(i)}
-          >
-            <span className={styles.wizNum}>{i + 1}</span>
-            {s}
-          </button>
-        ))}
-        <button className={styles.cancel} onClick={onClose}>
-          Lukk
-        </button>
-      </div>
-
+      <div className={styles.wizardCols}>
+      <div className={styles.wizardMain}>
       {error && <div className={styles.error}>{error}</div>}
 
       {step === 0 && (
@@ -240,6 +223,29 @@ function Wizard({
           )}
         </div>
       )}
+      </div>
+
+      <aside className={styles.wizardSide}>
+        <button className={styles.cancel} onClick={onClose}>
+          Lukk
+        </button>
+        <div className={styles.wizRail}>
+          {STEPS.map((s, i) => (
+            <button
+              key={s}
+              className={`${styles.wizStep} ${i === step ? styles.wizStepActive : ""} ${
+                i < step ? styles.wizStepDone : ""
+              }`}
+              disabled={i > 0 && !conn}
+              onClick={() => conn && setStep(i)}
+            >
+              <span className={styles.wizNum}>{i + 1}</span>
+              {s}
+            </button>
+          ))}
+        </div>
+      </aside>
+      </div>
     </div>
   );
 }
@@ -453,7 +459,6 @@ function TableStep({
   }
 
   return (
-    <div className={styles.stepCols}>
     <div className={styles.stepBody}>
       <div className={styles.tabRow}>
         <button
@@ -527,34 +532,30 @@ function TableStep({
         </>
       )}
 
-    </div>
-
-    <aside className={styles.stepSide}>
-      <div className={styles.sideLabel}>Valgt ({selected.size + views.length})</div>
-      <div className={styles.sideRail}>
-        {selected.size === 0 && views.length === 0 && (
-          <div className={styles.sideEmpty}>Ingenting valgt ennå.</div>
-        )}
-        {[...selected].map((name) => (
-          <div key={name} className={styles.sideItem}>
-            <span className={styles.tableName}>{name}</span>
-            <span className={styles.colCount}>bord</span>
-            <button className={styles.remove} onClick={() => toggle(name)}>
-              Fjern
-            </button>
-          </div>
-        ))}
-        {views.map((v) => (
-          <div key={v.name} className={styles.sideItem}>
-            <span className={styles.tableName}>{v.name}</span>
-            <span className={styles.colCount}>SQL</span>
-            <button className={styles.remove} onClick={() => setViews(views.filter((x) => x.name !== v.name))}>
-              Fjern
-            </button>
-          </div>
-        ))}
+      <div className={styles.subLabel}>
+        Valgt ({selected.size + views.length})
       </div>
-    </aside>
+      {selected.size === 0 && views.length === 0 && (
+        <div className={styles.empty}>Ingenting valgt ennå.</div>
+      )}
+      {[...selected].map((name) => (
+        <div key={name} className={styles.viewRow}>
+          <span className={styles.tableName}>{name}</span>
+          <span className={styles.colCount}>bord</span>
+          <button className={styles.remove} onClick={() => toggle(name)}>
+            Fjern
+          </button>
+        </div>
+      ))}
+      {views.map((v) => (
+        <div key={v.name} className={styles.viewRow}>
+          <span className={styles.tableName}>{v.name}</span>
+          <span className={styles.colCount}>SQL</span>
+          <button className={styles.remove} onClick={() => setViews(views.filter((x) => x.name !== v.name))}>
+            Fjern
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

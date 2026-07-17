@@ -388,31 +388,55 @@
 
 /* --- Wizard --- */
 
-.wizardHead {
+.wizardCols {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 20px;
-  border-bottom: 0.5px solid var(--border);
-  margin-bottom: 24px;
+  gap: 48px;
+  align-items: flex-start;
+}
+
+.wizardMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.wizardSide {
+  position: fixed;
+  top: 140px;
+  right: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.wizardSide .cancel {
+  align-self: flex-end;
+}
+
+.wizRail {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-left: 18px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.14);
 }
 
 .wizStep {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 10px;
+  padding: 0;
   border: none;
-  border-radius: 999px;
   background: transparent;
   color: var(--text-faint);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
+  text-align: left;
 }
 
 .wizStepActive {
   color: var(--text);
-  background: var(--bg-hover);
+  font-weight: 600;
 }
 
 .wizStepDone {
@@ -421,10 +445,6 @@
 
 .wizNum {
   font-size: 11px;
-}
-
-.wizardHead .cancel {
-  margin-left: auto;
 }
 
 .wizardFoot {
