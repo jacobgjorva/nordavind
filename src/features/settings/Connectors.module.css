@@ -1153,3 +1153,157 @@
 .connRow:hover {
   background: var(--bg-hover);
 }
+
+/* Node-popover: rediger beskrivelse + relasjoner */
+
+.flowNodeWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.flowNodeActive {
+  border-color: #a5b8fc;
+}
+
+.nodePopover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 320px;
+  padding: 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #1a1a1c;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  text-align: left;
+  cursor: default;
+  animation: popIn 0.16s var(--ease-out) backwards;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Liten pil ned mot noden */
+.nodePopover::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1a1a1c;
+}
+
+.popTitle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.popLabel {
+  margin: 12px 0 6px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.popLabel:first-of-type {
+  margin-top: 0;
+}
+
+.popArea {
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #2a2a2a;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.popArea:focus {
+  border-color: #4299e0;
+}
+
+.popEmpty {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+.popLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.popLinkText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popAddRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.popSelect {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #2a2a2a;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+
+.popSelect:disabled {
+  opacity: 0.5;
+}
+
+.popAdd {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.popAdd:disabled {
+  opacity: 0.4;
+}
+
+.popActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
