@@ -155,9 +155,14 @@ export function Connectors() {
       <div className={styles.section}>
         <div className={styles.head}>
           <div className={styles.sectionTitle}>Databaser</div>
-          <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
-            Ny tilkobling
-          </button>
+          <div className={styles.headActions}>
+            <button className={styles.primary} onClick={() => setListView(true)}>
+              Eksisterende koblinger
+            </button>
+            <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
+              Ny tilkobling
+            </button>
+          </div>
         </div>
         <div className={styles.sectionDesc}>
           Koble til bedriftens egne databaser og velg hva AI-en får se.
