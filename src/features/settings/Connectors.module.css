@@ -919,7 +919,8 @@
   justify-content: flex-end;
   gap: 14px;
   /* Bunnluft: nyeste systemmelding lander på vertikalt senter */
-  padding: 24px 24px calc(50% - 40px);
+  /* %-padding følger bredden, så halv canvashøyde regnes fra viewport */
+  padding: 24px 24px calc((100vh - 532px) / 2 - 40px);
   overflow-y: hidden;
   /* Eldre meldinger fader raskt ut oppover */
   -webkit-mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
