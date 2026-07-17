@@ -443,6 +443,14 @@
   max-width: 640px;
 }
 
+/* Inputs i kolonnelayout skal ikke flexe — samme utseende som skjemaet */
+.stepBody .input,
+.stepBody .select,
+.viewEditor .input {
+  flex: none;
+  width: 100%;
+}
+
 /* Bordvalg */
 
 .pickRow {
