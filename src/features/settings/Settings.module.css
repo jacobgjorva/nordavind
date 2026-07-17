@@ -51,7 +51,7 @@
 
 .panel {
   width: 1000px;
-  max-width: calc(100% - 224px);
+  max-width: calc(100% - 448px);
   flex-shrink: 0;
   padding: 40px 24px;
 }
@@ -164,4 +164,9 @@
     flex-direction: column;
     align-items: center;
   }
+}
+
+.railSlot {
+  flex-shrink: 0;
+  width: 200px;
 }

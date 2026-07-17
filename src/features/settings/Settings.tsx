@@ -125,6 +125,9 @@ export function Settings({ user }: { user: AuthUser }) {
         </div>
         )}
       </div>
+      {/* Speil av nav-kolonnen: holder innholdet sentrert og gir plass til
+          wizard-stegmenyen på høyre side. */}
+      <div className={styles.railSlot} />
     </div>
   );
 }
