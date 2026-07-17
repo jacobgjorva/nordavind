@@ -172,51 +172,41 @@ export function Connectors() {
         {conns.length === 0 && (
           <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
         )}
-        {conns.map((c) => {
-          const flow = flows[c.id];
-          const order = flow ? chainOrder(flow.tables, flow.links) : [];
-          const linked = (a: string, b: string) =>
-            flow?.links.some(
-              (l) => (l.from === a && l.to === b) || (l.from === b && l.to === a)
-            );
-          return (
-            <div key={c.id} className={styles.connCard} onClick={() => setCanvas({ conn: c })}>
-              <div className={styles.flowRow}>
-                <div className={`${styles.flowNode} ${styles.flowNodeStart}`}>
-                  <span className={`${styles.flowBadge} ${styles.flowBadgeGreen}`}>
-                    <PlayGlyph />
-                  </span>
-                  <span className={styles.flowText}>
-                    <span className={styles.flowTitle}>{c.name}</span>
-                  </span>
-                </div>
-                {order.map((t, i) => (
-                  <span key={t} className={styles.flowSeg}>
+        {conns.length > 0 && (
+          <div className={styles.flowRow}>
+            {conns.flatMap((c) => {
+              const flow = flows[c.id];
+              const order = flow ? chainOrder(flow.tables, flow.links) : [];
+              const linked = (a: string, b: string) =>
+                flow?.links.some(
+                  (l) => (l.from === a && l.to === b) || (l.from === b && l.to === a)
+                );
+              return order.map((t, i) => (
+                <span key={`${c.id}-${t}`} className={styles.flowSeg}>
+                  {i > 0 && (
                     <span
-                      className={
-                        i === 0 || linked(order[i - 1], t)
-                          ? styles.flowWire
-                          : styles.flowGap
-                      }
+                      className={linked(order[i - 1], t) ? styles.flowWire : styles.flowGap}
                     />
-                    <span className={styles.flowNode}>
-                      <span className={`${styles.flowBadge} ${styles.flowBadgeBlue}`}>
-                        <PlayGlyph />
-                      </span>
-                      <span className={styles.flowText}>
-                        <span className={styles.flowTitle}>{t}</span>
-                        <span className={styles.flowSub}>Bord</span>
-                      </span>
+                  )}
+                  <span className={styles.flowNode} onClick={() => setCanvas({ conn: c })}>
+                    <span className={`${styles.flowBadge} ${styles.flowBadgeBlue}`}>
+                      <PlayGlyph />
+                    </span>
+                    <span className={styles.flowText}>
+                      <span className={styles.flowTitle}>{t}</span>
+                      <span className={styles.flowSub}>Bord ({c.name})</span>
                     </span>
                   </span>
-                ))}
-                {flow && order.length === 0 && (
-                  <span className={styles.flowEmpty}>Ingen bord valgt ennå</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                </span>
+              ));
+            })}
+          </div>
+        )}
+        {conns.length > 0 &&
+          Object.keys(flows).length === conns.length &&
+          conns.every((c) => (flows[c.id]?.tables.length ?? 0) === 0) && (
+            <div className={styles.empty}>Ingen bord valgt ennå.</div>
+          )}
         </div>
         {error && <div className={styles.error}>{error}</div>}
       </div>

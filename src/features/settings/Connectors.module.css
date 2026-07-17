@@ -1032,14 +1032,17 @@
   justify-content: center;
   flex-wrap: wrap;
   row-gap: 12px;
+  column-gap: 16px;
 }
 
 .flowSeg {
   display: flex;
   align-items: center;
+  margin: 6px 0;
 }
 
 .flowNode {
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 10px;
