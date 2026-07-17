@@ -404,7 +404,7 @@ function NewConnectionForm({
         </button>
         <button
           type="button"
-          className={styles.secondary}
+          className={styles.primary}
           onClick={test}
           disabled={testState === "testing"}
         >
