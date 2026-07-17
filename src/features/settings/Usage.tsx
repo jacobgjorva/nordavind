@@ -19,7 +19,7 @@ function formatUsd(v: number): string {
 }
 
 function formatNok(v: number): string {
-  return `${v.toFixed(v > 0 && v < 1 ? 2 : 0)} kr`;
+  return `${v.toFixed(v > 0 && v < 0.01 ? 4 : 2)} kr`;
 }
 
 // Fyller siste N dager slik at grafene får sammenhengende akse.
