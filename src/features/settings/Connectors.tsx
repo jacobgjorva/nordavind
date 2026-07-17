@@ -730,7 +730,6 @@ function TableManager({
               {s.on && s.open && (
                 <div className={styles.tmPanel}>
                   <div className={styles.tmField}>
-                    <span className={styles.tmLabel}>Beskrivelse</span>
                     <input
                       className={styles.tmDesc}
                       placeholder="Hva inneholder bordet? (vises til AI-en)"
@@ -740,7 +739,6 @@ function TableManager({
                   </div>
 
                   <div className={styles.tmField}>
-                    <span className={styles.tmLabel}>Spørring</span>
                     <div className={styles.sqlEditor}>
                       <div className={styles.sqlGutter}>
                         {Array.from({ length: lines }, (_, i) => (
@@ -763,7 +761,6 @@ function TableManager({
                   </div>
 
                   <div className={styles.tmField}>
-                    <span className={styles.tmLabel}>Tilgang</span>
                     <div className={styles.tmAccess}>
                       <button
                         type="button"
