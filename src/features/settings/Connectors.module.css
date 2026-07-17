@@ -918,8 +918,12 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 14px;
-  padding: 24px;
-  overflow-y: auto;
+  /* Bunnluft løfter aktivt spørsmål til vertikalt senter */
+  padding: 24px 24px 20%;
+  overflow-y: hidden;
+  /* Eldre meldinger fader raskt ut oppover */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
+  mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
 }
 
 .canvasQuestion {
