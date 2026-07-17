@@ -91,9 +91,7 @@ export function Connectors() {
 }
 
 // Canvas som åpnes ved «Ny tilkobling» — innholdet bygges videre senere.
-function ChatWizard({
-  onClose,
-}: {
+function ChatWizard(_props: {
   initialConn: Connection | null;
   onClose: () => void;
 }) {
@@ -102,11 +100,6 @@ function ChatWizard({
       <div className={styles.sectionTitle}>Opprett kobling</div>
       <div className={styles.canvas}>
       <div className={styles.canvasScroll} />
-      <div className={styles.canvasInputRow}>
-        <button type="button" className={styles.cancel} onClick={onClose}>
-          Avbryt
-        </button>
-      </div>
       </div>
     </div>
   );
