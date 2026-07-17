@@ -258,20 +258,35 @@ export function Chat({
 
   // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
   // strømmer nedover derfra og brukeren eier scrollen ellers.
-  const scrollToMsgRef = useRef<string | null>(null);
+  const ANCHOR = 96;
 
+  // Én gang per ny melding: reserver plass i siste svar-rad slik at siste
+  // spørsmål står ved ankeret når vi ligger helt nede. Ingen måling per
+  // chunk — teksten strømmer inn i allerede reservert plass.
   useEffect(() => {
     const el = messagesRef.current;
-    if (!el || !scrollToMsgRef.current) return;
-    const target = el.querySelector(
-      `[data-mid="${scrollToMsgRef.current}"]`
-    ) as HTMLElement | null;
-    if (target) {
-      const delta =
-        target.getBoundingClientRect().top - el.getBoundingClientRect().top;
-      el.scrollTop += delta - 96;
-      scrollToMsgRef.current = null;
+    if (!el) return;
+    const rows = el.querySelectorAll<HTMLElement>("[data-role]");
+    rows.forEach((r) => (r.style.minHeight = ""));
+    const users = el.querySelectorAll<HTMLElement>('[data-role="user"]');
+    const lastUser = users[users.length - 1];
+    const last = rows[rows.length - 1];
+    if (lastUser && last && last.dataset.role === "assistant") {
+      const offset =
+        last.getBoundingClientRect().top -
+        lastUser.getBoundingClientRect().top;
+      const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+      const needed = el.clientHeight - ANCHOR - padBottom - offset;
+      last.style.minHeight = `${Math.max(0, needed)}px`;
     }
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length]);
+
+  // Per chunk: bare hold oss helt nede (no-op til svaret overstiger
+  // reservert plass).
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -343,7 +358,6 @@ export function Chat({
     ];
 
     const userMsgId = nextId();
-    scrollToMsgRef.current = userMsgId;
     const replyId = nextId();
     setMessages((prev) => [
       ...prev,
@@ -554,6 +568,7 @@ export function Chat({
                 <div
                   key={m.id}
                   data-mid={m.id}
+                  data-role={m.role}
                   className={`${styles.row} ${
                     m.role === "user" ? styles.user : styles.assistant
                   }`}

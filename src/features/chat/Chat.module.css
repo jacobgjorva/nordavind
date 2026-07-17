@@ -104,10 +104,16 @@
   overflow-y: auto;
   /* Kun vår egen scroll-logikk styrer posisjonen */
   overflow-anchor: none;
+  /* Skjult scrollbar — chatten ligger alltid helt nede */
+  scrollbar-width: none;
   padding: 72px 20px 12px;
   /* Innhold fader ut mot toppen i stedet for å kollidere med tittelen */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 44px, black 96px);
-  mask-image: linear-gradient(to bottom, transparent 44px, black 96px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 64px, black 96px);
+  mask-image: linear-gradient(to bottom, transparent 64px, black 96px);
+}
+
+.messages::-webkit-scrollbar {
+  display: none;
 }
 
 .messagesInner {
@@ -117,8 +123,6 @@
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  /* Luft under siste melding slik at nye spørsmål kan legges øverst i viewporten */
-  padding-bottom: 75vh;
 }
 
 .composerDocked {
@@ -153,8 +157,7 @@
 
 .user {
   justify-content: flex-end;
-  /* Luft over spørsmål: skyver forrige svar helt inn i skjult sone ved ankring */
-  margin-top: 32px;
+  margin-top: 16px;
 }
 
 .assistant {
