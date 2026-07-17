@@ -167,7 +167,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px 20px;
-  max-width: 640px;
 }
 
 .field {
@@ -400,10 +399,12 @@
 }
 
 .wizardSide {
-  /* Speiler settings-naven: 200px bred, 24px gap fra innholdet, i flyt. */
-  flex: 0 0 200px;
-  position: sticky;
-  top: 0;
+  /* Utenfor panelet, symmetrisk med settings-naven: panelets høyrekant
+     ligger ved 50% + 612px (nav 200 + gap 24 + panel 1000, sentrert). */
+  position: fixed;
+  top: 96px;
+  left: calc(50% + 612px + 24px);
+  width: 200px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -461,7 +462,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 640px;
 }
 
 /* Inputs i kolonnelayout skal ikke flexe — samme utseende som skjemaet */
