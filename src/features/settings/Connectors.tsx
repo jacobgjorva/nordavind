@@ -53,6 +53,7 @@ export function Connectors() {
   const [flows, setFlows] = useState<Record<string, FlowInfo>>({});
   const [error, setError] = useState<string | null>(null);
   const [canvas, setCanvas] = useState<{ conn: Connection | null } | null>(null);
+  const [listView, setListView] = useState(false);
 
   function reload() {
     fetchConnections()
@@ -93,6 +94,48 @@ export function Connectors() {
 
   if (error && !conns) return <div className={styles.error}>{error}</div>;
   if (!conns) return null;
+
+  // Egen side: alle eksisterende koblinger som liste.
+  if (listView) {
+    return (
+      <div className={styles.content}>
+        <div className={styles.section}>
+          <div className={styles.head}>
+            <div className={styles.sectionTitle}>Eksisterende koblinger</div>
+            <button className={styles.primary} onClick={() => setListView(false)}>
+              Tilbake
+            </button>
+          </div>
+          {conns.length === 0 && <div className={styles.empty}>Ingen tilkoblinger ennå.</div>}
+          {conns.map((c) => (
+            <div
+              key={c.id}
+              className={styles.connRow}
+              onClick={() => {
+                setListView(false);
+                setCanvas({ conn: c });
+              }}
+            >
+              <span className={styles.connName}>{c.name}</span>
+              <span className={styles.connDriver}>
+                {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
+              </span>
+              <button
+                className={styles.remove}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  remove(c);
+                }}
+              >
+                Fjern
+              </button>
+            </div>
+          ))}
+          {error && <div className={styles.error}>{error}</div>}
+        </div>
+      </div>
+    );
+  }
 
   // Ny tilkobling tar over hele siden.
   if (canvas) {
