@@ -1960,3 +1960,19 @@
   justify-content: center;
   height: calc(100vh - 56px - 120px);
 }
+
+/* Kostnadsindikator i valgt tabellkort */
+.costWrap {
+  margin-left: auto;
+}
+
+.costBar {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.costSeg {
+  width: 7px;
+  height: 16px;
+  border-radius: 3px;
+}

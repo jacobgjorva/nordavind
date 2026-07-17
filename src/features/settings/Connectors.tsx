@@ -185,6 +185,26 @@ interface LogMsg {
 
 let logId = 0;
 
+// Kostnadsindikator: flere kolonner = mer kontekst per melding = dyrere.
+// 5 segmenter fylles og skifter farge grønt → gult → rødt.
+function CostBar({ cols }: { cols: number }) {
+  const level = cols <= 5 ? 1 : cols <= 10 ? 2 : cols <= 20 ? 3 : cols <= 35 ? 4 : 5;
+  const color = level <= 2 ? "#6ef16a" : level === 3 ? "#e8c65a" : level === 4 ? "#e89a4a" : "#e8686d";
+  const label =
+    level <= 2 ? "Lav kontekstkostnad" : level <= 3 ? "Middels — vurder å begrense kolonner" : "Høy — begrens kolonner via egen SQL";
+  return (
+    <span className={styles.costBar} title={`${cols} kolonner. ${label}.`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <span
+          key={i}
+          className={styles.costSeg}
+          style={{ background: i < level ? color : "rgba(255,255,255,0.1)" }}
+        />
+      ))}
+    </span>
+  );
+}
+
 // Tilgang per bord: full brukertabell med søk, avkrysning og «alle»-modus.
 function AccessEditor({
   users,
@@ -386,6 +406,11 @@ function TableManager({
                 />
                 <span className={styles.tableName}>{t.name}</span>
                 <span className={styles.colCount}>{t.columns.length} felt</span>
+                {s.on && (
+                  <span className={styles.costWrap}>
+                    <CostBar cols={t.columns.length} />
+                  </span>
+                )}
               </div>
 
               {s.open && (
