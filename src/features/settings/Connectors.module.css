@@ -1539,3 +1539,108 @@
 .relAdd:disabled {
   opacity: 0.4;
 }
+
+/* Bordbehandler-rutenett (erstatter chat etter tilkobling) */
+
+.tmPage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 760px;
+  height: calc(100vh - 56px - 80px);
+  padding-bottom: 24px;
+}
+
+.tmHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tmSearch {
+  height: 36px;
+  padding: 0 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: #2a2a2a;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+.tmSearch:focus {
+  border-color: #4299e0;
+}
+
+.tmList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: none;
+}
+
+.tmList::-webkit-scrollbar {
+  display: none;
+}
+
+.tmRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.tmRowOn {
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tmTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.tmTop input {
+  accent-color: #fff;
+}
+
+.tmExpand {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.tmExpand:hover {
+  color: var(--text);
+}
+
+.tmDesc {
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #2a2a2a;
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.tmDesc:focus {
+  border-color: #4299e0;
+}
+
+.tmAccess {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

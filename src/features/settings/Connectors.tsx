@@ -590,6 +590,178 @@ interface LogMsg {
 
 let logId = 0;
 
+// Rutenett for bordvalg, beskrivelse og tilgang per bord.
+function TableManager({
+  conn,
+  schema,
+  onClose,
+}: {
+  conn: Connection;
+  schema: ConnectionSchema;
+  onClose: () => void;
+}) {
+  const cfg = schema.config.tables ?? [];
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [query, setQuery] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  // Per bord: valgt, beskrivelse, tilgang (tom = alle).
+  const [state, setState] = useState<
+    Record<string, { on: boolean; desc: string; userIds: string[]; open: boolean }>
+  >(() =>
+    Object.fromEntries(
+      schema.tables.map((t) => {
+        const c = cfg.find((x) => x.name === t.name);
+        return [
+          t.name,
+          {
+            on: Boolean(c),
+            desc: c?.description ?? "",
+            userIds: c?.user_ids ?? [],
+            open: false,
+          },
+        ];
+      })
+    )
+  );
+
+  useEffect(() => {
+    fetchAdminUsers().then(setUsers).catch(() => {});
+  }, []);
+
+  const tables = schema.tables.filter((t) =>
+    t.name.toLowerCase().includes(query.trim().toLowerCase())
+  );
+  const chosenCount = Object.values(state).filter((s) => s.on).length;
+
+  function patch(name: string, p: Partial<(typeof state)[string]>) {
+    setState((prev) => ({ ...prev, [name]: { ...prev[name], ...p } }));
+  }
+
+  async function save() {
+    setSaving(true);
+    const cfgTables = Object.entries(state)
+      .filter(([, s]) => s.on)
+      .map(([name, s]) => ({
+        name,
+        description: s.desc,
+        columns: {},
+        user_ids: s.userIds,
+      }));
+    // Behold eksisterende relasjoner/views for bord som fortsatt er med.
+    const names = new Set(cfgTables.map((t) => t.name));
+    const links = (schema.config.links ?? []).filter(
+      (l) => names.has(l.from_table) && names.has(l.to_table)
+    );
+    try {
+      await saveConnectionConfig(conn.id, cfgTables, links, schema.config.views ?? []);
+      setSaved(true);
+      setTimeout(onClose, 700);
+    } catch {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={styles.tmPage}>
+      <div className={styles.tmHead}>
+        <div>
+          <div className={styles.sectionTitle}>{conn.name}</div>
+          <div className={styles.sectionDesc}>
+            Velg bordene AI-en får bruke, beskriv dem og styr tilgang.
+          </div>
+        </div>
+        <div className={styles.headActions}>
+          <button className={styles.cancel} onClick={onClose}>
+            Avbryt
+          </button>
+          <button className={styles.primary} onClick={save} disabled={saving || chosenCount === 0}>
+            {saved ? "Lagret ✓" : saving ? "Lagrer …" : `Lagre (${chosenCount})`}
+          </button>
+        </div>
+      </div>
+
+      <input
+        className={styles.tmSearch}
+        placeholder="Søk i bord …"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+
+      <div className={styles.tmList}>
+        {tables.map((t) => {
+          const s = state[t.name];
+          return (
+            <div key={t.name} className={`${styles.tmRow} ${s.on ? styles.tmRowOn : ""}`}>
+              <label className={styles.tmTop}>
+                <input
+                  type="checkbox"
+                  checked={s.on}
+                  onChange={(e) => patch(t.name, { on: e.target.checked })}
+                />
+                <span className={styles.tableName}>{t.name}</span>
+                <span className={styles.colCount}>{t.columns.length} felt</span>
+                {s.on && (
+                  <button
+                    type="button"
+                    className={styles.tmExpand}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      patch(t.name, { open: !s.open });
+                    }}
+                  >
+                    {s.open ? "Skjul" : "Tilgang"}
+                  </button>
+                )}
+              </label>
+
+              {s.on && (
+                <input
+                  className={styles.tmDesc}
+                  placeholder="Beskrivelse (vises til AI-en)"
+                  value={s.desc}
+                  onChange={(e) => patch(t.name, { desc: e.target.value })}
+                />
+              )}
+
+              {s.on && s.open && (
+                <div className={styles.tmAccess}>
+                  <button
+                    type="button"
+                    className={`${styles.chip} ${s.userIds.length === 0 ? styles.chipOn : ""}`}
+                    onClick={() => patch(t.name, { userIds: [] })}
+                  >
+                    Alle
+                  </button>
+                  {users.map((u) => {
+                    const on = s.userIds.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        className={`${styles.chip} ${on ? styles.chipOn : ""}`}
+                        onClick={() =>
+                          patch(t.name, {
+                            userIds: on
+                              ? s.userIds.filter((id) => id !== u.id)
+                              : [...s.userIds, u.id],
+                          })
+                        }
+                      >
+                        {u.email}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ChatWizard(_props: {
   initialConn: Connection | null;
   onClose: () => void;
@@ -621,6 +793,13 @@ function ChatWizard(_props: {
   useEffect(() => {
     fetchAdminUsers().then(setUsers).catch(() => {});
     fetchMe().then((r) => setMeId(r.user.id)).catch(() => {});
+  }, []);
+
+  // Redigering av eksisterende kobling: hopp rett til rutenettet.
+  useEffect(() => {
+    if (!_props.initialConn) return;
+    setSavedConn(_props.initialConn);
+    fetchConnectionSchema(_props.initialConn.id).then(setSchema).catch(() => {});
   }, []);
 
   // Aktivt felt utledes av svarene: eksplisitt korrigering vinner, ellers
@@ -1036,6 +1215,11 @@ function ChatWizard(_props: {
       if (input.trim()) answer(input);
       else if (options.length > 0) answer(options[hilite]);
     }
+  }
+
+  // Så snart kilden er tilkoblet: chat er ferdig, rutenettet tar over.
+  if (savedConn && schema) {
+    return <TableManager conn={savedConn} schema={schema} onClose={_props.onClose} />;
   }
 
   return (
