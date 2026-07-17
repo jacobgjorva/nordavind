@@ -794,3 +794,98 @@
   color: var(--text-faint);
   font-size: 12.5px;
 }
+
+/* --- Chat-canvas for tilkoblingsoppsett --- */
+
+.canvas {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 560px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: #2a2a2a;
+  overflow: hidden;
+}
+
+.canvasScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.chatRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.chatUser {
+  align-items: flex-end;
+}
+
+.chatBubble {
+  max-width: 70%;
+  padding: 9px 14px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chatUser .chatBubble {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.chatWidget {
+  width: 100%;
+  max-width: 640px;
+  padding: 14px 16px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.chatChoices {
+  display: flex;
+  gap: 8px;
+}
+
+.canvasInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 0.5px solid var(--border);
+}
+
+.canvasInput {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.canvasInput:focus {
+  border-color: #4299e0;
+}
+
+.canvasInput::placeholder {
+  color: var(--text-faint);
+}
+
+.canvasInput:disabled {
+  opacity: 0.5;
+}

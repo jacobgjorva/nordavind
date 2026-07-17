@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import {
   createConnection,
   testConnection,
@@ -24,8 +24,7 @@ const DB_TYPES = [
 export function Connectors() {
   const [conns, setConns] = useState<Connection[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Wizard: null = lukket, ellers { conn: null (steg 1) | Connection (steg 2+) }
-  const [wizard, setWizard] = useState<{ conn: Connection | null } | null>(null);
+  const [canvas, setCanvas] = useState<{ conn: Connection | null } | null>(null);
 
   function reload() {
     fetchConnections()
@@ -48,34 +47,36 @@ export function Connectors() {
   if (error && !conns) return <div className={styles.error}>{error}</div>;
   if (!conns) return null;
 
-  if (wizard) {
-    return (
-      <Wizard
-        initialConn={wizard.conn}
-        onClose={() => {
-          setWizard(null);
-          reload();
-        }}
-      />
-    );
-  }
-
   return (
     <div className={styles.content}>
       <div className={styles.section}>
         <div className={styles.head}>
           <div className={styles.sectionTitle}>Databaser</div>
-          <button className={styles.primary} onClick={() => setWizard({ conn: null })}>
-            Ny tilkobling
-          </button>
+          {!canvas && (
+            <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
+              Ny tilkobling
+            </button>
+          )}
         </div>
         <div className={styles.sectionDesc}>
           Koble til bedriftens egne databaser og velg hva AI-en får se.
         </div>
 
-        {conns.length === 0 && <div className={styles.empty}>Ingen tilkoblinger ennå.</div>}
+        {canvas && (
+          <ChatWizard
+            initialConn={canvas.conn}
+            onClose={() => {
+              setCanvas(null);
+              reload();
+            }}
+          />
+        )}
+
+        {conns.length === 0 && !canvas && (
+          <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
+        )}
         {conns.map((c) => (
-          <div key={c.id} className={styles.connRow} onClick={() => setWizard({ conn: c })}>
+          <div key={c.id} className={styles.connRow} onClick={() => setCanvas({ conn: c })}>
             <span className={styles.connName}>{c.name}</span>
             <span className={styles.connDriver}>
               {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
@@ -97,30 +98,72 @@ export function Connectors() {
   );
 }
 
-// --- Wizard ---
+// --- Chat-basert oppsett ---
 
-const STEPS = ["Koble til", "Velg bord", "Beskriv", "Relasjoner"];
+type Phase =
+  | "creds"
+  | "tables"
+  | "sql"
+  | "describe"
+  | "relations"
+  | "done";
 
-function Wizard({
+interface Msg {
+  id: number;
+  role: "bot" | "user";
+  text?: string;
+  widget?: "creds" | "tables" | "sql" | "relations";
+}
+
+let msgId = 0;
+const nextMsg = () => ++msgId;
+
+function ChatWizard({
   initialConn,
   onClose,
 }: {
   initialConn: Connection | null;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState(initialConn ? 1 : 0);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [phase, setPhase] = useState<Phase>("creds");
   const [conn, setConn] = useState<Connection | null>(initialConn);
   const [schema, setSchema] = useState<ConnectionSchema | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  const [describeQueue, setDescribeQueue] = useState<string[]>([]);
   const [links, setLinks] = useState<DbLink[]>([]);
   const [views, setViews] = useState<DbView[]>([]);
+  const [input, setInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
+
+  function push(msg: Omit<Msg, "id">) {
+    setMessages((prev) => [...prev, { ...msg, id: nextMsg() }]);
+  }
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, phase]);
+
+  // Åpning: ny tilkobling starter med kredensialer, eksisterende hopper
+  // rett til bordvalg.
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    if (initialConn) {
+      push({ role: "bot", text: `Henter skjemaet fra ${initialConn.name} …` });
+      loadSchema(initialConn);
+    } else {
+      push({ role: "bot", text: "La oss koble til en database. Fyll inn detaljene:" });
+      push({ role: "bot", widget: "creds" });
+    }
+  }, []);
 
   async function loadSchema(c: Connection) {
-    setError(null);
     try {
       const s = await fetchConnectionSchema(c.id);
       setSchema(s);
@@ -129,14 +172,102 @@ function Wizard({
       setDescriptions(Object.fromEntries(cfg.map((t) => [t.name, t.description])));
       setLinks(s.config.links ?? []);
       setViews(s.config.views ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Kunne ikke hente skjema.");
+      setPhase("tables");
+      push({
+        role: "bot",
+        text: `Jeg fant ${s.tables.length} bord. Velg de AI-en skal få bruke:`,
+      });
+      push({ role: "bot", widget: "tables" });
+    } catch {
+      push({ role: "bot", text: "Klarte ikke hente skjemaet. Sjekk tilkoblingen." });
     }
   }
 
-  useEffect(() => {
-    if (initialConn) loadSchema(initialConn);
-  }, []);
+  function onConnected(c: Connection) {
+    setConn(c);
+    push({ role: "user", text: `Koblet til ${c.name}` });
+    push({ role: "bot", text: "Tilkoblet! Henter skjemaet …" });
+    loadSchema(c);
+  }
+
+  function tablesDone() {
+    if (selected.size === 0 && views.length === 0) return;
+    push({
+      role: "user",
+      text: `Valgt: ${[...selected].join(", ")}${views.length ? ` + ${views.length} SQL` : ""}`,
+    });
+    setPhase("sql");
+    push({
+      role: "bot",
+      text: "Vil du legge til en egen SQL-spørring (f.eks. en ferdig join)?",
+    });
+  }
+
+  function startSql() {
+    push({ role: "user", text: "Ja, lag en SQL-spørring" });
+    push({ role: "bot", widget: "sql" });
+  }
+
+  function sqlDone(added: DbView | null) {
+    if (added) {
+      setViews((v) => [...v.filter((x) => x.name !== added.name), added]);
+      push({ role: "user", text: `La til spørringen ${added.name}` });
+      push({ role: "bot", text: "Flere spørringer?" });
+      return;
+    }
+    startDescribe();
+  }
+
+  function startDescribe() {
+    const queue = [...selected, ...views.map((v) => `${v.name} (SQL)`)];
+    if (queue.length === 0) {
+      startRelations();
+      return;
+    }
+    setPhase("describe");
+    setDescribeQueue(queue);
+    push({
+      role: "bot",
+      text: `Beskriv kort hva ${queue[0].replace(" (SQL)", "")} inneholder (Enter for å hoppe over):`,
+    });
+  }
+
+  function answerDescribe(text: string) {
+    const [current, ...rest] = describeQueue;
+    const key = current.replace(" (SQL)", "");
+    if (text.trim()) {
+      push({ role: "user", text: text.trim() });
+      if (current.endsWith("(SQL)")) {
+        setViews((v) => v.map((x) => (x.name === key ? { ...x, description: text.trim() } : x)));
+      } else {
+        setDescriptions((d) => ({ ...d, [key]: text.trim() }));
+      }
+    } else {
+      push({ role: "user", text: "(hopper over)" });
+    }
+    if (rest.length > 0) {
+      setDescribeQueue(rest);
+      push({
+        role: "bot",
+        text: `Og ${rest[0].replace(" (SQL)", "")}?`,
+      });
+    } else {
+      startRelations();
+    }
+  }
+
+  function startRelations() {
+    if (selected.size < 2) {
+      finish();
+      return;
+    }
+    setPhase("relations");
+    push({
+      role: "bot",
+      text: "Til slutt: koble sammen bordene. Klikk en kolonne, så kolonnen den hører sammen med:",
+    });
+    push({ role: "bot", widget: "relations" });
+  }
 
   async function finish() {
     if (!conn) return;
@@ -154,104 +285,120 @@ function Wizard({
         links.filter((l) => selected.has(l.from_table) && selected.has(l.to_table)),
         views
       );
-      onClose();
+      setPhase("done");
+      push({ role: "bot", text: `Ferdig! ${conn.name} er klar til bruk i chatten.` });
     } catch {
-      setError("Kunne ikke lagre.");
+      push({ role: "bot", text: "Kunne ikke lagre. Prøv igjen." });
     } finally {
       setSaving(false);
     }
   }
 
+  function submitInput(e: React.FormEvent) {
+    e.preventDefault();
+    if (phase !== "describe") return;
+    const text = input;
+    setInput("");
+    answerDescribe(text);
+  }
+
+  const lastWidgetId = [...messages].reverse().find((m) => m.widget)?.id;
+  const lastWidget = (w: Msg["widget"]) =>
+    messages.find((m) => m.id === lastWidgetId)?.widget === w;
+  const isLastWidgetMsg = (m: Msg) => m.id === lastWidgetId;
+
   return (
-    <div className={styles.content}>
-      <div className={styles.wizardCols}>
-      <div className={styles.wizardMain}>
-      {error && <div className={styles.error}>{error}</div>}
+    <div className={styles.canvas}>
+      <div className={styles.canvasScroll} ref={scrollRef}>
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`${styles.chatRow} ${m.role === "user" ? styles.chatUser : ""}`}
+          >
+            {m.text && <div className={styles.chatBubble}>{m.text}</div>}
+            {m.widget === "creds" && isLastWidgetMsg(m) && phase === "creds" && (
+              <div className={styles.chatWidget}>
+                <CredsForm onConnected={onConnected} />
+              </div>
+            )}
+            {m.widget === "tables" && isLastWidgetMsg(m) && phase === "tables" && schema && (
+              <div className={styles.chatWidget}>
+                <TablePicker
+                  tables={schema.tables}
+                  selected={selected}
+                  setSelected={setSelected}
+                />
+                <div className={styles.formActions}>
+                  <button
+                    className={styles.primary}
+                    onClick={tablesDone}
+                    disabled={selected.size === 0 && views.length === 0}
+                  >
+                    Ferdig med valg
+                  </button>
+                </div>
+              </div>
+            )}
+            {m.widget === "sql" && isLastWidgetMsg(m) && phase === "sql" && (
+              <div className={styles.chatWidget}>
+                <SqlComposer onDone={sqlDone} />
+              </div>
+            )}
+            {m.widget === "relations" && isLastWidgetMsg(m) && phase === "relations" && schema && (
+              <div className={styles.chatWidget}>
+                <RelationGraph
+                  tables={schema.tables.filter((t) => selected.has(t.name))}
+                  suggestions={schema.suggested_links ?? []}
+                  links={links}
+                  setLinks={setLinks}
+                />
+                <div className={styles.formActions}>
+                  <button className={styles.primary} onClick={finish} disabled={saving}>
+                    {saving ? "Lagrer …" : "Fullfør"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
 
-      {step === 0 && (
-        <ConnectStep
-          onConnected={(c) => {
-            setConn(c);
-            loadSchema(c);
-            setStep(1);
-          }}
-        />
-      )}
-
-      {step === 1 && schema && (
-        <TableStep
-          schema={schema}
-          selected={selected}
-          setSelected={setSelected}
-          views={views}
-          setViews={setViews}
-        />
-      )}
-
-      {step === 2 && schema && (
-        <DescribeStep
-          selected={[...selected]}
-          descriptions={descriptions}
-          setDescriptions={setDescriptions}
-          views={views}
-          setViews={setViews}
-        />
-      )}
-
-      {step === 3 && schema && (
-        <RelationStep
-          tables={schema.tables.filter((t) => selected.has(t.name))}
-          suggestions={schema.suggested_links ?? []}
-          links={links}
-          setLinks={setLinks}
-        />
-      )}
-
-      {step > 0 && (
-        <div className={styles.wizardFoot}>
-          <button className={styles.cancel} onClick={() => setStep(step - 1)} disabled={step === 1 && !initialConn}>
-            Tilbake
-          </button>
-          {step < 3 ? (
-            <button className={styles.primary} onClick={() => setStep(step + 1)}>
-              Neste
+        {phase === "sql" && !lastWidget("sql") && (
+          <div className={styles.chatChoices}>
+            <button className={styles.chip} onClick={startSql}>
+              Ja, lag en SQL-spørring
             </button>
-          ) : (
-            <button className={styles.primary} onClick={finish} disabled={saving}>
-              {saving ? "Lagrer …" : "Fullfør"}
+            <button className={styles.chip} onClick={startDescribe}>
+              Nei, gå videre
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        )}
       </div>
 
-      <aside className={styles.wizardSide}>
-        <button className={styles.cancel} onClick={onClose}>
-          Lukk
+      <form className={styles.canvasInputRow} onSubmit={submitInput}>
+        <input
+          className={styles.canvasInput}
+          placeholder={
+            phase === "describe" ? "Skriv beskrivelsen her …" : "Bruk valgene over …"
+          }
+          value={input}
+          disabled={phase !== "describe"}
+          onChange={(e) => setInput(e.target.value)}
+          autoFocus={phase === "describe"}
+        />
+        <button
+          type="button"
+          className={styles.cancel}
+          onClick={phase === "done" ? onClose : onClose}
+        >
+          {phase === "done" ? "Lukk" : "Avbryt"}
         </button>
-        <div className={styles.wizRail}>
-          {STEPS.map((s, i) => (
-            <button
-              key={s}
-              className={`${styles.wizStep} ${i === step ? styles.wizStepActive : ""} ${
-                i < step ? styles.wizStepDone : ""
-              }`}
-              disabled={i > 0 && !conn}
-              onClick={() => conn && setStep(i)}
-            >
-              <span className={styles.wizNum}>{i + 1}</span>
-              {s}
-            </button>
-          ))}
-        </div>
-      </aside>
-      </div>
+      </form>
     </div>
   );
 }
 
-// Steg 1: tilkoblingsskjema.
-function ConnectStep({ onConnected }: { onConnected: (c: Connection) => void }) {
+// Kredensial-skjema som chat-widget.
+function CredsForm({ onConnected }: { onConnected: (c: Connection) => void }) {
   const [driver, setDriver] = useState("postgres");
   const [form, setForm] = useState({
     name: "",
@@ -363,84 +510,24 @@ function ConnectStep({ onConnected }: { onConnected: (c: Connection) => void }) 
   );
 }
 
-// SQL-editor med syntaksfarging: et gjennomsiktig textarea over et
-// farget speil-lag, pluss linjenummer-renne.
-const SQL_KEYWORDS = new Set(
-  ("select from where join left right inner outer full cross on group order by " +
-    "limit offset having distinct count sum avg min max as and or not in is null " +
-    "like between union all case when then else end with asc desc").split(" ")
-);
-
-function highlightSql(sql: string) {
-  return sql.split(/([a-zA-Z_]+|[^a-zA-Z_]+)/).map((tok, i) =>
-    SQL_KEYWORDS.has(tok.toLowerCase()) ? (
-      <span key={i} className={styles.sqlKw}>
-        {tok}
-      </span>
-    ) : (
-      <span key={i}>{tok}</span>
-    )
-  );
-}
-
-function SqlEditor({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-}) {
-  const lines = value.split("\n").length;
-  return (
-    <div className={styles.sqlEditor}>
-      <div className={styles.sqlGutter}>
-        {Array.from({ length: Math.max(lines, 4) }, (_, i) => (
-          <span key={i}>{i + 1}</span>
-        ))}
-      </div>
-      <div className={styles.sqlField}>
-        <pre className={styles.sqlHighlight} aria-hidden="true">
-          {highlightSql(value)}
-          {"\n"}
-        </pre>
-        <textarea
-          className={styles.sqlInput}
-          value={value}
-          placeholder={placeholder}
-          spellCheck={false}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    </div>
-  );
-}
-
-// Steg 2: bordvalg med søk/paginering + custom SQL-spørringer.
+// Bordvalg som chat-widget: søk + 5 per side.
 const PAGE_SIZE = 5;
 
-function TableStep({
-  schema,
+function TablePicker({
+  tables,
   selected,
   setSelected,
-  views,
-  setViews,
 }: {
-  schema: ConnectionSchema;
+  tables: DbTable[];
   selected: Set<string>;
   setSelected: (s: Set<string>) => void;
-  views: DbView[];
-  setViews: (v: DbView[]) => void;
 }) {
-  const [tab, setTab] = useState<"tables" | "sql">("tables");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [draft, setDraft] = useState<DbView>({ name: "", sql: "", description: "" });
 
   const filtered = useMemo(
-    () => schema.tables.filter((t) => t.name.toLowerCase().includes(query.toLowerCase())),
-    [schema.tables, query]
+    () => tables.filter((t) => t.name.toLowerCase().includes(query.toLowerCase())),
+    [tables, query]
   );
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -452,54 +539,8 @@ function TableStep({
     setSelected(next);
   }
 
-  function addView() {
-    if (!draft.name.trim() || !draft.sql.trim()) return;
-    setViews([...views.filter((v) => v.name !== draft.name), draft]);
-    setDraft({ name: "", sql: "", description: "" });
-  }
-
   return (
     <div className={styles.stepBody}>
-      <div className={styles.tabRow}>
-        <button
-          className={`${styles.tab} ${tab === "tables" ? styles.tabActive : ""}`}
-          onClick={() => setTab("tables")}
-        >
-          Bord{selected.size > 0 ? ` (${selected.size})` : ""}
-        </button>
-        <button
-          className={`${styles.tab} ${tab === "sql" ? styles.tabActive : ""}`}
-          onClick={() => setTab("sql")}
-        >
-          SQL Query{views.length > 0 ? ` (${views.length})` : ""}
-        </button>
-      </div>
-
-      {tab === "sql" && (
-        <>
-      <div className={styles.viewEditor}>
-        <input
-          className={styles.input}
-          placeholder="Navn (f.eks. ordre_per_kunde)"
-          value={draft.name}
-          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-        />
-        <SqlEditor
-          value={draft.sql}
-          placeholder="SELECT c.name, SUM(o.total) FROM orders o JOIN customers c ON …"
-          onChange={(sql) => setDraft({ ...draft, sql })}
-        />
-        <div className={styles.formActions}>
-          <button className={styles.primary} onClick={addView} disabled={!draft.name.trim() || !draft.sql.trim()}>
-            Legg til
-          </button>
-        </div>
-      </div>
-        </>
-      )}
-
-      {tab === "tables" && (
-        <>
       <input
         className={styles.input}
         placeholder="Søk i bord …"
@@ -518,104 +559,97 @@ function TableStep({
       ))}
       {pages > 1 && (
         <div className={styles.pager}>
-          <button className={styles.cancel} disabled={page === 0} onClick={() => setPage(page - 1)}>
+          <button type="button" className={styles.cancel} disabled={page === 0} onClick={() => setPage(page - 1)}>
             Forrige
           </button>
           <span className={styles.pagerInfo}>
             {page + 1} / {pages}
           </span>
-          <button className={styles.cancel} disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>
+          <button type="button" className={styles.cancel} disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>
             Neste
           </button>
         </div>
       )}
-        </>
-      )}
-
-      <div className={styles.subLabel}>
-        Valgt ({selected.size + views.length})
-      </div>
-      {selected.size === 0 && views.length === 0 && (
-        <div className={styles.empty}>Ingenting valgt ennå.</div>
-      )}
-      {[...selected].map((name) => (
-        <div key={name} className={styles.viewRow}>
-          <span className={styles.tableName}>{name}</span>
-          <span className={styles.colCount}>bord</span>
-          <button className={styles.remove} onClick={() => toggle(name)}>
-            Fjern
-          </button>
-        </div>
-      ))}
-      {views.map((v) => (
-        <div key={v.name} className={styles.viewRow}>
-          <span className={styles.tableName}>{v.name}</span>
-          <span className={styles.colCount}>SQL</span>
-          <button className={styles.remove} onClick={() => setViews(views.filter((x) => x.name !== v.name))}>
-            Fjern
-          </button>
-        </div>
-      ))}
     </div>
   );
 }
 
-// Steg 3: beskrivelse per valgt bord.
-function DescribeStep({
-  selected,
-  descriptions,
-  setDescriptions,
-  views,
-  setViews,
-}: {
-  selected: string[];
-  descriptions: Record<string, string>;
-  setDescriptions: (d: Record<string, string>) => void;
-  views: DbView[];
-  setViews: (v: DbView[]) => void;
-}) {
-  if (selected.length === 0 && views.length === 0) {
-    return <div className={styles.empty}>Ingen bord eller spørringer valgt.</div>;
-  }
+// SQL-editor som chat-widget.
+const SQL_KEYWORDS = new Set(
+  ("select from where join left right inner outer full cross on group order by " +
+    "limit offset having distinct count sum avg min max as and or not in is null " +
+    "like between union all case when then else end with asc desc").split(" ")
+);
+
+function highlightSql(sql: string) {
+  return sql.split(/([a-zA-Z_]+|[^a-zA-Z_]+)/).map((tok, i) =>
+    SQL_KEYWORDS.has(tok.toLowerCase()) ? (
+      <span key={i} className={styles.sqlKw}>
+        {tok}
+      </span>
+    ) : (
+      <span key={i}>{tok}</span>
+    )
+  );
+}
+
+function SqlComposer({ onDone }: { onDone: (v: DbView | null) => void }) {
+  const [draft, setDraft] = useState<DbView>({ name: "", sql: "", description: "" });
+  const lines = draft.sql.split("\n").length;
+
   return (
     <div className={styles.stepBody}>
-      {selected.map((name) => (
-        <label key={name} className={styles.field}>
-          <span className={`${styles.fieldLabel} ${styles.tableName}`}>{name}</span>
-          <input
-            className={styles.input}
-            placeholder="Hva inneholder bordet?"
-            value={descriptions[name] ?? ""}
-            onChange={(e) => setDescriptions({ ...descriptions, [name]: e.target.value })}
+      <input
+        className={styles.input}
+        placeholder="Navn (f.eks. ordre_per_kunde)"
+        value={draft.name}
+        onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+      />
+      <div className={styles.sqlEditor}>
+        <div className={styles.sqlGutter}>
+          {Array.from({ length: Math.max(lines, 4) }, (_, i) => (
+            <span key={i}>{i + 1}</span>
+          ))}
+        </div>
+        <div className={styles.sqlField}>
+          <pre className={styles.sqlHighlight} aria-hidden="true">
+            {highlightSql(draft.sql)}
+            {"\n"}
+          </pre>
+          <textarea
+            className={styles.sqlInput}
+            value={draft.sql}
+            placeholder="SELECT c.name, SUM(o.total) FROM orders o JOIN customers c ON …"
+            spellCheck={false}
+            onChange={(e) => setDraft({ ...draft, sql: e.target.value })}
           />
-        </label>
-      ))}
-      {views.map((v) => (
-        <label key={v.name} className={styles.field}>
-          <span className={`${styles.fieldLabel} ${styles.tableName}`}>{v.name} (SQL)</span>
-          <input
-            className={styles.input}
-            placeholder="Hva gir spørringen?"
-            value={v.description}
-            onChange={(e) =>
-              setViews(views.map((x) => (x.name === v.name ? { ...x, description: e.target.value } : x)))
-            }
-          />
-        </label>
-      ))}
+        </div>
+      </div>
+      <div className={styles.formActions}>
+        <button type="button" className={styles.cancel} onClick={() => onDone(null)}>
+          Gå videre
+        </button>
+        <button
+          type="button"
+          className={styles.primary}
+          disabled={!draft.name.trim() || !draft.sql.trim()}
+          onClick={() => onDone(draft)}
+        >
+          Legg til
+        </button>
+      </div>
     </div>
   );
 }
 
-// Steg 4: relasjonsbygger — klikk en kolonne, så en kolonne i et annet
-// bord for å trekke en tråd mellom dem.
+// Relasjonsgraf som chat-widget.
 const NODE_W = 200;
 const ROW_H = 22;
 const HEAD_H = 30;
 const GAP_X = 120;
 const GAP_Y = 28;
 
-function RelationStep({
+function RelationGraph({
   tables,
   suggestions,
   links,
@@ -628,7 +662,6 @@ function RelationStep({
 }) {
   const [pending, setPending] = useState<{ table: string; column: string } | null>(null);
 
-  // Grid-layout: to kolonner med noder, y akkumuleres per kolonne.
   const layout = useMemo(() => {
     const pos: Record<string, { x: number; y: number }> = {};
     const colY = [0, 0];
@@ -665,7 +698,6 @@ function RelationStep({
     setPending(null);
   }
 
-  // Ankerpunkt for en kolonne: midt på raden, høyre/venstre kant.
   function anchor(table: string, column: string, side: "left" | "right") {
     const p = layout.pos[table];
     const t = tables.find((x) => x.name === table);
@@ -677,9 +709,7 @@ function RelationStep({
     };
   }
 
-  if (tables.length < 2) {
-    return <div className={styles.empty}>Velg minst to bord for å bygge relasjoner.</div>;
-  }
+  if (tables.length < 2) return null;
 
   const width = 2 * NODE_W + GAP_X;
 
@@ -688,7 +718,7 @@ function RelationStep({
       {usable.length > 0 && (
         <div className={styles.chips}>
           {usable.map((l) => (
-            <button key={key(l)} className={styles.chip} onClick={() => setLinks([...links, l])}>
+            <button key={key(l)} type="button" className={styles.chip} onClick={() => setLinks([...links, l])}>
               + {l.from_table}.{l.from_column} = {l.to_table}.{l.to_column}
             </button>
           ))}
@@ -727,6 +757,7 @@ function RelationStep({
               {t.columns.map((c) => (
                 <button
                   key={c.name}
+                  type="button"
                   className={`${styles.nodeCol} ${
                     pending?.table === t.name && pending?.column === c.name ? styles.nodeColActive : ""
                   }`}
