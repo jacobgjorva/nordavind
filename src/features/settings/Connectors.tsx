@@ -18,6 +18,7 @@ import styles from "./Connectors.module.css";
 const DB_TYPES = [
   { key: "postgres", label: "PostgreSQL", port: 5432 },
   { key: "mysql", label: "MySQL", port: 3306 },
+  { key: "mssql", label: "SQL Server", port: 1433 },
 ];
 
 // Kuratering per tabell mens admin redigerer.
