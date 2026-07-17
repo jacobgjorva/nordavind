@@ -1547,9 +1547,8 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 760px;
-  height: calc(100vh - 56px - 80px);
-  padding: 8px 0 24px;
+  height: 100%;
+  padding: 8px 4px 24px;
 }
 
 .tmHead {
@@ -1803,4 +1802,85 @@
 
 .accMenuItem:hover {
   background: var(--bg-hover);
+}
+
+
+/* Connectors: venstre sidebar med koblinger + hovedområde */
+
+.connLayout {
+  display: flex;
+  gap: 28px;
+  height: calc(100vh - 56px - 80px);
+}
+
+.connSidebar {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+  border-right: 0.5px solid var(--border);
+}
+
+.connNew {
+  height: 38px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.connNew:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.connSideList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.connSideList::-webkit-scrollbar {
+  display: none;
+}
+
+.connSideItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.connSideItem:hover {
+  background: var(--bg-hover);
+}
+
+.connSideItemOn {
+  background: var(--bg-hover);
+}
+
+.connSideItem .connName {
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.connSideItem .connDriver {
+  font-size: 12px;
+}
+
+.connMain {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }

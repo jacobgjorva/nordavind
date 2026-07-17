@@ -13,7 +13,6 @@ import {
   type AdminUser,
   type Connection,
   type ConnectionSchema,
-  type DbLink,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
 
@@ -23,64 +22,21 @@ const DB_TYPES = [
   { key: "mssql", label: "SQL Server", port: 1433 },
 ];
 
-// Flowchart-data per tilkobling: valgte bord + relasjoner mellom dem.
-interface FlowInfo {
-  tables: string[];
-  links: { from: string; to: string }[];
-}
-
-// Kjederekkefølge: forbundne bord legges ved siden av hverandre.
-function chainOrder(tables: string[], links: { from: string; to: string }[]): string[] {
-  const adj = new Map<string, string[]>();
-  for (const l of links) {
-    adj.set(l.from, [...(adj.get(l.from) ?? []), l.to]);
-    adj.set(l.to, [...(adj.get(l.to) ?? []), l.from]);
-  }
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const t of tables) {
-    if (seen.has(t)) continue;
-    const stack = [t];
-    while (stack.length) {
-      const cur = stack.pop()!;
-      if (seen.has(cur)) continue;
-      seen.add(cur);
-      out.push(cur);
-      for (const n of adj.get(cur) ?? []) if (!seen.has(n)) stack.push(n);
-    }
-  }
-  return out;
-}
-
 export function Connectors() {
   const [conns, setConns] = useState<Connection[] | null>(null);
-  const [flows, setFlows] = useState<Record<string, FlowInfo>>({});
   const [schemas, setSchemas] = useState<Record<string, ConnectionSchema>>({});
-  const [popover, setPopover] = useState<{ connId: string; table: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [canvas, setCanvas] = useState<{ conn: Connection | null } | null>(null);
-  const [listView, setListView] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function reload() {
     fetchConnections()
       .then((list) => {
         setConns(list);
+        setSelectedId((cur) => cur ?? list[0]?.id ?? null);
         for (const c of list) {
           fetchConnectionSchema(c.id)
-            .then((sch) => {
-              setSchemas((prev) => ({ ...prev, [c.id]: sch }));
-              const chosen = new Set((sch.config.tables ?? []).map((t) => t.name));
-              const links = [
-                ...(sch.config.links ?? []),
-                ...(sch.suggested_links ?? []),
-              ]
-                .filter((l) => chosen.has(l.from_table) && chosen.has(l.to_table))
-                .map((l) => ({ from: l.from_table, to: l.to_table }));
-              setFlows((prev) => ({
-                ...prev,
-                [c.id]: { tables: [...chosen], links },
-              }));
-            })
+            .then((sch) => setSchemas((prev) => ({ ...prev, [c.id]: sch })))
             .catch(() => {});
         }
       })
@@ -93,6 +49,7 @@ export function Connectors() {
     if (!confirm(`Fjerne tilkoblingen ${conn.name}?`)) return;
     try {
       await deleteConnection(conn.id);
+      setSelectedId((cur) => (cur === conn.id ? null : cur));
       reload();
     } catch {
       setError("Kunne ikke fjerne tilkoblingen.");
@@ -101,48 +58,6 @@ export function Connectors() {
 
   if (error && !conns) return <div className={styles.error}>{error}</div>;
   if (!conns) return null;
-
-  // Egen side: alle eksisterende koblinger som liste.
-  if (listView) {
-    return (
-      <div className={styles.content}>
-        <div className={styles.section}>
-          <div className={styles.head}>
-            <div className={styles.sectionTitle}>Eksisterende koblinger</div>
-            <button className={styles.primary} onClick={() => setListView(false)}>
-              Tilbake
-            </button>
-          </div>
-          {conns.length === 0 && <div className={styles.empty}>Ingen tilkoblinger ennå.</div>}
-          {conns.map((c) => (
-            <div
-              key={c.id}
-              className={styles.connRow}
-              onClick={() => {
-                setListView(false);
-                setCanvas({ conn: c });
-              }}
-            >
-              <span className={styles.connName}>{c.name}</span>
-              <span className={styles.connDriver}>
-                {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
-              </span>
-              <button
-                className={styles.remove}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  remove(c);
-                }}
-              >
-                Fjern
-              </button>
-            </div>
-          ))}
-          {error && <div className={styles.error}>{error}</div>}
-        </div>
-      </div>
-    );
-  }
 
   // Ny tilkobling tar over hele siden.
   if (canvas) {
@@ -157,92 +72,54 @@ export function Connectors() {
     );
   }
 
-  return (
-    <div className={`${styles.content} ${styles.contentCentered}`}>
-      <div className={styles.section}>
-        <div className={styles.head}>
-          <div className={styles.sectionTitle}>Databaser</div>
-          <div className={styles.headActions}>
-            <button className={styles.primary} onClick={() => setListView(true)}>
-              Eksisterende koblinger
-            </button>
-            <button className={styles.primary} onClick={() => setCanvas({ conn: null })}>
-              Ny tilkobling
-            </button>
-          </div>
-        </div>
-        <div className={styles.sectionDesc}>
-          Koble til bedriftens egne databaser og velg hva AI-en får se.
-        </div>
+  const selected = conns.find((c) => c.id === selectedId) ?? null;
 
-        <div className={styles.flowsCenter}>
-        {conns.length === 0 && (
-          <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
-        )}
-        {conns.length > 0 && (
-          <div className={styles.flowRow}>
-            {conns.flatMap((c) => {
-              const flow = flows[c.id];
-              const order = flow ? chainOrder(flow.tables, flow.links) : [];
-              const linked = (a: string, b: string) =>
-                flow?.links.some(
-                  (l) => (l.from === a && l.to === b) || (l.from === b && l.to === a)
-                );
-              return order.map((t, i) => (
-                <span key={`${c.id}-${t}`} className={styles.flowSeg}>
-                  {i > 0 && (
-                    <span
-                      className={linked(order[i - 1], t) ? styles.flowWire : styles.flowGap}
-                    />
-                  )}
-                  {(() => {
-                    const active = popover?.connId === c.id && popover?.table === t;
-                    return (
-                      <span
-                        className={`${styles.flowNode} ${
-                          active ? styles.flowNodeExpanded : ""
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPopover(active ? null : { connId: c.id, table: t });
-                        }}
-                      >
-                        <span className={styles.flowNodeRow}>
-                          <span className={`${styles.flowBadge} ${styles.flowBadgeBlue}`}>
-                            <PlayGlyph />
-                          </span>
-                          <span className={styles.flowText}>
-                            <span className={styles.flowTitle}>{t}</span>
-                            <span className={styles.flowSub}>Bord ({c.name})</span>
-                          </span>
-                        </span>
-                        {active && schemas[c.id] && (
-                          <span
-                            className={styles.flowNodeBody}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <NodeEditor
-                              schema={schemas[c.id]}
-                              table={t}
-                              onSaved={reload}
-                            />
-                          </span>
-                        )}
-                      </span>
-                    );
-                  })()}
-                </span>
-              ));
-            })}
+  return (
+    <div className={styles.connLayout}>
+      <aside className={styles.connSidebar}>
+        <button
+          className={styles.connNew}
+          onClick={() => setCanvas({ conn: null })}
+        >
+          + Ny tilkobling
+        </button>
+        <div className={styles.connSideList}>
+          {conns.length === 0 && (
+            <div className={styles.empty}>Ingen tilkoblinger ennå.</div>
+          )}
+          {conns.map((c) => (
+            <button
+              key={c.id}
+              className={`${styles.connSideItem} ${
+                c.id === selectedId ? styles.connSideItemOn : ""
+              }`}
+              onClick={() => setSelectedId(c.id)}
+            >
+              <span className={styles.connName}>{c.name}</span>
+              <span className={styles.connDriver}>
+                {DB_TYPES.find((t) => t.key === c.driver)?.label ?? c.driver}
+              </span>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div className={styles.connMain}>
+        {selected && schemas[selected.id] ? (
+          <TableManager
+            key={selected.id}
+            conn={selected}
+            schema={schemas[selected.id]}
+            onClose={reload}
+            onRemove={() => remove(selected)}
+          />
+        ) : (
+          <div className={styles.empty}>
+            {conns.length === 0
+              ? "Legg til din første databasetilkobling."
+              : "Velg en tilkobling."}
           </div>
         )}
-        {conns.length > 0 &&
-          Object.keys(flows).length === conns.length &&
-          conns.every((c) => (flows[c.id]?.tables.length ?? 0) === 0) && (
-            <div className={styles.empty}>Ingen bord valgt ennå.</div>
-          )}
-        </div>
-        {error && <div className={styles.error}>{error}</div>}
       </div>
     </div>
   );
@@ -271,21 +148,6 @@ function FadeText({ text }: { text: string }) {
   );
 }
 
-// Enkel av/på-bryter i Guardrails-stil.
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      className={`${styles.toggle} ${on ? styles.toggleOn : ""}`}
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-    >
-      <span className={styles.toggleKnob} />
-    </button>
-  );
-}
-
 const SQL_KW = new Set(
   ("select from where join left right inner outer full cross on group order by " +
     "limit offset having distinct count sum avg min max as and or not in is null " +
@@ -301,228 +163,6 @@ function highlightSql(sql: string) {
     ) : (
       <span key={i}>{tok}</span>
     )
-  );
-}
-
-// Innhold i en ekspandert node: beskrivelse, relasjon-toggle, custom SQL-toggle.
-function NodeEditor({
-  schema,
-  table,
-  onSaved,
-}: {
-  schema: ConnectionSchema;
-  table: string;
-  onSaved: () => void;
-}) {
-  const cfgTables = schema.config.tables ?? [];
-  // Alle bord i databasen kan kobles til — ikke bare de allerede valgte.
-  const others = schema.tables.map((t) => t.name).filter((n) => n !== table);
-  const myCols = schema.tables.find((t) => t.name === table)?.columns ?? [];
-  const viewName = `${table}_query`;
-
-  const initialDesc = cfgTables.find((t) => t.name === table)?.description ?? "";
-  const initialLinks = (schema.config.links ?? []).filter(
-    (l) => l.from_table === table || l.to_table === table
-  );
-  const initialView = (schema.config.views ?? []).find((v) => v.name === viewName);
-
-  const [description, setDescription] = useState(initialDesc);
-  const [relOn, setRelOn] = useState(initialLinks.length > 0);
-  const [links, setLinks] = useState<DbLink[]>(initialLinks);
-  const [sqlOn, setSqlOn] = useState(Boolean(initialView));
-  const [sql, setSql] = useState(initialView?.sql ?? "");
-  const [saving, setSaving] = useState(false);
-
-  const [fromCol, setFromCol] = useState("");
-  const [toTable, setToTable] = useState("");
-  const [toCol, setToCol] = useState("");
-  const toCols = schema.tables.find((t) => t.name === toTable)?.columns ?? [];
-
-  function addLink() {
-    if (!fromCol || !toTable || !toCol) return;
-    setLinks((prev) => [
-      ...prev,
-      { from_table: table, from_column: fromCol, to_table: toTable, to_column: toCol },
-    ]);
-    setFromCol("");
-    setToTable("");
-    setToCol("");
-  }
-
-  async function save() {
-    setSaving(true);
-    try {
-      const tables = cfgTables.map((t) =>
-        t.name === table ? { ...t, description } : t
-      );
-      const otherLinks = (schema.config.links ?? []).filter(
-        (l) => l.from_table !== table && l.to_table !== table
-      );
-      const keptLinks = relOn ? [...otherLinks, ...links] : otherLinks;
-      // Bord som en relasjon peker på må også være tilgjengelige for AI-en.
-      const known = new Set(tables.map((t) => t.name));
-      for (const l of keptLinks) {
-        for (const name of [l.from_table, l.to_table]) {
-          if (!known.has(name)) {
-            known.add(name);
-            tables.push({ name, description: "", columns: {}, user_ids: [] });
-          }
-        }
-      }
-      const otherViews = (schema.config.views ?? []).filter((v) => v.name !== viewName);
-      const views =
-        sqlOn && sql.trim()
-          ? [...otherViews, { name: viewName, sql: sql.trim(), description: "" }]
-          : otherViews;
-      await saveConnectionConfig(schema.connection.id, tables, keptLinks, views);
-      onSaved();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const lines = sql.split("\n").length;
-
-  return (
-    <span className={styles.nodeEditor}>
-      <span className={styles.nodeField}>
-        <span className={styles.nodeFieldLabel}>Beskrivelse</span>
-        <textarea
-          className={styles.nodeArea}
-          placeholder="Hva inneholder bordet? (vises til AI-en)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          autoFocus
-        />
-      </span>
-
-      <span className={styles.nodeToggleRow}>
-        <span className={styles.nodeToggleLabel}>Relasjon</span>
-        <Toggle on={relOn} onChange={setRelOn} />
-      </span>
-      {relOn && (
-        <span className={styles.nodeSub}>
-          {links.map((l, i) => (
-            <span key={i} className={styles.relLink}>
-              <span className={styles.relLinkText}>
-                {l.from_table}.{l.from_column}
-                <span className={styles.relEq}>=</span>
-                {l.to_table}.{l.to_column}
-              </span>
-              <button
-                className={styles.remove}
-                onClick={() => setLinks((prev) => prev.filter((_, j) => j !== i))}
-              >
-                Fjern
-              </button>
-            </span>
-          ))}
-          {others.length > 0 ? (
-            <span className={styles.relForm}>
-              <span className={styles.relField}>
-                <span className={styles.relLabel}>Nøkkel i {table}</span>
-                <select
-                  className={styles.relSelect}
-                  value={fromCol}
-                  onChange={(e) => setFromCol(e.target.value)}
-                >
-                  <option value="">Velg kolonne …</option>
-                  {myCols.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </span>
-              <span className={styles.relField}>
-                <span className={styles.relLabel}>Kobles til bord</span>
-                <select
-                  className={styles.relSelect}
-                  value={toTable}
-                  onChange={(e) => {
-                    setToTable(e.target.value);
-                    setToCol("");
-                  }}
-                >
-                  <option value="">Velg bord …</option>
-                  {others.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </span>
-              <span className={styles.relField}>
-                <span className={styles.relLabel}>På kolonne</span>
-                <select
-                  className={styles.relSelect}
-                  value={toCol}
-                  onChange={(e) => setToCol(e.target.value)}
-                  disabled={!toTable}
-                >
-                  <option value="">Velg kolonne …</option>
-                  {toCols.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </span>
-              <button
-                className={styles.relAddBtn}
-                onClick={addLink}
-                disabled={!fromCol || !toTable || !toCol}
-              >
-                Legg til relasjon
-              </button>
-            </span>
-          ) : (
-            <span className={styles.nodeHint}>
-              Ingen andre bord i denne databasen.
-            </span>
-          )}
-        </span>
-      )}
-
-      <span className={styles.nodeToggleRow}>
-        <span className={styles.nodeToggleLabel}>Custom SQL</span>
-        <Toggle on={sqlOn} onChange={setSqlOn} />
-      </span>
-      {sqlOn && (
-        <span className={styles.sqlEditor}>
-          <span className={styles.sqlGutter}>
-            {Array.from({ length: Math.max(lines, 3) }, (_, i) => (
-              <span key={i}>{i + 1}</span>
-            ))}
-          </span>
-          <span className={styles.sqlField}>
-            <pre className={styles.sqlHighlight} aria-hidden="true">
-              {highlightSql(sql)}
-              {"\n"}
-            </pre>
-            <textarea
-              className={styles.sqlInput}
-              value={sql}
-              placeholder={`SELECT * FROM ${table} JOIN …`}
-              spellCheck={false}
-              onChange={(e) => setSql(e.target.value)}
-            />
-          </span>
-        </span>
-      )}
-
-      <button className={styles.nodeSave} onClick={save} disabled={saving}>
-        {saving ? "Lagrer …" : "Lagre"}
-      </button>
-    </span>
-  );
-}
-
-function PlayGlyph() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="6 3 20 12 6 21 6 3" />
-    </svg>
   );
 }
 
@@ -672,10 +312,12 @@ function TableManager({
   conn,
   schema,
   onClose,
+  onRemove,
 }: {
   conn: Connection;
   schema: ConnectionSchema;
   onClose: () => void;
+  onRemove?: () => void;
 }) {
   const cfg = schema.config.tables ?? [];
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -760,9 +402,11 @@ function TableManager({
           </div>
         </div>
         <div className={styles.headActions}>
-          <button className={styles.cancel} onClick={onClose}>
-            Avbryt
-          </button>
+          {onRemove && (
+            <button className={styles.cancel} onClick={onRemove}>
+              Fjern
+            </button>
+          )}
           <button className={styles.primary} onClick={save} disabled={saving || chosenCount === 0}>
             {saved ? "Lagret ✓" : saving ? "Lagrer …" : `Lagre (${chosenCount})`}
           </button>
