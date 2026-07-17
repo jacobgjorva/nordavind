@@ -113,7 +113,13 @@
 .list {
   flex: 1;
   overflow-y: auto;
+  /* Skjult scrollbar */
+  scrollbar-width: none;
   margin-top: 12px;
+}
+
+ .list::-webkit-scrollbar {
+  display: none;
 }
 
 .group {
