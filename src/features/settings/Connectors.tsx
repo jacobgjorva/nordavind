@@ -108,7 +108,7 @@ export function Connectors() {
   }
 
   return (
-    <div className={styles.content}>
+    <div className={`${styles.content} ${styles.contentCentered}`}>
       <div className={styles.section}>
         <div className={styles.head}>
           <div className={styles.sectionTitle}>Databaser</div>

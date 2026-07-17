@@ -1105,3 +1105,10 @@
   color: var(--text-faint);
   font-size: 13px;
 }
+
+/* Hovedsiden: diagrammene sentrert også vertikalt */
+.contentCentered {
+  min-height: calc(100vh - 56px - 80px);
+  justify-content: center;
+  padding-bottom: 0;
+}
