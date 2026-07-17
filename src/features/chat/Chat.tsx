@@ -259,40 +259,17 @@ export function Chat({
   // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
   // strømmer nedover derfra og brukeren eier scrollen ellers.
   const scrollToMsgRef = useRef<string | null>(null);
-  const spacerRef = useRef<HTMLDivElement>(null);
-  const ANCHOR = 96;
 
   useEffect(() => {
     const el = messagesRef.current;
-    if (!el) return;
-
-    // Dynamisk spacer: gir akkurat nok rom til at siste spørsmål kan stå
-    // ved ankeret — og gjør det umulig å scrolle det ut av syne.
-    const spacer = spacerRef.current;
-    const rows = el.querySelectorAll<HTMLElement>('[data-role="user"]');
-    const lastUser = rows[rows.length - 1];
-    if (spacer && lastUser) {
-      // Nullstilling for måling krymper scrollHeight et øyeblikk og kan
-      // klemme scrollTop — ta vare på posisjonen og sett den tilbake.
-      const prevTop = el.scrollTop;
-      spacer.style.height = "0px";
-      const below =
-        spacer.getBoundingClientRect().top -
-        lastUser.getBoundingClientRect().top;
-      const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-      const needed = el.clientHeight - ANCHOR - below - padBottom;
-      spacer.style.height = `${Math.max(0, needed)}px`;
-      el.scrollTop = prevTop;
-    }
-
-    if (!scrollToMsgRef.current) return;
+    if (!el || !scrollToMsgRef.current) return;
     const target = el.querySelector(
       `[data-mid="${scrollToMsgRef.current}"]`
     ) as HTMLElement | null;
     if (target) {
       const delta =
         target.getBoundingClientRect().top - el.getBoundingClientRect().top;
-      el.scrollTop += delta - ANCHOR;
+      el.scrollTop += delta - 96;
       scrollToMsgRef.current = null;
     }
   }, [messages]);
@@ -577,7 +554,6 @@ export function Chat({
                 <div
                   key={m.id}
                   data-mid={m.id}
-                  data-role={m.role}
                   className={`${styles.row} ${
                     m.role === "user" ? styles.user : styles.assistant
                   }`}
@@ -655,7 +631,6 @@ export function Chat({
                   </div>
                 </div>
               ))}
-              <div ref={spacerRef} />
             </div>
           </div>
           <div className={styles.composerDocked}>

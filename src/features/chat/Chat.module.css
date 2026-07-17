@@ -117,6 +117,8 @@
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
+  /* Luft under siste melding slik at nye spørsmål kan legges øverst i viewporten */
+  padding-bottom: 75vh;
 }
 
 .composerDocked {
