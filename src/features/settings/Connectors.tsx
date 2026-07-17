@@ -365,11 +365,11 @@ function ChatWizard(_props: {
     );
     if (!m) return false;
     const [, proto, user, pass, host, port, db] = m;
-    const driver = /mysql/i.test(proto)
-      ? "MySQL"
-      : /sql(server)?|mssql/i.test(proto)
-        ? "SQL Server"
-        : "PostgreSQL";
+    const driver = /^postgres/i.test(proto)
+      ? "PostgreSQL"
+      : /^mysql/i.test(proto)
+        ? "MySQL"
+        : "SQL Server";
     say("user", text.replace(pass ?? "", pass ? "••••" : ""));
     const next: Record<string, string> = { ...answers, driver };
     if (host) next.host = host;
