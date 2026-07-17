@@ -1,8 +1,8 @@
 .content {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 32px;
-  max-width: 720px;
   padding-bottom: 60px;
 }
 
@@ -399,11 +399,11 @@
 }
 
 .wizardSide {
-  /* Utenfor panelet, symmetrisk med settings-naven: panelets høyrekant
-     ligger ved 50% + 612px (nav 200 + gap 24 + panel 1000, sentrert). */
-  position: fixed;
-  top: 96px;
-  left: calc(50% + 612px + 24px);
+  /* Utenfor panelet, speilet mot settings-naven: innholdskant + panel-
+     padding (24) + gap (24), forankret i panelets faktiske kant. */
+  position: absolute;
+  top: 0;
+  left: calc(100% + 48px);
   width: 200px;
   display: flex;
   flex-direction: column;
