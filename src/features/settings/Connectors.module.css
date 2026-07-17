@@ -1106,9 +1106,25 @@
   font-size: 13px;
 }
 
-/* Hovedsiden: diagrammene sentrert også vertikalt */
+/* Hovedsiden: kun diagrammene sentreres vertikalt */
 .contentCentered {
-  min-height: calc(100vh - 56px - 80px);
-  justify-content: center;
+  height: calc(100vh - 56px - 80px);
   padding-bottom: 0;
+}
+
+.contentCentered .section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.flowsCenter {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  overflow-y: auto;
 }
