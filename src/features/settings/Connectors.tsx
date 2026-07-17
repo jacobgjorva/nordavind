@@ -391,7 +391,9 @@ function NodeEditor({
           {links.map((l, i) => (
             <span key={i} className={styles.relLink}>
               <span className={styles.relLinkText}>
-                {l.from_column} = {l.to_table}.{l.to_column}
+                {l.from_table}.{l.from_column}
+                <span className={styles.relEq}>=</span>
+                {l.to_table}.{l.to_column}
               </span>
               <button
                 className={styles.remove}
@@ -402,57 +404,68 @@ function NodeEditor({
             </span>
           ))}
           {others.length > 0 ? (
-            <span className={styles.relAddRow}>
-              <select
-                className={styles.relSelect}
-                value={fromCol}
-                onChange={(e) => setFromCol(e.target.value)}
-              >
-                <option value="">Nøkkel …</option>
-                {myCols.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className={styles.relSelect}
-                value={toTable}
-                onChange={(e) => {
-                  setToTable(e.target.value);
-                  setToCol("");
-                }}
-              >
-                <option value="">Bord …</option>
-                {others.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-              <select
-                className={styles.relSelect}
-                value={toCol}
-                onChange={(e) => setToCol(e.target.value)}
-                disabled={!toTable}
-              >
-                <option value="">Kolonne …</option>
-                {toCols.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+            <span className={styles.relForm}>
+              <span className={styles.relField}>
+                <span className={styles.relLabel}>Nøkkel i {table}</span>
+                <select
+                  className={styles.relSelect}
+                  value={fromCol}
+                  onChange={(e) => setFromCol(e.target.value)}
+                >
+                  <option value="">Velg kolonne …</option>
+                  {myCols.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </span>
+              <span className={styles.relField}>
+                <span className={styles.relLabel}>Kobles til bord</span>
+                <select
+                  className={styles.relSelect}
+                  value={toTable}
+                  onChange={(e) => {
+                    setToTable(e.target.value);
+                    setToCol("");
+                  }}
+                >
+                  <option value="">Velg bord …</option>
+                  {others.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </span>
+              <span className={styles.relField}>
+                <span className={styles.relLabel}>På kolonne</span>
+                <select
+                  className={styles.relSelect}
+                  value={toCol}
+                  onChange={(e) => setToCol(e.target.value)}
+                  disabled={!toTable}
+                >
+                  <option value="">Velg kolonne …</option>
+                  {toCols.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </span>
               <button
-                className={styles.relAdd}
+                className={styles.relAddBtn}
                 onClick={addLink}
                 disabled={!fromCol || !toTable || !toCol}
               >
-                +
+                Legg til relasjon
               </button>
             </span>
           ) : (
-            <span className={styles.nodeHint}>Ingen andre bord i denne tilkoblingen.</span>
+            <span className={styles.nodeHint}>
+              Legg til flere bord i denne tilkoblingen for å koble dem sammen.
+            </span>
           )}
         </span>
       )}

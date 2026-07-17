@@ -1467,9 +1467,45 @@
   white-space: nowrap;
 }
 
-.relAddRow {
+.relEq {
+  color: var(--text-faint);
+  padding: 0 6px;
+}
+
+.relForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+.relForm .relAddBtn {
+  grid-column: 1 / -1;
+}
+
+.relField {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.relLabel {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.relAddBtn {
+  padding: 7px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.relAddBtn:disabled {
+  opacity: 0.45;
 }
 
 .relSelect {
