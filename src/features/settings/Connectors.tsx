@@ -760,35 +760,32 @@ function TableManager({
                     </div>
                   </div>
 
-                  <div className={styles.tmField}>
-                    <div className={styles.tmAccess}>
-                      <button
-                        type="button"
-                        className={`${styles.chip} ${s.userIds.length === 0 ? styles.chipOn : ""}`}
-                        onClick={() => patch(t.name, { userIds: [] })}
-                      >
-                        Alle
-                      </button>
-                      {users.map((u) => {
-                        const on = s.userIds.includes(u.id);
-                        return (
-                          <button
-                            key={u.id}
-                            type="button"
-                            className={`${styles.chip} ${on ? styles.chipOn : ""}`}
-                            onClick={() =>
+                  <div className={styles.tmAccessList}>
+                    <div className={styles.tmAccessRow}>
+                      <span className={styles.tmAccessName}>Alle brukere</span>
+                      <Toggle
+                        on={s.userIds.length === 0}
+                        onChange={(v) => v && patch(t.name, { userIds: [] })}
+                      />
+                    </div>
+                    {users.map((u) => {
+                      const on = s.userIds.includes(u.id);
+                      return (
+                        <div key={u.id} className={styles.tmAccessRow}>
+                          <span className={styles.tmAccessName}>{u.email}</span>
+                          <Toggle
+                            on={on}
+                            onChange={(v) =>
                               patch(t.name, {
-                                userIds: on
-                                  ? s.userIds.filter((id) => id !== u.id)
-                                  : [...s.userIds, u.id],
+                                userIds: v
+                                  ? [...s.userIds, u.id]
+                                  : s.userIds.filter((id) => id !== u.id),
                               })
                             }
-                          >
-                            {u.email}
-                          </button>
-                        );
-                      })}
-                    </div>
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

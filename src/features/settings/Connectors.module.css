@@ -1711,8 +1711,26 @@
   border-color: #4299e0;
 }
 
-.tmAccess {
+.tmAccessList {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.tmAccessRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.tmAccessRow:last-child {
+  border-bottom: none;
+}
+
+.tmAccessName {
+  font-size: 13.5px;
 }
