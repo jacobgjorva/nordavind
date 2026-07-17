@@ -607,7 +607,7 @@
 }
 
 .sqlKw {
-  color: #c2defc;
+  color: #9778F6;
 }
 
 .sqlInput {
@@ -1632,7 +1632,7 @@
 .tmTop input {
   width: 14px;
   height: 14px;
-  accent-color: #4a86e8;
+  accent-color: #047AFF;
   cursor: pointer;
 }
 
@@ -1778,7 +1778,7 @@
 .accRow input {
   width: 14px;
   height: 14px;
-  accent-color: #4a86e8;
+  accent-color: #047AFF;
   cursor: pointer;
 }
 
