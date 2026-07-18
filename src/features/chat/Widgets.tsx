@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CopyIcon } from "../../ui/Icons";
 import styles from "./Widgets.module.css";
 
@@ -28,6 +28,59 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
   );
 }
 
+// Kun-ikon kopier-knapp (til kodeblokk-header).
+function CopyIconBtn({ value }: { value: string }) {
+  const [done, setDone] = useState(false);
+  function copy() {
+    navigator.clipboard?.writeText(value);
+    setDone(true);
+    setTimeout(() => setDone(false), 1400);
+  }
+  return (
+    <button
+      className={`${styles.copyIcon} ${done ? styles.copyIconDone : ""}`}
+      onClick={copy}
+      title={done ? "Kopiert" : "Kopier"}
+      aria-label="Kopier"
+    >
+      <CopyIcon size={14} />
+    </button>
+  );
+}
+
+const CODE_KEYWORDS = new Set(
+  ("const let var function return if else for while export import from default " +
+    "class extends new await async try catch throw typeof instanceof of in " +
+    "select from where join left right inner outer on group order by limit as and or not null " +
+    "def print import as with lambda True False None elif " +
+    "public private static void int string bool func type interface struct package").split(" ")
+);
+
+// Lett syntaks-highlighter: kommentarer, strenger, tall, nøkkelord, egenskaper.
+function highlight(code: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re =
+    /(\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\b\d[\d_.]*\b)|([A-Za-z_$][\w$]*)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(code))) {
+    if (m.index > last) out.push(code.slice(last, m.index));
+    if (m[1]) out.push(<span key={key++} className={styles.tComment}>{m[1]}</span>);
+    else if (m[2]) out.push(<span key={key++} className={styles.tString}>{m[2]}</span>);
+    else if (m[3]) out.push(<span key={key++} className={styles.tNumber}>{m[3]}</span>);
+    else if (m[4]) {
+      const cls = CODE_KEYWORDS.has(m[4].toLowerCase())
+        ? styles.tKeyword
+        : code[re.lastIndex] === "(" ? styles.tFunc : undefined;
+      out.push(cls ? <span key={key++} className={cls}>{m[4]}</span> : m[4]);
+    }
+    last = re.lastIndex;
+  }
+  if (last < code.length) out.push(code.slice(last));
+  return out;
+}
+
 const LANG_LABEL: Record<string, string> = {
   sql: "SQL",
   py: "Python",
@@ -48,17 +101,17 @@ function langLabel(lang?: string): string {
   return LANG_LABEL[lang.toLowerCase()] ?? lang.charAt(0).toUpperCase() + lang.slice(1);
 }
 
-// Kodeblokk med språk-etikett og kopier-knapp (erstatter <pre> i markdown).
+// Kodeblokk med språk-etikett, syntaksfarging og kopier-ikon.
 export function CodeBlock({ children, lang }: { children?: ReactNode; lang?: string }) {
-  const ref = useRef<HTMLPreElement>(null);
+  const raw = textOf(children);
   return (
     <div className={styles.codeWrap}>
       <div className={styles.codeBar}>
         <span className={styles.codeLang}>{langLabel(lang)}</span>
-        <CopyButton value={textOf(children)} />
+        <CopyIconBtn value={raw} />
       </div>
-      <pre ref={ref} className={styles.code}>
-        {children}
+      <pre className={styles.code}>
+        <code>{highlight(raw)}</code>
       </pre>
     </div>
   );
