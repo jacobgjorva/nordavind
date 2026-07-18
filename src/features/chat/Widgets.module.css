@@ -1,0 +1,172 @@
+/* Felles kopier-knapp */
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.copyBtn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Kodeblokk */
+.codeWrap {
+  position: relative;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.codeBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 8px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.code {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Enkeltverdi-chip */
+.valueChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+}
+
+.valueHint {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+/* Nøkkeltall-kort */
+.stat {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.statLabel {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.statUnit {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.statDelta {
+  font-size: 12.5px;
+}
+
+.deltaUp {
+  color: #6ef16a;
+}
+
+.deltaDown {
+  color: #e8686d;
+}
+
+/* Datatabell */
+.tableWrap {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.tableBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.tableMeta {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Handlingsrad */
+.actionBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actionBtn {
+  padding: 7px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

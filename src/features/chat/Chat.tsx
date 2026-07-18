@@ -22,7 +22,26 @@ import {
   type ChatSummary,
   type SourceRef,
 } from "../../lib/api";
+import { CodeBlock, renderFenced } from "./Widgets";
 import styles from "./Chat.module.css";
+
+// Fenced kodeblokker: spesial-språk (```stat/```table/```copy/```actions)
+// blir widgets, resten blir kodeblokk med kopier-knapp.
+function MarkdownPre({ children }: { children?: React.ReactNode }) {
+  const code = (children as any)?.props;
+  const lang = (code?.className as string | undefined)?.replace("language-", "");
+  const body =
+    typeof code?.children === "string"
+      ? code.children
+      : Array.isArray(code?.children)
+        ? code.children.join("")
+        : "";
+  if (lang) {
+    const widget = renderFenced(lang, body.replace(/\n$/, ""));
+    if (widget) return <>{widget}</>;
+  }
+  return <CodeBlock>{children}</CodeBlock>;
+}
 
 interface ChatMessage extends ApiMessage {
   id: string;
@@ -585,7 +604,7 @@ export function Chat({
                         <div className={styles.markdown}>
                           <Markdown
                             remarkPlugins={[remarkGfm]}
-                            components={{ a: SourceLink }}
+                            components={{ a: SourceLink, pre: MarkdownPre }}
                           >
                             {m.content}
                           </Markdown>

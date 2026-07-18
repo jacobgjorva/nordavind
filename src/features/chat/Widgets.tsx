@@ -1,0 +1,178 @@
+import { useRef, useState, type ReactNode } from "react";
+import { CopyIcon } from "../../ui/Icons";
+import styles from "./Widgets.module.css";
+
+// Rekursivt ut med ren tekst fra react-markdown-noder (til kopiering).
+function textOf(node: ReactNode): string {
+  if (node == null || node === false) return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (typeof node === "object" && "props" in node) {
+    return textOf((node as { props: { children?: ReactNode } }).props.children);
+  }
+  return "";
+}
+
+function CopyButton({ value, label }: { value: string; label?: string }) {
+  const [done, setDone] = useState(false);
+  function copy() {
+    navigator.clipboard?.writeText(value);
+    setDone(true);
+    setTimeout(() => setDone(false), 1400);
+  }
+  return (
+    <button className={styles.copyBtn} onClick={copy} title="Kopier">
+      <CopyIcon size={13} />
+      {done ? "Kopiert" : label ?? "Kopier"}
+    </button>
+  );
+}
+
+// Kodeblokk med kopier-knapp (erstatter <pre> i markdown).
+export function CodeBlock({ children }: { children?: ReactNode }) {
+  const ref = useRef<HTMLPreElement>(null);
+  return (
+    <div className={styles.codeWrap}>
+      <div className={styles.codeBar}>
+        <CopyButton value={textOf(children)} />
+      </div>
+      <pre ref={ref} className={styles.code}>
+        {children}
+      </pre>
+    </div>
+  );
+}
+
+// Enkeltverdi (e-post, tlf, IBAN, ordrenr) med tydelig kopier-plass.
+export function CopyValue({ value, hint }: { value: string; hint?: string }) {
+  return (
+    <span className={styles.valueChip}>
+      <span className={styles.valueText}>{value}</span>
+      {hint && <span className={styles.valueHint}>{hint}</span>}
+      <CopyButton value={value} label="" />
+    </span>
+  );
+}
+
+// Nøkkeltall-kort for enkeltverdier.
+export function StatCard({
+  label,
+  value,
+  unit,
+  delta,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  delta?: string;
+}) {
+  const up = delta?.startsWith("+");
+  return (
+    <div className={styles.stat}>
+      <div className={styles.statLabel}>{label}</div>
+      <div className={styles.statValue}>
+        {value}
+        {unit && <span className={styles.statUnit}>{unit}</span>}
+      </div>
+      {delta && (
+        <div className={`${styles.statDelta} ${up ? styles.deltaUp : styles.deltaDown}`}>
+          {delta}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Tabell for rader (fra databasen), med kopier-hele.
+export function DataTable({
+  columns,
+  rows,
+}: {
+  columns: string[];
+  rows: string[][];
+}) {
+  const tsv = [columns.join("\t"), ...rows.map((r) => r.join("\t"))].join("\n");
+  return (
+    <div className={styles.tableWrap}>
+      <div className={styles.tableBar}>
+        <span className={styles.tableMeta}>{rows.length} rader</span>
+        <CopyButton value={tsv} label="Kopier tabell" />
+      </div>
+      <div className={styles.tableScroll}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              {columns.map((c) => (
+                <th key={c}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                {r.map((cell, j) => (
+                  <td key={j}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Handlingsrad: send e-post, eksporter CSV, last ned tekst.
+export function ActionBar({ actions }: { actions: WidgetAction[] }) {
+  function run(a: WidgetAction) {
+    if (a.type === "mailto") {
+      window.location.href = `mailto:${a.value}`;
+    } else if (a.type === "download") {
+      const blob = new Blob([a.value], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement("a");
+      el.href = url;
+      el.download = a.filename ?? "nordavind.txt";
+      el.click();
+      URL.revokeObjectURL(url);
+    } else if (a.type === "copy") {
+      navigator.clipboard?.writeText(a.value);
+    }
+  }
+  return (
+    <div className={styles.actionBar}>
+      {actions.map((a, i) => (
+        <button key={i} className={styles.actionBtn} onClick={() => run(a)}>
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export interface WidgetAction {
+  type: "mailto" | "download" | "copy";
+  label: string;
+  value: string;
+  filename?: string;
+}
+
+// Rendrer en spesial-fenced kodeblokk (```stat / ```table / ```copy / ```actions)
+// til riktig widget. Ukjent språk -> vanlig kodeblokk med kopier.
+export function renderFenced(lang: string, body: string): ReactNode {
+  try {
+    if (lang === "copy") {
+      const [value, hint] = body.split("\n");
+      return <CopyValue value={value.trim()} hint={hint?.trim()} />;
+    }
+    if (lang === "stat") return <StatCard {...JSON.parse(body)} />;
+    if (lang === "table") {
+      const d = JSON.parse(body);
+      return <DataTable columns={d.columns} rows={d.rows} />;
+    }
+    if (lang === "actions") return <ActionBar actions={JSON.parse(body)} />;
+  } catch {
+    // fall through til vanlig kodeblokk
+  }
+  return null;
+}
