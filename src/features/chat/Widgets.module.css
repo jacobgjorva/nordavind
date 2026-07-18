@@ -23,7 +23,7 @@
   width: 100%;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: #0d0d0f;
+  background: #0C0D10;
   overflow: hidden;
 }
 
@@ -31,8 +31,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 12px 9px 16px;
-  border-bottom: 0.5px solid var(--border);
+  padding: 10px 12px 0 16px;
 }
 
 .codeLang {
@@ -67,7 +66,7 @@
 
 .code {
   margin: 0;
-  padding: 16px 18px;
+  padding: 20px 18px 24px;
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 13px;
