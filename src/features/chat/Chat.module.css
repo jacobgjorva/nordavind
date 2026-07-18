@@ -184,6 +184,7 @@
 .assistant .bubble {
   background: transparent;
   color: var(--text);
+  width: 100%;
   max-width: 100%;
   padding-left: 0;
   padding-right: 0;
@@ -315,10 +316,10 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 14px 16px;
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.35);
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
   overflow-x: auto;
 }
 

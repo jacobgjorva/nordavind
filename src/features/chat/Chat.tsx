@@ -40,7 +40,7 @@ function MarkdownPre({ children }: { children?: React.ReactNode }) {
     const widget = renderFenced(lang, body.replace(/\n$/, ""));
     if (widget) return <>{widget}</>;
   }
-  return <CodeBlock>{children}</CodeBlock>;
+  return <CodeBlock lang={lang}>{children}</CodeBlock>;
 }
 
 interface ChatMessage extends ApiMessage {

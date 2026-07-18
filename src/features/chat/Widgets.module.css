@@ -20,6 +20,7 @@
 /* Kodeblokk */
 .codeWrap {
   position: relative;
+  width: 100%;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-md);
   background: rgba(0, 0, 0, 0.35);
@@ -28,9 +29,16 @@
 
 .codeBar {
   display: flex;
-  justify-content: flex-end;
-  padding: 6px 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
   border-bottom: 0.5px solid var(--border);
+}
+
+.codeLang {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .code {

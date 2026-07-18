@@ -28,12 +28,33 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
   );
 }
 
-// Kodeblokk med kopier-knapp (erstatter <pre> i markdown).
-export function CodeBlock({ children }: { children?: ReactNode }) {
+const LANG_LABEL: Record<string, string> = {
+  sql: "SQL",
+  py: "Python",
+  python: "Python",
+  js: "JavaScript",
+  ts: "TypeScript",
+  tsx: "TypeScript",
+  json: "JSON",
+  bash: "Bash",
+  sh: "Shell",
+  go: "Go",
+  html: "HTML",
+  css: "CSS",
+};
+
+function langLabel(lang?: string): string {
+  if (!lang) return "Tekst";
+  return LANG_LABEL[lang.toLowerCase()] ?? lang.charAt(0).toUpperCase() + lang.slice(1);
+}
+
+// Kodeblokk med språk-etikett og kopier-knapp (erstatter <pre> i markdown).
+export function CodeBlock({ children, lang }: { children?: ReactNode; lang?: string }) {
   const ref = useRef<HTMLPreElement>(null);
   return (
     <div className={styles.codeWrap}>
       <div className={styles.codeBar}>
+        <span className={styles.codeLang}>{langLabel(lang)}</span>
         <CopyButton value={textOf(children)} />
       </div>
       <pre ref={ref} className={styles.code}>
