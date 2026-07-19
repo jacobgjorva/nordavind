@@ -113,9 +113,9 @@ function ThreadMessage({ m, essence }: { m: MailMessage; essence?: string }) {
           <span className={styles.msgDate}>{fmtDate(m.date)}</span>
         </div>
         <div className={styles.essence}>{essence || "…"}</div>
-        {m.attachments.length > 0 && (
+        {(m.attachments ?? []).length > 0 && (
           <div className={styles.attaches}>
-            {m.attachments.map((a, i) => (
+            {(m.attachments ?? []).map((a, i) => (
               <span key={i} className={styles.attach}>📎 {a.filename}</span>
             ))}
           </div>
@@ -154,7 +154,7 @@ export function MailThread({ threadKey }: { threadKey: string }) {
       const seen = new Set([r.me.toLowerCase(), ...to.map((p) => p.address.toLowerCase())]);
       const cc: MailPerson[] = [];
       r.messages.forEach((m) =>
-        [...m.to, ...m.cc, m.from].forEach((p) => {
+        [...(m.to ?? []), ...(m.cc ?? []), m.from].forEach((p) => {
           const a = p.address.toLowerCase();
           if (a && !seen.has(a)) { seen.add(a); cc.push(p); }
         })
