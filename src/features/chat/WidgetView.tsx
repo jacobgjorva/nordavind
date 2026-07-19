@@ -142,25 +142,9 @@ function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
   return null;
 }
 
-// Profesjonell laste-skeleton: konturer i widget-form med et shimmer-sveip.
-const SK_BARS = [58, 82, 46, 70, 92, 64, 78];
-
+// Laste-skeleton: tomt kort med et glans-sveip.
 function WidgetSkeleton() {
-  return (
-    <div className={styles.skeleton}>
-      <div className={`${styles.sk} ${styles.skLabel}`} />
-      <div className={`${styles.sk} ${styles.skValue}`} />
-      <div className={styles.skBars}>
-        {SK_BARS.map((h, i) => (
-          <div
-            key={i}
-            className={`${styles.sk} ${styles.skBar}`}
-            style={{ height: `${h}%` }}
-          />
-        ))}
-      </div>
-    </div>
-  );
+  return <div className={styles.skeleton} />;
 }
 
 // Widgets som allerede er avslørt i denne økta — recall/reload skal ikke

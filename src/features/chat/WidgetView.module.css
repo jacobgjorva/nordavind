@@ -4,57 +4,35 @@
   width: 100%;
 }
 
-/* Skapelse: profesjonell laste-skeleton med et roterende shimmer-sveip. */
+/* Skapelse: tomt kort med et diagonalt glans-sveip. */
 .skeleton {
+  position: relative;
+  overflow: hidden;
   min-height: 180px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px 20px;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.022);
 }
 
-.sk {
-  border-radius: 6px;
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.045) 25%,
-    rgba(255, 255, 255, 0.13) 50%,
-    rgba(255, 255, 255, 0.045) 75%
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.06) 47%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.06) 53%,
+    transparent 65%
   );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  transform: translateX(-100%);
+  animation: sheen 2.6s ease-in-out infinite;
 }
 
-.skLabel {
-  width: 34%;
-  height: 12px;
-}
-
-.skValue {
-  width: 52%;
-  height: 30px;
-}
-
-.skBars {
-  margin-top: auto;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  height: 84px;
-}
-
-.skBar {
-  flex: 1;
-  min-width: 0;
-  border-radius: 4px 4px 0 0;
-}
-
-@keyframes shimmer {
-  0% { background-position: 180% 0; }
-  100% { background-position: -180% 0; }
+@keyframes sheen {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(100%); }
 }
 
 /* Widget-kortet felles inn når all info er på plass. */

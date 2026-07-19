@@ -15,19 +15,7 @@ export function AnimationsPreview() {
       </div>
       <div className={styles.stage}>
         <div className={styles.frame} key={n}>
-          <div className={styles.skeleton}>
-            <div className={`${styles.sk} ${styles.skLabel}`} />
-            <div className={`${styles.sk} ${styles.skValue}`} />
-            <div className={styles.skBars}>
-              {[58, 82, 46, 70, 92, 64, 78].map((h, i) => (
-                <div
-                  key={i}
-                  className={`${styles.sk} ${styles.skBar}`}
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-          </div>
+          <div className={styles.skeleton} />
         </div>
       </div>
     </div>
