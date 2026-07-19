@@ -11,9 +11,9 @@ export interface ApiMessage {
   content: string | ContentPart[];
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
 
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
+export const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export const apiConfigured = Boolean(BASE_URL);
 
@@ -25,7 +25,7 @@ export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);
 
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
