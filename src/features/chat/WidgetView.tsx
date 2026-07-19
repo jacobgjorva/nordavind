@@ -144,29 +144,40 @@ function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
 
 // WindForming er skapelses-animasjonen: hvite partikler som beveger seg
 // tilfeldig og fader inn/ut med blur mens widgeten bygges.
-const PARTICLE_COUNT = 90;
+const FRONT_COUNT = 80;
+const BACK_COUNT = 55;
 
 // Tilnærmet normalfordelt rundt 50% (sum av tre tilfeldige) — tetter i midten.
 const centered = (spread: number) =>
   50 + ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * spread;
 
+// En partikkel. back = diffust bakgrunnslag (større, mer blur, svakere).
+const makeParticle = (back: boolean) => ({
+  back,
+  left: centered(70),
+  top: centered(90),
+  size: back ? 6 + Math.random() * 7 : 3 + Math.random() * 3.5,
+  // Minst 28px drift hver vei (med tilfeldig fortegn) — ingen står stille.
+  dx: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
+  dy: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
+  blurFar: back ? 5 + Math.random() * 3 : 1.6 + Math.random() * 1.4,
+  blurNear: back ? 2.5 + Math.random() * 2 : 0.2 + Math.random() * 0.5,
+  floor: back ? 0.18 + Math.random() * 0.15 : 0.32 + Math.random() * 0.2,
+  peak: back ? 0.4 + Math.random() * 0.25 : 0.72 + Math.random() * 0.28,
+  driftDur: (back ? 2.4 : 1.6) + Math.random() * 2,
+  driftDelay: -Math.random() * 4,
+  depthDur: (back ? 1.8 : 1.3) + Math.random() * 1.8,
+  depthDelay: -Math.random() * 4,
+});
+
 function WindForming({ dissipating }: { dissipating?: boolean }) {
   const parts = useMemo(
     () =>
-      Array.from({ length: PARTICLE_COUNT }, () => ({
-        left: centered(70),
-        top: centered(90),
-        size: 2.5 + Math.random() * 3,
-        // Minst 28px drift hver vei (med tilfeldig fortegn) — ingen står stille.
-        dx: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
-        dy: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
-        floor: 0.3 + Math.random() * 0.2,
-        peak: 0.7 + Math.random() * 0.3,
-        driftDur: 1.6 + Math.random() * 2,
-        driftDelay: -Math.random() * 4,
-        depthDur: 1.3 + Math.random() * 1.8,
-        depthDelay: -Math.random() * 4,
-      })),
+      // Bakgrunnslaget først i DOM så det males bak forgrunnen.
+      [
+        ...Array.from({ length: BACK_COUNT }, () => makeParticle(true)),
+        ...Array.from({ length: FRONT_COUNT }, () => makeParticle(false)),
+      ],
     []
   );
   return (
@@ -194,6 +205,8 @@ function WindForming({ dissipating }: { dissipating?: boolean }) {
               {
                 "--peak": p.peak,
                 "--floor": p.floor,
+                "--blurFar": `${p.blurFar}px`,
+                "--blurNear": `${p.blurNear}px`,
                 animationDuration: `${p.depthDur}s`,
                 animationDelay: `${p.depthDelay}s`,
               } as CSSProperties
