@@ -187,13 +187,13 @@
   margin-bottom: 4px;
 }
 
-.msgFrom { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.msgFrom { font-size: 12px; font-weight: 500; color: var(--text-faint); }
 .msgDate { font-size: 11px; color: var(--text-faint); }
 
 .essence {
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.55;
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .attaches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
