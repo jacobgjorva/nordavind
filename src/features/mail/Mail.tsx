@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import {
   analyzeThread,
   fetchThread,
-  refineDraft,
-  sendMail,
   type MailAnalysis,
   type MailMessage,
   type MailPerson,
@@ -41,65 +39,6 @@ function Avatar({ p }: { p: MailPerson }) {
 }
 
 
-// ── Mottaker-chips (klikk for å bytte felt, × for å fjerne) ──
-type Field = "to" | "cc" | "bcc";
-const FIELD_LABEL: Record<Field, string> = { to: "Til", cc: "Kopi", bcc: "Blindkopi" };
-
-function Recipients({
-  value,
-  onChange,
-}: {
-  value: Record<Field, MailPerson[]>;
-  onChange: (v: Record<Field, MailPerson[]>) => void;
-}) {
-  const [draft, setDraft] = useState("");
-  const cycle = (from: Field, addr: string) => {
-    const order: Field[] = ["to", "cc", "bcc"];
-    const next = order[(order.indexOf(from) + 1) % 3];
-    const v = { ...value };
-    v[from] = v[from].filter((p) => p.address !== addr);
-    const person = value[from].find((p) => p.address === addr)!;
-    v[next] = [...v[next], person];
-    onChange(v);
-  };
-  const remove = (f: Field, addr: string) =>
-    onChange({ ...value, [f]: value[f].filter((p) => p.address !== addr) });
-  const add = () => {
-    const a = draft.trim();
-    if (!a) return;
-    onChange({ ...value, to: [...value.to, { name: "", address: a }] });
-    setDraft("");
-  };
-
-  return (
-    <div className={styles.recips}>
-      {(["to", "cc", "bcc"] as Field[]).map((f) =>
-        value[f].length ? (
-          <div key={f} className={styles.recipRow}>
-            <span className={styles.recipLabel}>{FIELD_LABEL[f]}</span>
-            <div className={styles.chips}>
-              {value[f].map((p) => (
-                <span key={p.address} className={styles.chip}>
-                  <button className={styles.chipMove} title="Bytt felt"
-                    onClick={() => cycle(f, p.address)}>
-                    {p.name || p.address}
-                  </button>
-                  <button className={styles.chipX} onClick={() => remove(f, p.address)}>×</button>
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null
-      )}
-      <div className={styles.recipRow}>
-        <span className={styles.recipLabel}>+</span>
-        <input className={styles.recipInput} placeholder="Legg til mottaker …"
-          value={draft} onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
-      </div>
-    </div>
-  );
-}
 
 // ── Én melding i tråden ──
 function ThreadMessage({ m, essence }: { m: MailMessage; essence?: string }) {
@@ -130,15 +69,11 @@ function ThreadMessage({ m, essence }: { m: MailMessage; essence?: string }) {
 }
 
 // ── Trådvisning (embeddes inline i chatten) ──
+// Rent samtale-kort: emne, AI-sammendrag og oppsummert samtale. Svaret
+// finpusses via den vanlige chat-inputen under.
 export function MailThread({ threadKey }: { threadKey: string }) {
   const [msgs, setMsgs] = useState<MailMessage[] | null>(null);
   const [analysis, setAnalysis] = useState<MailAnalysis | null>(null);
-  const [recips, setRecips] = useState<Record<Field, MailPerson[]>>({ to: [], cc: [], bcc: [] });
-  const [body, setBody] = useState("");
-  const [feedback, setFeedback] = useState("");
-  const [refining, setRefining] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
   const [threadSubject, setThreadSubject] = useState("");
 
   useEffect(() => {
@@ -148,58 +83,13 @@ export function MailThread({ threadKey }: { threadKey: string }) {
       setMsgs(r.messages);
       const first = r.messages[0];
       if (first) setThreadSubject(first.subject.replace(/^\s*(re|sv|svar)\s*:\s*/i, ""));
-      // Standard mottakere: svar til siste avsender, kopi til øvrige (ikke meg).
-      const last = r.messages[r.messages.length - 1];
-      const to = last ? [last.from] : [];
-      const seen = new Set([r.me.toLowerCase(), ...to.map((p) => p.address.toLowerCase())]);
-      const cc: MailPerson[] = [];
-      r.messages.forEach((m) =>
-        [...(m.to ?? []), ...(m.cc ?? []), m.from].forEach((p) => {
-          const a = p.address.toLowerCase();
-          if (a && !seen.has(a)) { seen.add(a); cc.push(p); }
-        })
-      );
-      setRecips({ to, cc, bcc: [] });
     });
     analyzeThread(threadKey).then((a) => {
       if (!alive) return;
       setAnalysis(a);
-      setBody(a.draft);
     }).catch(() => {});
     return () => { alive = false; };
   }, [threadKey]);
-
-  const subject = `Re: ${threadSubject}`;
-  const last = msgs?.[msgs.length - 1];
-
-  async function refine() {
-    if (!feedback.trim()) return;
-    setRefining(true);
-    try {
-      const d = await refineDraft(threadKey, body, feedback);
-      setBody(d);
-      setFeedback("");
-    } finally {
-      setRefining(false);
-    }
-  }
-
-  async function send() {
-    setSending(true);
-    try {
-      await sendMail({
-        to: recips.to, cc: recips.cc, bcc: recips.bcc,
-        subject, body,
-        in_reply_to: last?.message_id,
-        references: last?.message_id,
-      });
-      setSent(true);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Sending feilet");
-    } finally {
-      setSending(false);
-    }
-  }
 
   return (
     <div className={styles.thread}>
@@ -217,33 +107,6 @@ export function MailThread({ threadKey }: { threadKey: string }) {
           ))
         )}
       </div>
-
-      {sent ? (
-        <div className={styles.sentBox}>Sendt ✓</div>
-      ) : (
-        <div className={styles.composer}>
-          <Recipients value={recips} onChange={setRecips} />
-          <div className={styles.subject}>{subject}</div>
-          <textarea className={styles.draft} value={body} rows={7}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder={analysis ? "" : "AI skriver et forslag …"} />
-          <div className={styles.feedbackRow}>
-            <input className={styles.feedback} value={feedback}
-              placeholder="Be AI justere svaret (f.eks. «kortere, mer formell») …"
-              onChange={(e) => setFeedback(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); refine(); } }} />
-            <button className={styles.ghost} onClick={refine} disabled={refining || !feedback.trim()}>
-              {refining ? "…" : "Juster"}
-            </button>
-          </div>
-          <div className={styles.sendRow}>
-            <span className={styles.sigNote}>Signatur legges til automatisk</span>
-            <button className={styles.primary} onClick={send} disabled={sending || !body.trim()}>
-              {sending ? "Sender …" : "Send"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
