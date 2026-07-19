@@ -232,7 +232,8 @@ export function MailReply({ threadKey }: { threadKey: string }) {
     return <div className={styles.replyCard}><div className={styles.sentBox}>Sendt ✓</div></div>;
 
   return (
-    <div className={`${styles.replyCard} ${refining ? styles.refining : ""}`}>
+    <div className={styles.replyCard}>
+      {refining && <div className={styles.sheen} />}
       <Recipients value={recips} onChange={setRecips} />
       <div className={styles.subject}>{subject}</div>
       <textarea className={styles.draft} value={body} rows={8}

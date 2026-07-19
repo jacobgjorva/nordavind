@@ -230,6 +230,8 @@
 
 /* ── Svarforslag-kort (ett rent kort, ingen skillestreker) ── */
 .replyCard {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   margin: 8px 0;
   padding: 16px 18px;
@@ -239,10 +241,30 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: opacity var(--dur-fast) var(--ease);
 }
 
-.refining { opacity: 0.7; }
+/* Glans-sveip under justering (samme som widget-animasjonen). */
+.sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 33%,
+    rgba(255, 255, 255, 0.12) 46%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.12) 54%,
+    transparent 67%
+  );
+  transform: translateX(-100%);
+  animation: sheen 1.4s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(100%); }
+}
 
 .recips { display: flex; flex-direction: column; gap: 8px; }
 
