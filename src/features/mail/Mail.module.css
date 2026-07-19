@@ -367,17 +367,19 @@
 
 /* ── Knapper ── */
 .primary {
-  height: 38px;
-  padding: 0 20px;
-  border: none;
-  border-radius: 999px;
-  background: #047aff;
+  height: 34px;
+  padding: 0 18px;
+  border: 0.5px solid #00caff;
+  border-radius: var(--radius-sm);
+  background: #007eff;
   color: #fff;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease);
 }
 
+.primary:hover:not(:disabled) { filter: brightness(1.08); }
 .primary:disabled { opacity: 0.5; cursor: default; }
 
 .ghost {
