@@ -96,7 +96,6 @@ export function MailThread({ threadKey }: { threadKey: string }) {
       <div className={styles.threadHead}>
         <h2>{threadSubject || "…"}</h2>
       </div>
-      {analysis?.summary && <div className={styles.summary}>{analysis.summary}</div>}
 
       <div className={styles.msgs}>
         {msgs === null ? (
