@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -164,6 +164,32 @@ export function WidgetView({ slug }: { slug: string }) {
   const [error, setError] = useState(false);
   const wasRevealed = revealed.has(slug);
 
+  // Myk høyde-overgang fra skeleton til ferdig kort (ikke hopp).
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const prevH = useRef(0);
+  const [h, setH] = useState<number | undefined>(undefined);
+  const [settled, setSettled] = useState(false);
+
+  // Husk skeleton-høyden mens vi laster.
+  useLayoutEffect(() => {
+    if (!ready && !error && wrapRef.current) {
+      prevH.current = wrapRef.current.offsetHeight;
+    }
+  });
+
+  // Ved avsløring: animer fra skeleton-høyde til kortets høyde.
+  useLayoutEffect(() => {
+    if ((!ready && !error) || wasRevealed) return;
+    const inner = innerRef.current;
+    if (!inner) return;
+    const to = inner.offsetHeight;
+    setSettled(false);
+    setH(prevH.current || to);
+    const raf = requestAnimationFrame(() => setH(to));
+    return () => cancelAnimationFrame(raf);
+  }, [ready, error, wasRevealed]);
+
   useEffect(() => {
     let alive = true;
     const started = performance.now();
@@ -214,27 +240,32 @@ export function WidgetView({ slug }: { slug: string }) {
     };
   }, [slug]);
 
-  if (error)
-    return (
-      <div className={styles.widget}>
-        <div className={styles.card}>
-          <div className={styles.cardEmpty}>Fant ikke /{slug}.</div>
-        </div>
-      </div>
-    );
-
-  // Innholds-skeleton med shimmer mens widgeten bygges.
-  if (!ready)
-    return (
-      <div className={styles.widget}>
-        <WidgetSkeleton />
-      </div>
-    );
-
+  // Én container hele veien, så høyden kan animeres mykt ved avsløring.
   return (
-    <div className={styles.widget}>
-      <div className={wasRevealed ? "" : styles.reveal}>
-        <WidgetCard c={ready.spec} data={ready.data} />
+    <div
+      ref={wrapRef}
+      className={styles.widget}
+      style={
+        settled || h === undefined
+          ? undefined
+          : { height: h, overflow: "hidden" }
+      }
+      onTransitionEnd={(e) => {
+        if (e.propertyName === "height") setSettled(true);
+      }}
+    >
+      <div ref={innerRef}>
+        {error ? (
+          <div className={styles.card}>
+            <div className={styles.cardEmpty}>Fant ikke /{slug}.</div>
+          </div>
+        ) : !ready ? (
+          <WidgetSkeleton />
+        ) : (
+          <div className={wasRevealed ? "" : styles.reveal}>
+            <WidgetCard c={ready.spec} data={ready.data} />
+          </div>
+        )}
       </div>
     </div>
   );
