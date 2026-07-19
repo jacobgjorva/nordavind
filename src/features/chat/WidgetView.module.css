@@ -4,28 +4,57 @@
   width: 100%;
 }
 
-/* Skapelse: kortet pulserer rolig mens widgeten bygges. */
-.pulse {
+/* Skapelse: profesjonell laste-skeleton med et roterende shimmer-sveip. */
+.skeleton {
   min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  animation: cardPulse 3.8s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.022);
 }
 
-@keyframes cardPulse {
-  0%, 100% {
-    opacity: 0.35;
-    border-color: var(--border-strong);
-    background: rgba(255, 255, 255, 0.02);
-    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
-  }
-  50% {
-    opacity: 1;
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.28),
-      inset 0 0 12px rgba(255, 255, 255, 0.18);
-  }
+.sk {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.045) 25%,
+    rgba(255, 255, 255, 0.13) 50%,
+    rgba(255, 255, 255, 0.045) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skLabel {
+  width: 34%;
+  height: 12px;
+}
+
+.skValue {
+  width: 52%;
+  height: 30px;
+}
+
+.skBars {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 84px;
+}
+
+.skBar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 4px 4px 0 0;
+}
+
+@keyframes shimmer {
+  0% { background-position: 180% 0; }
+  100% { background-position: -180% 0; }
 }
 
 /* Widget-kortet felles inn når all info er på plass. */

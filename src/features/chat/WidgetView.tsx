@@ -142,6 +142,27 @@ function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
   return null;
 }
 
+// Profesjonell laste-skeleton: konturer i widget-form med et shimmer-sveip.
+const SK_BARS = [58, 82, 46, 70, 92, 64, 78];
+
+function WidgetSkeleton() {
+  return (
+    <div className={styles.skeleton}>
+      <div className={`${styles.sk} ${styles.skLabel}`} />
+      <div className={`${styles.sk} ${styles.skValue}`} />
+      <div className={styles.skBars}>
+        {SK_BARS.map((h, i) => (
+          <div
+            key={i}
+            className={`${styles.sk} ${styles.skBar}`}
+            style={{ height: `${h}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Widgets som allerede er avslørt i denne økta — recall/reload skal ikke
 // spille skapelses-animasjonen på nytt.
 const revealed = new Set<string>();
@@ -218,11 +239,11 @@ export function WidgetView({ slug }: { slug: string }) {
       </div>
     );
 
-  // Pulserende kort mens widgeten bygges.
+  // Innholds-skeleton med shimmer mens widgeten bygges.
   if (!ready)
     return (
       <div className={styles.widget}>
-        <div className={`${styles.card} ${styles.pulse}`} />
+        <WidgetSkeleton />
       </div>
     );
 
