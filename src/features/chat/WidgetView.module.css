@@ -24,7 +24,6 @@
   animation-name: pDrift;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
-  animation-direction: alternate;
 }
 
 .dot {
@@ -40,9 +39,14 @@
   animation-direction: alternate;
 }
 
+/* Vandrende bane (start = slutt) → sømløs, livlig, kontinuerlig loop. */
 @keyframes pDrift {
-  0% { transform: translate(calc(var(--dx, 0) * -1), calc(var(--dy, 0) * -1)); }
-  100% { transform: translate(var(--dx, 0), var(--dy, 0)); }
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(var(--dx, 0), calc(var(--dy, 0) * 0.35)); }
+  40% { transform: translate(calc(var(--dx, 0) * 0.25), var(--dy, 0)); }
+  60% { transform: translate(calc(var(--dx, 0) * -0.7), calc(var(--dy, 0) * 0.55)); }
+  80% { transform: translate(calc(var(--dx, 0) * -0.45), calc(var(--dy, 0) * -0.75)); }
+  100% { transform: translate(0, 0); }
 }
 
 @keyframes pDepth {
