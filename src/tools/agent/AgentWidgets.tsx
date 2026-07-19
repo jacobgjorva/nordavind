@@ -1,17 +1,12 @@
 import { useEffect, useState } from "react";
 import { createAgent, fetchAgentConnections } from "../../lib/api";
+import type { AgentInfo as ApiAgentInfo } from "../../lib/api";
 import { registerBlock } from "../../features/chat/blocks/registry";
 import styles from "./AgentWidgets.module.css";
 
-interface AgentInfo {
-  id?: string;
-  name: string;
-  task?: string;
-  schedule_label?: string;
-  daily_token_limit?: number;
-  write_access?: boolean;
-  enabled?: boolean;
-}
+// Widget-varianten: samme domenetype som API-et, men alle felt valgfrie
+// bortsett fra navnet (agentene kan komme fra et delvis parset block).
+type AgentInfo = Partial<ApiAgentInfo> & { name: string };
 
 // Agent-widget: kort per agent når brukeren ber om å se dem.
 function AgentList({ agents }: { agents: AgentInfo[] }) {

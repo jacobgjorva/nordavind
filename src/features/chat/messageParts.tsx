@@ -7,8 +7,11 @@ import type { SourceRef } from "../../lib/api";
 import styles from "./Chat.module.css";
 
 export function MarkdownPre({ children }: { children?: React.ReactNode }) {
-  const code = (children as any)?.props;
-  const lang = (code?.className as string | undefined)?.replace("language-", "");
+  const el = children as
+    | React.ReactElement<{ className?: string; children?: React.ReactNode }>
+    | undefined;
+  const code = el?.props;
+  const lang = code?.className?.replace("language-", "");
   const body =
     typeof code?.children === "string"
       ? code.children
