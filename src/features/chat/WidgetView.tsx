@@ -157,12 +157,14 @@ function WindForming({ dissipating }: { dissipating?: boolean }) {
         left: centered(70),
         top: centered(90),
         size: 2.5 + Math.random() * 3,
-        dx: (Math.random() * 2 - 1) * 60,
-        dy: (Math.random() * 2 - 1) * 60,
-        peak: 0.45 + Math.random() * 0.5,
-        driftDur: 1.6 + Math.random() * 2.2,
+        // Minst 28px drift hver vei (med tilfeldig fortegn) — ingen står stille.
+        dx: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
+        dy: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
+        floor: 0.3 + Math.random() * 0.2,
+        peak: 0.7 + Math.random() * 0.3,
+        driftDur: 1.6 + Math.random() * 2,
         driftDelay: -Math.random() * 4,
-        depthDur: 1.3 + Math.random() * 2,
+        depthDur: 1.3 + Math.random() * 1.8,
         depthDelay: -Math.random() * 4,
       })),
     []
@@ -191,6 +193,7 @@ function WindForming({ dissipating }: { dissipating?: boolean }) {
             style={
               {
                 "--peak": p.peak,
+                "--floor": p.floor,
                 animationDuration: `${p.depthDur}s`,
                 animationDelay: `${p.depthDelay}s`,
               } as CSSProperties
