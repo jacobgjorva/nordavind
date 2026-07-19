@@ -7,16 +7,20 @@
 /* Skapelse: kortet pulserer rolig mens widgeten bygges. */
 .pulse {
   min-height: 180px;
-  animation: cardPulse 1.3s ease-in-out infinite;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  animation: cardPulse 2.6s ease-in-out infinite;
 }
 
 @keyframes cardPulse {
   0%, 100% {
-    opacity: 0.25;
+    opacity: 0.35;
+    border-color: var(--border-strong);
     background: rgba(255, 255, 255, 0.02);
   }
   50% {
     opacity: 1;
+    border-color: #ffffff;
     background: rgba(255, 255, 255, 0.08);
   }
 }
