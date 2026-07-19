@@ -15,6 +15,13 @@ import {
   type ConnectionSchema,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
+import {
+  SOURCE_OPTIONS,
+  DRIVER_MAP,
+  DB_FLOW,
+  type FlowStep,
+  type LogMsg,
+} from "./connectorFlow";
 
 // Styrt visning: valget skjer i settings-navigasjonen (undersider av Connectors).
 export function Connectors({
@@ -119,68 +126,6 @@ function highlightSql(sql: string) {
       <span key={i}>{tok}</span>
     )
   );
-}
-
-const SOURCE_OPTIONS = ["Database", "Databricks", "CSV", "Excel", "Cloud Storage"];
-
-const DRIVER_MAP: Record<string, { key: string; port: number; user: string }> = {
-  PostgreSQL: { key: "postgres", port: 5432, user: "postgres" },
-  MySQL: { key: "mysql", port: 3306, user: "root" },
-  "SQL Server": { key: "mssql", port: 1433, user: "sa" },
-};
-
-// Predefinert skript for database-flyten: ett felt om gangen, med
-// naturlige forslag i komboboksen. Ingen AI = ingen tokens.
-interface FlowStep {
-  key: string;
-  question: string;
-  options: (answers: Record<string, string>) => string[];
-  secret?: boolean;
-}
-
-const DB_FLOW: FlowStep[] = [
-  {
-    key: "driver",
-    question: "Hvilken databasetype?",
-    options: () => Object.keys(DRIVER_MAP),
-  },
-  {
-    key: "name",
-    question: "Hva skal tilkoblingen hete?",
-    options: () => [],
-  },
-  {
-    key: "host",
-    question: "Hvilken host kjører databasen på?",
-    options: () => ["localhost"],
-  },
-  {
-    key: "port",
-    question: "Hvilken port?",
-    options: (a) => [String(DRIVER_MAP[a.driver]?.port ?? 5432)],
-  },
-  {
-    key: "database",
-    question: "Hva heter databasen?",
-    options: () => [],
-  },
-  {
-    key: "user",
-    question: "Hvilket brukernavn skal jeg logge inn med?",
-    options: (a) => [DRIVER_MAP[a.driver]?.user ?? "postgres"].filter(Boolean),
-  },
-  {
-    key: "password",
-    question: "Og passordet? (lagres kryptert)",
-    options: () => [],
-    secret: true,
-  },
-];
-
-interface LogMsg {
-  id: number;
-  role: "bot" | "user";
-  text: string;
 }
 
 let logId = 0;
