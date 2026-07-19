@@ -147,13 +147,12 @@ function Recipients({
 }) {
   const remove = (f: Field, addr: string) =>
     onChange({ ...value, [f]: value[f].filter((p) => p.address !== addr) });
+  const add = (f: Field, a: string) =>
+    onChange({ ...value, [f]: [...value[f], { name: "", address: a }] });
   return (
     <div className={styles.recips}>
-      <ChipRow f="to" people={value.to} onRemove={(a) => remove("to", a)}
-        onAdd={(a) => onChange({ ...value, to: [...value.to, { name: "", address: a }] })} />
-      {value.cc.length > 0 && (
-        <ChipRow f="cc" people={value.cc} onRemove={(a) => remove("cc", a)} />
-      )}
+      <ChipRow f="to" people={value.to} onRemove={(a) => remove("to", a)} onAdd={(a) => add("to", a)} />
+      <ChipRow f="cc" people={value.cc} onRemove={(a) => remove("cc", a)} onAdd={(a) => add("cc", a)} />
     </div>
   );
 }
