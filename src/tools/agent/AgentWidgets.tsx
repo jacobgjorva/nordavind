@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  createAgent,
-  fetchAgentConnections,
-  updateAgent,
-  type AgentConnection,
-  type AgentInfo as AgentRecord,
-} from "../../lib/api";
+import { createAgent, fetchAgentConnections } from "../../lib/api";
 import { registerBlock } from "../../features/chat/blocks/registry";
 import styles from "./AgentWidgets.module.css";
 
@@ -68,9 +62,6 @@ function decomposeInterval(sec: number): { count: number; unitSec: number } {
   }
   return { count: 1, unitSec: 86400 };
 }
-
-// Klokkeslett er kun meningsfullt når intervallet er minst én dag.
-const showsTime = (unitSec: number) => unitSec >= 86400;
 
 // Innsats: hvor mye agenten får bruke per kjøring, uttrykt som token-tak.
 const EFFORTS: { label: string; tokens: number }[] = [
@@ -188,3 +179,14 @@ function AgentSetup({
     </div>
   );
 }
+
+// Registrer agent-blokkene.
+registerBlock("agents", (body) => {
+  const d = JSON.parse(body);
+  const agents: AgentInfo[] = Array.isArray(d) ? d : d.agents ?? [];
+  return <AgentList agents={agents} />;
+});
+registerBlock("agent_setup", (body) => {
+  const d = JSON.parse(body);
+  return <AgentSetup name={d.name} task={d.task ?? ""} fields={d.fields} />;
+});
