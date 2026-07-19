@@ -85,57 +85,7 @@
   .reveal { animation: none; }
 }
 
-/* KPI-kort */
-.kpi {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 18px 20px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.028);
-}
-
-.kpiLabel {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.kpiValue {
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.kpiUnit {
-  margin-left: 5px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.kpiDelta {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.up {
-  color: #6ef16a;
-}
-
-.down {
-  color: #e8686d;
-}
-
-/* Tekstblokk */
-.textBlock {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text);
-}
-
-/* Data-kort (table/bar/line) */
+/* ── Felles kort ── */
 .card {
   display: flex;
   flex-direction: column;
@@ -144,7 +94,6 @@
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.028);
-  min-height: 180px;
 }
 
 .cardTitle {
@@ -153,7 +102,13 @@
   color: var(--text);
 }
 
+.cardLabel {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .cardEmpty {
+  min-height: 90px;
   flex: 1;
   display: flex;
   align-items: center;
@@ -162,20 +117,79 @@
   font-size: 13px;
 }
 
-/* Stolpediagram */
-.chart {
-  flex: 1;
-  min-height: 130px;
-  display: flex;
-  flex-direction: column;
+/* ── KPI / sparkline ── */
+.card:has(.kpiValue) {
+  gap: 5px;
 }
 
+.kpiValue {
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.kpiUnit {
+  margin-left: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.kpiDeltaRow {
+  margin-top: 1px;
+}
+
+.delta {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.spark {
+  width: 100%;
+  height: 48px;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+/* ── Linjediagram ── */
+.plot {
+  position: relative;
+  width: 100%;
+  height: 150px;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.endDot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(57, 135, 229, 0.22);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ── Stolpediagram ── */
 .bars {
-  flex: 1;
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding-top: 8px;
+  height: 160px;
+  padding-top: 16px;
 }
 
 .barCol {
@@ -189,12 +203,30 @@
   min-width: 0;
 }
 
+.barVal {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.barTrack {
+  flex: 1;
+  width: 100%;
+  max-width: 44px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
 .bar {
   width: 100%;
-  max-width: 40px;
-  background: linear-gradient(180deg, #6ea8fe, #3f7ae0);
-  border-radius: 3px 3px 0 0;
+  border-radius: 4px 4px 0 0;
   min-height: 2px;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.barCol:hover .bar {
+  opacity: 0.82;
 }
 
 .barLabel {
@@ -206,23 +238,85 @@
   max-width: 100%;
 }
 
-/* Linjediagram */
-.line {
-  width: 100%;
-  height: 130px;
-}
-
-.lineLabels {
+/* ── Donut ── */
+.donutRow {
   display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--text-faint);
+  align-items: center;
+  gap: 20px;
 }
 
-/* Tabell */
+.donutWrap {
+  flex-shrink: 0;
+  width: 128px;
+  height: 128px;
+}
+
+.donut {
+  width: 100%;
+  height: 100%;
+}
+
+.donutTotal {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.donutCap {
+  fill: var(--text-faint);
+  font-size: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.legendDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.legendVal {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tabell ── */
 .tableScroll {
   overflow-x: auto;
   scrollbar-width: none;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.tableScroll::-webkit-scrollbar {
+  display: none;
 }
 
 .table {
@@ -233,17 +327,52 @@
 
 .table th,
 .table td {
-  padding: 7px 10px;
+  padding: 9px 14px;
   text-align: left;
   border-bottom: 0.5px solid var(--border);
   white-space: nowrap;
 }
 
+.table td {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .table th {
   color: var(--text-muted);
   font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: #121212;
 }
 
 .table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Tekstblokk ── */
+.textBlock {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.textBlock :global(h1),
+.textBlock :global(h2),
+.textBlock :global(h3) {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0 0 8px;
+}
+
+.textBlock :global(p) {
+  margin: 0 0 10px;
+}
+
+.textBlock :global(p:last-child) {
+  margin-bottom: 0;
 }

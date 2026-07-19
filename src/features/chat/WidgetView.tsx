@@ -9,34 +9,28 @@ import {
 } from "../../lib/api";
 import styles from "./WidgetView.module.css";
 
-// Standardisert KPI-kort.
-function Kpi({ c }: { c: WidgetSpec }) {
-  const up = c.delta?.startsWith("+");
-  return (
-    <div className={styles.kpi}>
-      {c.title && <div className={styles.kpiLabel}>{c.title}</div>}
-      <div className={styles.kpiValue}>
-        {c.value}
-        {c.unit && <span className={styles.kpiUnit}>{c.unit}</span>}
-      </div>
-      {c.delta && (
-        <div className={`${styles.kpiDelta} ${up ? styles.up : styles.down}`}>
-          {c.delta}
-        </div>
-      )}
-    </div>
-  );
+// Validert mørk kategori-palett (fra dataviz-skillen). Rekkefølgen er
+// CVD-sikkerhetsmekanismen — ikke endre.
+const SERIES = [
+  "#3987e5", "#008300", "#d55181", "#c98500",
+  "#199e70", "#d95926", "#9085e9", "#e66767",
+];
+const ACCENT = "#3987e5";
+const UP = "#4ec06a";
+const DOWN = "#e66767";
+
+// Norsk tallformat: tusenskille med tynt mellomrom, komma-desimal.
+function fmt(n: number): string {
+  if (!isFinite(n)) return String(n);
+  const neg = n < 0;
+  const a = Math.abs(n);
+  const s = a % 1 === 0 ? a.toFixed(0) : a.toFixed(1);
+  const [i, d] = s.split(".");
+  const ii = i.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return (neg ? "-" : "") + ii + (d ? "," + d : "");
 }
 
-function TextBlock({ c }: { c: WidgetSpec }) {
-  return (
-    <div className={styles.textBlock}>
-      <Markdown remarkPlugins={[remarkGfm]}>{c.content ?? ""}</Markdown>
-    </div>
-  );
-}
-
-// Henter kolonneverdier for x/y (eller de to første kolonnene).
+// Henter x-etiketter og y-verdier (eller de to første kolonnene).
 function series(data: QueryResult, c: WidgetSpec) {
   const xi = c.x ? data.columns.indexOf(c.x) : 0;
   const yi = c.y ? data.columns.indexOf(c.y) : 1;
@@ -45,18 +39,163 @@ function series(data: QueryResult, c: WidgetSpec) {
   return { labels, values };
 }
 
+// Delta-brikke: ▲/▼ + farge etter fortegn.
+function Delta({ text }: { text?: string }) {
+  if (!text) return null;
+  const t = text.trim();
+  const up = t.startsWith("+");
+  const down = t.startsWith("-");
+  return (
+    <span className={styles.delta} style={{ color: up ? UP : down ? DOWN : "var(--text-muted)" }}>
+      {up ? "▲" : down ? "▼" : ""} {t.replace(/^[+]/, "")}
+    </span>
+  );
+}
+
+// KPI: ett nøkkeltall (statisk eller fra databasen).
+function Kpi({ c }: { c: WidgetSpec }) {
+  return (
+    <div className={styles.card}>
+      {c.title && <div className={styles.cardLabel}>{c.title}</div>}
+      <div className={styles.kpiValue}>
+        {c.value}
+        {c.unit && <span className={styles.kpiUnit}>{c.unit}</span>}
+      </div>
+      {c.delta && <div className={styles.kpiDeltaRow}><Delta text={c.delta} /></div>}
+    </div>
+  );
+}
+
+// Bygger en jevn (Catmull-Rom → bezier) sti gjennom punktene.
+function smoothPath(pts: [number, number][]): string {
+  if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : "";
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
+
+// Sparkline: nøkkeltall (siste rad) + trend-graf over hele serien.
+function Sparkline({ c, data }: { c: WidgetSpec; data: QueryResult }) {
+  const { values } = series(data, c);
+  const last = values[values.length - 1] ?? 0;
+  const first = values[0] ?? 0;
+  const pct = first ? ((last - first) / Math.abs(first)) * 100 : 0;
+  const delta =
+    values.length > 1
+      ? `${pct >= 0 ? "+" : "-"}${fmt(Math.abs(pct))}%`
+      : undefined;
+
+  const W = 300;
+  const H = 48;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const span = max - min || 1;
+  const pts: [number, number][] = values.map((v, i) => [
+    values.length > 1 ? (i / (values.length - 1)) * W : W,
+    H - ((v - min) / span) * (H - 6) - 3,
+  ]);
+  const line = smoothPath(pts);
+  const area = `${line} L${W},${H} L0,${H} Z`;
+  const gid = `spk-${Math.round(min)}-${Math.round(max)}`;
+
+  return (
+    <div className={styles.card}>
+      {c.title && <div className={styles.cardLabel}>{c.title}</div>}
+      <div className={styles.kpiValue}>
+        {fmt(last)}
+        {c.unit && <span className={styles.kpiUnit}>{c.unit}</span>}
+      </div>
+      {delta && <div className={styles.kpiDeltaRow}><Delta text={delta} /></div>}
+      <svg className={styles.spark} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill={`url(#${gid})`} />
+        <path d={line} fill="none" stroke={ACCENT} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  );
+}
+
+// Linjediagram med areal-fyll, resessivt rutenett og ende-markør.
+function LineChart({ c, data }: { c: WidgetSpec; data: QueryResult }) {
+  const { labels, values } = series(data, c);
+  const W = 300;
+  const H = 150;
+  const max = Math.max(...values, 0);
+  const min = Math.min(...values, 0);
+  const span = max - min || 1;
+  const y = (v: number) => H - ((v - min) / span) * (H - 8) - 4;
+  const pts: [number, number][] = values.map((v, i) => [
+    values.length > 1 ? (i / (values.length - 1)) * W : W / 2,
+    y(v),
+  ]);
+  const line = smoothPath(pts);
+  const area = `${line} L${W},${H} L0,${H} Z`;
+  const last = pts[pts.length - 1];
+  const grid = [0.25, 0.5, 0.75];
+
+  return (
+    <div className={styles.card}>
+      {c.title && <div className={styles.cardTitle}>{c.title}</div>}
+      <div className={styles.plot}>
+        <svg className={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="lineFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={ACCENT} stopOpacity="0.22" />
+              <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {grid.map((g) => (
+            <line key={g} x1="0" x2={W} y1={H * g} y2={H * g}
+              stroke="var(--border)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          ))}
+          <path d={area} fill="url(#lineFill)" />
+          <path d={line} fill="none" stroke={ACCENT} strokeWidth="2"
+            strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {last && (
+          <span
+            className={styles.endDot}
+            style={{ left: `${(last[0] / W) * 100}%`, top: `${(last[1] / H) * 100}%`, background: ACCENT }}
+          />
+        )}
+      </div>
+      <div className={styles.axis}>
+        <span>{labels[0]}</span>
+        <span>{labels[labels.length - 1]}</span>
+      </div>
+    </div>
+  );
+}
+
+// Stolpediagram: én serie (sekvensiell blå), avrundede topper, verdi ved hover.
 function BarChart({ c, data }: { c: WidgetSpec; data: QueryResult }) {
   const { labels, values } = series(data, c);
   const max = Math.max(1, ...values);
   return (
-    <div className={styles.chart}>
+    <div className={styles.card}>
+      {c.title && <div className={styles.cardTitle}>{c.title}</div>}
       <div className={styles.bars}>
         {values.map((v, i) => (
-          <div key={i} className={styles.barCol} title={`${labels[i]}: ${v}`}>
-            <div
-              className={styles.bar}
-              style={{ height: `${(v / max) * 100}%` }}
-            />
+          <div key={i} className={styles.barCol} title={`${labels[i]}: ${fmt(v)}`}>
+            <span className={styles.barVal}>{fmt(v)}</span>
+            <div className={styles.barTrack}>
+              <div className={styles.bar} style={{ height: `${(v / max) * 100}%`, background: ACCENT }} />
+            </div>
             <span className={styles.barLabel}>{labels[i]}</span>
           </div>
         ))}
@@ -65,25 +204,47 @@ function BarChart({ c, data }: { c: WidgetSpec; data: QueryResult }) {
   );
 }
 
-function LineChart({ c, data }: { c: WidgetSpec; data: QueryResult }) {
+// Donut: andel/fordeling med kategori-farger, total i midten, legende under.
+function Donut({ c, data }: { c: WidgetSpec; data: QueryResult }) {
   const { labels, values } = series(data, c);
-  const max = Math.max(1, ...values);
-  const min = Math.min(0, ...values);
-  const W = 100;
-  const H = 100;
-  const pts = values.map((v, i) => {
-    const x = values.length > 1 ? (i / (values.length - 1)) * W : 0;
-    const y = H - ((v - min) / (max - min || 1)) * H;
-    return `${x},${y}`;
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+  const R = 42;
+  const C = 2 * Math.PI * R;
+  const GAP = values.length > 1 ? 2 : 0; // 2px flate-mellomrom mellom segmenter
+  let offset = 0;
+  const arcs = values.map((v, i) => {
+    const frac = v / total;
+    const full = frac * C;
+    const dash = Math.max(0, full - GAP);
+    const seg = { color: SERIES[i % SERIES.length], dash, gap: C - dash, off: offset };
+    offset -= full;
+    return seg;
   });
   return (
-    <div className={styles.chart}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={styles.line}>
-        <polyline points={pts.join(" ")} fill="none" stroke="#6ea8fe" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div className={styles.lineLabels}>
-        <span>{labels[0]}</span>
-        <span>{labels[labels.length - 1]}</span>
+    <div className={styles.card}>
+      {c.title && <div className={styles.cardTitle}>{c.title}</div>}
+      <div className={styles.donutRow}>
+        <div className={styles.donutWrap}>
+          <svg viewBox="0 0 100 100" className={styles.donut}>
+            {arcs.map((a, i) => (
+              <circle key={i} cx="50" cy="50" r={R} fill="none"
+                stroke={a.color} strokeWidth="12"
+                strokeDasharray={`${a.dash} ${a.gap}`} strokeDashoffset={a.off}
+                transform="rotate(-90 50 50)" />
+            ))}
+            <text x="50" y="47" className={styles.donutTotal} textAnchor="middle">{fmt(total)}</text>
+            <text x="50" y="60" className={styles.donutCap} textAnchor="middle">totalt</text>
+          </svg>
+        </div>
+        <div className={styles.legend}>
+          {labels.map((l, i) => (
+            <div key={i} className={styles.legendRow}>
+              <span className={styles.legendDot} style={{ background: SERIES[i % SERIES.length] }} />
+              <span className={styles.legendLabel}>{l}</span>
+              <span className={styles.legendVal}>{fmt(values[i])}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -104,7 +265,13 @@ function Table({ data }: { data: QueryResult }) {
           {data.rows.slice(0, 50).map((r, i) => (
             <tr key={i}>
               {r.map((cell, j) => (
-                <td key={j}>{cell === null ? "" : String(cell)}</td>
+                <td key={j}>
+                  {cell === null
+                    ? ""
+                    : typeof cell === "number"
+                      ? fmt(cell)
+                      : String(cell)}
+                </td>
               ))}
             </tr>
           ))}
@@ -114,31 +281,34 @@ function Table({ data }: { data: QueryResult }) {
   );
 }
 
+function TextBlock({ c }: { c: WidgetSpec }) {
+  return (
+    <div className={styles.textBlock}>
+      <Markdown remarkPlugins={[remarkGfm]}>{c.content ?? ""}</Markdown>
+    </div>
+  );
+}
+
 // WidgetCard rendrer én ferdig widget fra spec + evt. forhåndslastet data.
 // Ingen henting her — data er alltid klar før kortet vises.
 function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
   if (c.type === "kpi") {
     if (!c.sql) return <Kpi c={c} />;
-    const value = String(data?.rows[0]?.[0] ?? "—");
-    return <Kpi c={{ ...c, value }} />;
+    return <Kpi c={{ ...c, value: fmt(Number(data?.rows[0]?.[0] ?? 0)) }} />;
   }
   if (c.type === "text") return <TextBlock c={c} />;
-  if (c.type === "table" || c.type === "bar" || c.type === "line") {
+  if (!data || data.rows.length === 0)
     return (
       <div className={styles.card}>
         {c.title && <div className={styles.cardTitle}>{c.title}</div>}
-        {!data ? (
-          <div className={styles.cardEmpty}>Ingen data.</div>
-        ) : c.type === "table" ? (
-          <Table data={data} />
-        ) : c.type === "line" ? (
-          <LineChart c={c} data={data} />
-        ) : (
-          <BarChart c={c} data={data} />
-        )}
+        <div className={styles.cardEmpty}>Ingen data.</div>
       </div>
     );
-  }
+  if (c.type === "sparkline") return <Sparkline c={c} data={data} />;
+  if (c.type === "line") return <LineChart c={c} data={data} />;
+  if (c.type === "bar") return <BarChart c={c} data={data} />;
+  if (c.type === "donut") return <Donut c={c} data={data} />;
+  if (c.type === "table") return <Table data={data} />;
   return null;
 }
 
