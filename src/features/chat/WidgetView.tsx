@@ -161,18 +161,18 @@ const makeParticle = () => {
     left: centered(70),
     top: centered(90),
     size: lerp(3, 13, depth),
-    // Minst 28px drift hver vei (med tilfeldig fortegn) — ingen står stille.
-    dx: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
-    dy: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
+    // God drift hver vei (tilfeldig fortegn) — tydelig, kontinuerlig bevegelse.
+    dx: (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 75),
+    dy: (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 75),
     blurFar: lerp(1.4, 8, depth) + Math.random(),
     blurNear: lerp(0, 4.5, depth) + Math.random() * 0.4,
     floor: lerp(0.72, 0.28, depth),
     peak: lerp(1, 0.5, depth),
-    // Trege, usynkroniserte sykluser → mykt, kontinuerlig liv (aldri stopp).
-    driftDur: lerp(7, 12, Math.random()),
-    driftDelay: -Math.random() * 12,
-    depthDur: lerp(5, 10, Math.random()),
-    depthDelay: -Math.random() * 10,
+    // Raske nok, usynkroniserte sykluser → tydelig liv, men myk easing.
+    driftDur: lerp(3, 5.5, Math.random()),
+    driftDelay: -Math.random() * 6,
+    depthDur: lerp(3, 6, Math.random()),
+    depthDelay: -Math.random() * 6,
   };
 };
 
