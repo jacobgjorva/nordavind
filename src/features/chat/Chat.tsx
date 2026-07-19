@@ -362,15 +362,9 @@ export function Chat({
     reloadWidgets();
   }, []);
 
-  // Innboks-tråder til /mail-komboboksen (lastes når brukeren skriver /mail).
+  // Innboks-tråder til /mail-komboboksen (deklareres etter input-state under).
   const [mailThreads, setMailThreads] = useState<MailThreadSummary[]>([]);
   const mailLoadedRef = useRef(false);
-  useEffect(() => {
-    if (/^\/mail\b/i.test(input) && !mailLoadedRef.current) {
-      mailLoadedRef.current = true;
-      fetchInbox().then(setMailThreads).catch(() => {});
-    }
-  }, [input]);
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -436,6 +430,13 @@ export function Chat({
 
   const [input, setInput] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
+  // Last innboks når brukeren begynner på /mail.
+  useEffect(() => {
+    if (/^\/mail\b/i.test(input) && !mailLoadedRef.current) {
+      mailLoadedRef.current = true;
+      fetchInbox().then(setMailThreads).catch(() => {});
+    }
+  }, [input]);
   // Bris er standard til backend melder hvilken modell som faktisk svarte.
   const [activeModel, setActiveModel] = useState<string | null>(
     "qwen3-235b-a22b-instruct-2507"
