@@ -164,20 +164,57 @@ export function WidgetBody({ slug, c }: { slug: string; c: WidgetSpec }) {
   return null;
 }
 
-// WidgetView henter widgetens spec fra /<slug> og rendrer den inline.
+// WindForming er skapelses-animasjonen: diffus hvit glød som driver som vind
+// og gradvis former widgeten før kortet felles inn.
+function WindForming({ dissipating }: { dissipating?: boolean }) {
+  return (
+    <div className={`${styles.forming} ${dissipating ? styles.dissipate : ""}`}>
+      <div className={`${styles.glow} ${styles.glow1}`} />
+      <div className={`${styles.glow} ${styles.glow2}`} />
+      <div className={`${styles.glow} ${styles.glow3}`} />
+      <div className={`${styles.streak} ${styles.streak1}`} />
+      <div className={`${styles.streak} ${styles.streak2}`} />
+      <div className={`${styles.streak} ${styles.streak3}`} />
+      <div className={styles.outline} />
+    </div>
+  );
+}
+
+// Minimumstid gløden får forme seg, så avsløringen føles fortjent.
+const FORM_MS = 1500;
+
+// WidgetView henter widgetens spec fra /<slug> og rendrer den inline. Mens
+// spec hentes (og i minst FORM_MS) spilles vind-animasjonen.
 export function WidgetView({ slug }: { slug: string }) {
   const [spec, setSpec] = useState<WidgetSpec | null>(null);
   const [error, setError] = useState(false);
+  const [forming, setForming] = useState(true);
 
   useEffect(() => {
     let alive = true;
+    const started = performance.now();
     fetchWidget(slug)
-      .then((w) => alive && setSpec(w.spec ?? {}))
+      .then((w) => {
+        if (!alive) return;
+        setSpec(w.spec ?? {});
+        // Hold gløden til minst FORM_MS har gått.
+        const wait = Math.max(0, FORM_MS - (performance.now() - started));
+        setTimeout(() => alive && setForming(false), wait);
+      })
       .catch(() => alive && setError(true));
     return () => {
       alive = false;
     };
   }, [slug]);
+
+  // Spilles mens widgeten «formes» av vinden.
+  if (forming && !error) {
+    return (
+      <div className={styles.widget}>
+        <WindForming />
+      </div>
+    );
+  }
 
   if (error)
     return (
@@ -205,7 +242,9 @@ export function WidgetView({ slug }: { slug: string }) {
     );
   return (
     <div className={styles.widget}>
-      <WidgetBody slug={slug} c={spec} />
+      <div className={styles.reveal}>
+        <WidgetBody slug={slug} c={spec} />
+      </div>
     </div>
   );
 }

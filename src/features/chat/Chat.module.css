@@ -185,9 +185,9 @@
   animation: msgIn 0.4s var(--ease-out) backwards;
 }
 
-/* Widget-melding: bredere kolonne enn vanlig tekst, uten boble. */
+/* Widget-melding: full chat-bredde, uten boble. */
 .widgetRow {
-  max-width: 1080px;
+  max-width: 720px;
 }
 
 .widgetBubble {
