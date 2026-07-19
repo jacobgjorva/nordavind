@@ -20,6 +20,8 @@ import {
   createWidget,
   listWidgets,
   type Widget,
+  fetchInbox,
+  type MailThreadSummary,
   deleteAgent,
   extractKnowledge,
   fetchChatAgent,
@@ -148,9 +150,9 @@ const MODEL_GLOW: Record<string, string> = {
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
 
-// En melding som kun er en widget-blokk vises i full bredde (uten boble).
+// En melding som kun er en widget- eller mailthread-blokk vises i full bredde.
 const isWidgetOnly = (content?: string) =>
-  !!content && /^```widget\n[\s\S]*?\n```$/.test(content.trim());
+  !!content && /^```(widget|mailthread)\n[\s\S]*?\n```$/.test(content.trim());
 
 // Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
 const slugify = (s: string) =>
@@ -360,6 +362,16 @@ export function Chat({
     reloadWidgets();
   }, []);
 
+  // Innboks-tråder til /mail-komboboksen (lastes når brukeren skriver /mail).
+  const [mailThreads, setMailThreads] = useState<MailThreadSummary[]>([]);
+  const mailLoadedRef = useRef(false);
+  useEffect(() => {
+    if (/^\/mail\b/i.test(input) && !mailLoadedRef.current) {
+      mailLoadedRef.current = true;
+      fetchInbox().then(setMailThreads).catch(() => {});
+    }
+  }, [input]);
+
   function saveTitle(next: string) {
     setEditingTitle(false);
     const trimmed = next.trim().slice(0, 60);
@@ -551,6 +563,41 @@ export function Chat({
         .then(() =>
           appendChatMessage(cid, { role: "assistant", content: block })
         )
+        .catch(() => {});
+    }
+  }
+
+  // Åpner en e-posttråd inline i chatten (ingen LLM her — MailThread henter
+  // selv sammendrag/svarforslag).
+  async function renderMailInline(key: string) {
+    setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    const t = mailThreads.find((x) => x.key === key);
+    const block = "```mailthread\n" + key + "\n```";
+    if (!chatIdRef.current) {
+      try {
+        const chat = await createChat(t?.subject?.slice(0, 60) || "E-post");
+        chatIdRef.current = chat.id;
+        onChatCreated?.(chat);
+      } catch {
+        // persistens ikke kritisk
+      }
+    }
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: nextId(),
+        role: "user",
+        content: `📧 ${t?.subject ?? "E-post"}`,
+        display: `📧 ${t?.subject ?? "E-post"}`,
+        revealed: true,
+      },
+      { id: nextId(), role: "assistant", content: block, revealed: true },
+    ]);
+    const cid = chatIdRef.current;
+    if (cid) {
+      appendChatMessage(cid, { role: "user", content: `📧 ${t?.subject ?? "E-post"}` })
+        .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
         .catch(() => {});
     }
   }
@@ -830,26 +877,47 @@ export function Chat({
   // Innebygde handlinger (agent, ny widget) + brukerens widgets som /<slug>.
   const slashMatch = /^\/([a-z0-9-]*)$/i.exec(input);
   const slashPrefix = slashMatch?.[1].toLowerCase() ?? "";
-  const slashItems = slashMatch
-    ? [
-        ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
-        ...widgets
-          .filter((w) => w.slug.startsWith(slashPrefix))
-          .map((w) => ({
-            cmd: w.slug,
-            label: w.title || w.slug,
-            desc: "Widget",
-            icon: DashboardSquare01Icon,
-          })),
-      ]
-    : [];
+  // /mail-modus: komboboksen viser innboks-tråder som menyelementer.
+  const mailActive = /^\/mail(\s|$)/i.test(input);
+  const mailQuery = input.replace(/^\/mail\s*/i, "").toLowerCase();
+  const slashItems = mailActive
+    ? mailThreads
+        .filter(
+          (t) =>
+            !mailQuery ||
+            t.subject.toLowerCase().includes(mailQuery) ||
+            (t.from.name || t.from.address).toLowerCase().includes(mailQuery)
+        )
+        .map((t) => ({
+          cmd: "mailthread:" + t.key,
+          label: t.subject || "(uten emne)",
+          desc: `${t.from.name || t.from.address} · ${new Date(t.date).toLocaleDateString("no-NO", { day: "2-digit", month: "short" })}${t.unread ? " · ulest" : ""}`,
+          icon: AnonymousIcon,
+        }))
+    : slashMatch
+      ? [
+          ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
+          ...widgets
+            .filter((w) => w.slug.startsWith(slashPrefix))
+            .map((w) => ({
+              cmd: w.slug,
+              label: w.title || w.slug,
+              desc: "Widget",
+              icon: DashboardSquare01Icon,
+            })),
+        ]
+      : [];
   const slashOpen = slashItems.length > 0;
 
   function pickSlash(cmd: string) {
     setSlashIndex(0);
+    if (cmd.startsWith("mailthread:")) {
+      renderMailInline(cmd.slice("mailthread:".length));
+      return;
+    }
     if (cmd === "mail") {
-      setInput("");
-      window.dispatchEvent(new CustomEvent("nordavind:open-mail"));
+      // Åpne innboks-lista i komboboksen.
+      setInput("/mail ");
       return;
     }
     if (cmd === "widget") {

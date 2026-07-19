@@ -1,16 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   analyzeThread,
-  fetchInbox,
-  fetchMailAccount,
   fetchThread,
   refineDraft,
   sendMail,
-  type MailAccount,
   type MailAnalysis,
   type MailMessage,
   type MailPerson,
-  type MailThreadSummary,
 } from "../../lib/api";
 import styles from "./Mail.module.css";
 
@@ -133,8 +129,8 @@ function ThreadMessage({ m, essence }: { m: MailMessage; essence?: string }) {
   );
 }
 
-// ── Trådvisning ──
-function ThreadView({ thread, me }: { thread: MailThreadSummary; me: string }) {
+// ── Trådvisning (embeddes inline i chatten) ──
+export function MailThread({ threadKey }: { threadKey: string }) {
   const [msgs, setMsgs] = useState<MailMessage[] | null>(null);
   const [analysis, setAnalysis] = useState<MailAnalysis | null>(null);
   const [recips, setRecips] = useState<Record<Field, MailPerson[]>>({ to: [], cc: [], bcc: [] });
@@ -143,17 +139,19 @@ function ThreadView({ thread, me }: { thread: MailThreadSummary; me: string }) {
   const [refining, setRefining] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [threadSubject, setThreadSubject] = useState("");
 
   useEffect(() => {
-    setMsgs(null);
-    setAnalysis(null);
-    setSent(false);
-    fetchThread(thread.key).then((r) => {
+    let alive = true;
+    fetchThread(threadKey).then((r) => {
+      if (!alive) return;
       setMsgs(r.messages);
+      const first = r.messages[0];
+      if (first) setThreadSubject(first.subject.replace(/^\s*(re|sv|svar)\s*:\s*/i, ""));
       // Standard mottakere: svar til siste avsender, kopi til øvrige (ikke meg).
       const last = r.messages[r.messages.length - 1];
       const to = last ? [last.from] : [];
-      const seen = new Set([me.toLowerCase(), ...to.map((p) => p.address.toLowerCase())]);
+      const seen = new Set([r.me.toLowerCase(), ...to.map((p) => p.address.toLowerCase())]);
       const cc: MailPerson[] = [];
       r.messages.forEach((m) =>
         [...m.to, ...m.cc, m.from].forEach((p) => {
@@ -163,22 +161,22 @@ function ThreadView({ thread, me }: { thread: MailThreadSummary; me: string }) {
       );
       setRecips({ to, cc, bcc: [] });
     });
-    analyzeThread(thread.key).then((a) => {
+    analyzeThread(threadKey).then((a) => {
+      if (!alive) return;
       setAnalysis(a);
       setBody(a.draft);
     }).catch(() => {});
-  }, [thread.key, me]);
+    return () => { alive = false; };
+  }, [threadKey]);
 
-  const subject = thread.subject.match(/^\s*(re|sv|svar)\s*:/i)
-    ? thread.subject
-    : `Re: ${thread.subject}`;
+  const subject = `Re: ${threadSubject}`;
   const last = msgs?.[msgs.length - 1];
 
   async function refine() {
     if (!feedback.trim()) return;
     setRefining(true);
     try {
-      const d = await refineDraft(thread.key, body, feedback);
+      const d = await refineDraft(threadKey, body, feedback);
       setBody(d);
       setFeedback("");
     } finally {
@@ -206,7 +204,7 @@ function ThreadView({ thread, me }: { thread: MailThreadSummary; me: string }) {
   return (
     <div className={styles.thread}>
       <div className={styles.threadHead}>
-        <h2>{thread.subject}</h2>
+        <h2>{threadSubject || "…"}</h2>
       </div>
       {analysis?.summary && <div className={styles.summary}>{analysis.summary}</div>}
 
@@ -249,86 +247,3 @@ function ThreadView({ thread, me }: { thread: MailThreadSummary; me: string }) {
     </div>
   );
 }
-
-// ── Rot: konto-sjekk → inbox + tråd ──
-export function Mail() {
-  const [account, setAccount] = useState<MailAccount | null | undefined>(undefined);
-  const [threads, setThreads] = useState<MailThreadSummary[] | null>(null);
-  const [selected, setSelected] = useState<MailThreadSummary | null>(null);
-  const [loadErr, setLoadErr] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
-
-  function loadInbox() {
-    setThreads(null);
-    setLoadErr(null);
-    fetchInbox().then(setThreads).catch((e) => setLoadErr(e.message));
-  }
-
-  useEffect(() => {
-    // Kontoen er hardkodet i backend (dev). Vi henter kun status + innboks.
-    fetchMailAccount()
-      .then((a) => {
-        setAccount(a);
-        if (a && !loadedOnce.current) {
-          loadedOnce.current = true;
-          loadInbox();
-        }
-      })
-      .catch(() => setAccount(null));
-  }, []);
-
-  if (account === undefined) return <div className={styles.wrap} />;
-  if (account === null)
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.empty}>Ingen e-postkonto konfigurert.</div>
-      </div>
-    );
-
-  return (
-    <div className={styles.wrap}>
-      <div className={styles.inbox}>
-        <div className={styles.inboxHead}>
-          <span>Innboks</span>
-          <button className={styles.iconBtn} onClick={loadInbox} title="Oppdater">⟳</button>
-        </div>
-        {loadErr && <div className={styles.err}>{loadErr}</div>}
-        {threads === null ? (
-          <div className={styles.loading}>Laster …</div>
-        ) : (
-          <div className={styles.threadList}>
-            {threads.map((t) => (
-              <button key={t.key}
-                className={`${styles.threadItem} ${selected?.key === t.key ? styles.active : ""}`}
-                onClick={() => setSelected(t)}>
-                <Avatar p={t.from} />
-                <div className={styles.tiBody}>
-                  <div className={styles.tiTop}>
-                    <span className={`${styles.tiFrom} ${t.unread ? styles.bold : ""}`}>
-                      {t.from.name || t.from.address}
-                    </span>
-                    <span className={styles.tiDate}>{fmtDate(t.date)}</span>
-                  </div>
-                  <div className={`${styles.tiSubject} ${t.unread ? styles.bold : ""}`}>
-                    {t.subject || "(uten emne)"}
-                    {t.count > 1 && <span className={styles.tiCount}>{t.count}</span>}
-                    {t.attach && <span className={styles.tiClip}>📎</span>}
-                  </div>
-                </div>
-                {t.unread > 0 && <span className={styles.unreadDot} />}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className={styles.detail}>
-        {selected ? (
-          <ThreadView key={selected.key} thread={selected} me={account.email} />
-        ) : (
-          <div className={styles.empty}>Velg en tråd</div>
-        )}
-      </div>
-    </div>
-  );
-}
-

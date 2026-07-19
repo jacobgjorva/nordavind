@@ -146,15 +146,18 @@
   color: var(--text-faint);
 }
 
+/* Inline i chatten: kort-ramme rundt hele tråden. */
 .thread {
-  max-width: 760px;
   width: 100%;
-  margin: 0 auto;
-  padding: 24px 28px 40px;
+  margin: 8px 0;
+  padding: 18px 20px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.022);
 }
 
 .threadHead h2 {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 650;
   color: var(--text);
   margin: 0 0 14px;
