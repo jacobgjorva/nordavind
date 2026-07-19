@@ -18,6 +18,9 @@ import {
   SOURCE_OPTIONS,
   DRIVER_MAP,
   DB_FLOW,
+  INSTRUCTION_RE,
+  FREE_FIELDS,
+  matchDriver,
   type FlowStep,
   type LogMsg,
 } from "./connectorFlow";
@@ -304,7 +307,9 @@ export function ChatWizard(_props: {
         say("bot", `${value} kommer snart — foreløpig støtter vi Database.`);
         return;
       }
-      askAgent(null, value);
+      // Kun ekte endre-intensjon trenger AI; ellers en kode-basert påminnelse.
+      if (INSTRUCTION_RE.test(value)) askAgent(null, value);
+      else say("bot", "Velg Database for å fortsette — det er den vi støtter nå.");
       return;
     }
 
@@ -320,10 +325,22 @@ export function ChatWizard(_props: {
       askAgent(null, value);
       return;
     }
-    // Menyvalg (eller passord) går rett gjennom skriptet; annen fritekst
-    // vurderes av agenten.
+    // Menyvalg og passord går rett gjennom. Ellers prøver vi å tolke svaret i
+    // kode (frie felt godtas direkte, driver/port valideres), og bruker KUN AI
+    // når teksten uttrykker en endre-/angre-intensjon.
     const isSuggestion = step.options(answers).includes(value);
     if (isSuggestion || step.secret) {
+      acceptAnswer(step, value);
+    } else if (INSTRUCTION_RE.test(value)) {
+      askAgent(step, value);
+    } else if (step.key === "driver") {
+      const d = matchDriver(value);
+      if (d) acceptAnswer(step, d);
+      else say("bot", "Vi støtter PostgreSQL, MySQL og SQL Server foreløpig.");
+    } else if (step.key === "port") {
+      if (/^\d+$/.test(value)) acceptAnswer(step, value);
+      else askAgent(step, value);
+    } else if (FREE_FIELDS.has(step.key)) {
       acceptAnswer(step, value);
     } else {
       askAgent(step, value);

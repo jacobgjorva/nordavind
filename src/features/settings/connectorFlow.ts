@@ -60,3 +60,19 @@ export interface LogMsg {
   role: "bot" | "user";
   text: string;
 }
+
+// Fritekst som uttrykker at brukeren vil endre/angre noe (ikke et feltsvar).
+// Kun da trengs AI for å tolke intensjon — vanlige feltsvar godtas i kode.
+export const INSTRUCTION_RE = /\b(bytt|bytte|endre|endra|angre|vent|tilbake|feil)\b|\?/i;
+
+// Frie felt der ethvert rimelig svar godtas direkte uten AI-validering.
+export const FREE_FIELDS = new Set(["name", "host", "database", "user"]);
+
+// matchDriver kjenner igjen databasetype fra fritekst uten AI. Tom = ukjent.
+export function matchDriver(text: string): string {
+  const t = text.trim().toLowerCase();
+  if (/postgres/.test(t)) return "PostgreSQL";
+  if (/mysql|maria/.test(t)) return "MySQL";
+  if (/sql ?server|mssql/.test(t)) return "SQL Server";
+  return Object.keys(DRIVER_MAP).find((k) => k.toLowerCase() === t) ?? "";
+}
