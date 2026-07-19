@@ -162,7 +162,9 @@ export function WidgetView({ slug }: { slug: string }) {
   // ready = { spec, data } først når ALT er lastet; da felles kortet inn.
   const [ready, setReady] = useState<{ spec: WidgetSpec; data: QueryResult | null } | null>(null);
   const [error, setError] = useState(false);
-  const wasRevealed = revealed.has(slug);
+  // Fang ved mount: recall/reload (allerede avslørt) hopper over animasjonen,
+  // men første bygging animerer. Live-oppslag ville blitt sant for tidlig.
+  const wasRevealed = useRef(revealed.has(slug)).current;
 
   // Myk høyde-overgang fra skeleton til ferdig kort (ikke hopp).
   const wrapRef = useRef<HTMLDivElement>(null);
