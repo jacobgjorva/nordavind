@@ -244,9 +244,7 @@ export function MailReply({ threadKey }: { threadKey: string }) {
         onChange={(e) => setBody(e.target.value)} readOnly={refining}
         placeholder={refining || body ? "" : "AI skriver et forslag …"} />
       <div className={styles.sendRow}>
-        <span className={styles.sigNote}>
-          {refining ? "AI justerer …" : "Signatur legges til automatisk"}
-        </span>
+        <span className={styles.sigNote}>{refining ? "AI justerer …" : ""}</span>
         <button className={styles.sendBtn} onClick={send} disabled={sending || !body.trim()}
           title="Send" aria-label="Send">
           <HugeiconsIcon icon={TelegramIcon} size={18} />
