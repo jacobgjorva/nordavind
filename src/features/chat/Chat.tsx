@@ -340,6 +340,8 @@ export function Chat({
   const [widgets, setWidgets] = useState<Widget[]>([]);
   // Satt til en slug mens en widget bygges/redigeres i denne samtalen.
   const widgetEditRef = useRef<string | null>(null);
+  // True etter et bart /widget: neste melding blir widget-beskrivelsen.
+  const widgetPendingRef = useRef(false);
 
   function reloadWidgets() {
     listWidgets().then(setWidgets).catch(() => {});
@@ -562,30 +564,51 @@ export function Chat({
     const isAgentCmd = /^\/agent\b/i.test(raw);
     if (isAgentCmd) agentModeRef.current = true;
 
-    // /widget <navn> [instruks]: opprett (om ny) og bygg widgeten. Editoren
-    // holdes åpen resten av samtalen, som /agent.
+    // /widget [beskrivelse]: gå i widget-editor. Uten beskrivelse venter vi
+    // på neste melding. Editoren holdes åpen resten av samtalen (som /agent),
+    // og widgeten opprettes fra beskrivelsen (navn/slug fra den).
     const isWidgetCmd = /^\/widget\b/i.test(raw);
-    let widgetSeed = raw;
+    let widgetDesc = "";
     if (isWidgetCmd) {
-      const rest = raw.replace(/^\/widget\s*/i, "").trim();
-      const [name, ...instr] = rest.split(/\s+/);
-      if (name) {
-        try {
-          const wg = await createWidget(name);
-          widgetEditRef.current = wg.slug;
-        } catch {
-          widgetEditRef.current = slugify(name);
-        }
-        reloadWidgets();
+      widgetDesc = raw.replace(/^\/widget\s*/i, "").trim();
+      if (!widgetDesc) {
+        widgetPendingRef.current = true;
+        setInput("");
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: "assistant",
+            content: "Beskriv widgeten du vil bygge.",
+            revealed: true,
+          },
+        ]);
+        return;
       }
-      widgetSeed = instr.join(" ");
+    } else if (widgetPendingRef.current) {
+      // Ventet på beskrivelse etter et bart /widget.
+      widgetDesc = raw;
+    }
+
+    // Opprett widgeten første gang vi har en beskrivelse i denne samtalen.
+    const buildingWidget = (isWidgetCmd || widgetPendingRef.current) && !!widgetDesc;
+    if (buildingWidget && !widgetEditRef.current) {
+      try {
+        const wg = await createWidget(widgetDesc.slice(0, 60));
+        widgetEditRef.current = wg.slug;
+      } catch {
+        widgetEditRef.current = slugify(widgetDesc.slice(0, 60));
+      }
+      widgetPendingRef.current = false;
+      reloadWidgets();
     }
 
     const stripped = isAgentCmd ? raw.replace(/^\/agent\s*/i, "").trim() : raw;
     const text = isAgentCmd
       ? stripped || "Jeg vil sette opp en agent."
-      : isWidgetCmd
-        ? widgetSeed || "Jeg vil bygge en widget."
+      : buildingWidget
+        ? widgetDesc
         : stripped;
 
     // Armert korrigering: logg denne meldingen som feedback på svaret.
