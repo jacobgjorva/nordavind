@@ -9,6 +9,7 @@ import {
   DashboardSquare01Icon,
   Delete01Icon,
   FastWindIcon,
+  Mail01Icon,
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
@@ -134,7 +135,7 @@ const SLASH_ACTIONS: {
     cmd: "mail",
     label: "Mail",
     desc: "Les og svar på e-post med AI",
-    icon: AnonymousIcon,
+    icon: Mail01Icon,
   },
 ];
 
@@ -893,7 +894,7 @@ export function Chat({
           cmd: "mailthread:" + t.key,
           label: t.subject || "(uten emne)",
           desc: `${t.from.name || t.from.address} · ${new Date(t.date).toLocaleDateString("no-NO", { day: "2-digit", month: "short" })}${t.unread ? " · ulest" : ""}`,
-          icon: AnonymousIcon,
+          icon: Mail01Icon,
         }))
     : slashMatch
       ? [
