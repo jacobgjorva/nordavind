@@ -439,6 +439,13 @@ export function Chat({
       fetchInbox().then(setMailThreads).catch(() => {});
     }
   }, [input]);
+
+  // Sendt e-post: avslutt justerings-modus.
+  useEffect(() => {
+    const onSent = () => { activeMailReplyRef.current = null; };
+    window.addEventListener("nordavind:mail-sent", onSent);
+    return () => window.removeEventListener("nordavind:mail-sent", onSent);
+  }, []);
   // Bris er standard til backend melder hvilken modell som faktisk svarte.
   const [activeModel, setActiveModel] = useState<string | null>(
     "qwen3-235b-a22b-instruct-2507"
@@ -460,6 +467,8 @@ export function Chat({
   const agentModeRef = useRef(false);
   // Tråd-nøkkel som venter på «ja» for å launche svarforslag.
   const pendingMailReplyRef = useRef<string | null>(null);
+  // Tråd-nøkkel for et åpent svarforslag: chat-meldinger blir justering.
+  const activeMailReplyRef = useRef<string | null>(null);
   const hasMessages = messages.length > 0;
 
   // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
@@ -637,6 +646,7 @@ export function Chat({
       if (yes) {
         setInput("");
         const block = "```mailreply\n" + key + "\n```";
+        activeMailReplyRef.current = key;
         setMessages((prev) => [
           ...prev,
           { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
@@ -652,6 +662,24 @@ export function Chat({
       }
       // Ikke «ja» → fall gjennom til vanlig chat.
     }
+
+    // Åpent svarforslag: en vanlig melding blir justering av utkastet.
+    if (activeMailReplyRef.current && !raw.startsWith("/")) {
+      const key = activeMailReplyRef.current;
+      setInput("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+      ]);
+      window.dispatchEvent(
+        new CustomEvent("nordavind:mail-refine", { detail: { key, feedback: raw } })
+      );
+      const cid = chatIdRef.current;
+      if (cid) appendChatMessage(cid, { role: "user", content: raw }).catch(() => {});
+      return;
+    }
+    if (raw.startsWith("/")) activeMailReplyRef.current = null;
 
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();

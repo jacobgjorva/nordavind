@@ -228,108 +228,102 @@
   font-family: inherit;
 }
 
-/* ── Komposør ── */
-.composer {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 0.5px solid var(--border);
+/* ── Svarforslag-kort (ett rent kort, ingen skillestreker) ── */
+.replyCard {
+  width: 100%;
+  margin: 8px 0;
+  padding: 16px 18px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: opacity var(--dur-fast) var(--ease);
 }
 
-.recips { display: flex; flex-direction: column; gap: 6px; }
+.refining { opacity: 0.7; }
 
-.recipRow { display: flex; align-items: flex-start; gap: 10px; }
+.recips { display: flex; flex-direction: column; gap: 8px; }
+
+.recipRow { display: flex; align-items: center; gap: 12px; }
 
 .recipLabel {
-  width: 60px;
+  width: 40px;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-faint);
-  padding-top: 5px;
 }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  border: 0.5px solid var(--border-strong);
+  gap: 7px;
+  padding: 3px 9px 3px 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  overflow: hidden;
+  background: var(--bg-hover);
 }
 
-.chipMove {
-  border: none;
-  background: none;
+.chipAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.chipName {
+  font-size: 13px;
   color: var(--text);
-  font-size: 12.5px;
-  padding: 4px 4px 4px 11px;
-  cursor: pointer;
 }
 
 .chipX {
   border: none;
   background: none;
   color: var(--text-faint);
-  font-size: 14px;
-  padding: 0 9px 0 4px;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
   cursor: pointer;
 }
 
 .chipX:hover { color: #e8888d; }
 
 .recipInput {
-  flex: 1;
   border: none;
   background: none;
   color: var(--text);
   font-size: 13px;
   outline: none;
   padding: 4px 0;
+  min-width: 100px;
 }
 
 .subject {
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--text);
-  padding: 4px 0;
-  border-bottom: 0.5px solid var(--border);
+  color: var(--text-muted);
 }
 
 .draft {
   width: 100%;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  background: none;
   color: var(--text);
   font-family: inherit;
-  font-size: 14px;
-  line-height: 1.55;
-  padding: 12px 14px;
-  resize: vertical;
+  font-size: 14.5px;
+  line-height: 1.6;
+  padding: 0;
+  resize: none;
   outline: none;
 }
-
-.draft:focus { border-color: #047aff; }
-
-.feedbackRow { display: flex; gap: 8px; }
-
-.feedback {
-  flex: 1;
-  height: 40px;
-  padding: 0 14px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--text);
-  font-size: 13.5px;
-  outline: none;
-}
-
-.feedback:focus { border-color: #047aff; }
 
 .sendRow {
   display: flex;

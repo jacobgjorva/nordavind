@@ -19,6 +19,18 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("no-NO", { day: "2-digit", month: "short" });
 }
 
+function avatarColor(addr: string): string {
+  let h = 0;
+  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) % 360;
+  return `hsl(${h}, 45%, 45%)`;
+}
+
+function initials(p: MailPerson): string {
+  const src = (p.name || p.address).trim();
+  const parts = src.split(/[\s@.]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
 // ── Én melding i tråden ──
 function ThreadMessage({ m, essence }: { m: MailMessage; essence?: string }) {
   const [open, setOpen] = useState(false);
@@ -88,9 +100,41 @@ export function MailThread({ threadKey }: { threadKey: string }) {
   );
 }
 
-// ── Mottaker-chips (klikk for å bytte felt, × for å fjerne) ──
+// ── Mottaker-chips med avatar (× for å fjerne, + for å legge til) ──
 type Field = "to" | "cc" | "bcc";
 const FIELD_LABEL: Record<Field, string> = { to: "Til", cc: "Kopi", bcc: "Blindkopi" };
+
+function ChipRow({ f, people, onRemove, onAdd }: {
+  f: Field;
+  people: MailPerson[];
+  onRemove: (addr: string) => void;
+  onAdd?: (addr: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  return (
+    <div className={styles.recipRow}>
+      <span className={styles.recipLabel}>{FIELD_LABEL[f]}</span>
+      <div className={styles.chips}>
+        {people.map((p) => (
+          <span key={p.address} className={styles.chip}>
+            <span className={styles.chipAvatar} style={{ background: avatarColor(p.address) }}>
+              {initials(p)}
+            </span>
+            <span className={styles.chipName}>{p.name || p.address}</span>
+            <button className={styles.chipX} onClick={() => onRemove(p.address)}>×</button>
+          </span>
+        ))}
+        {onAdd && (
+          <input className={styles.recipInput} placeholder="legg til …"
+            value={draft} onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && draft.trim()) { e.preventDefault(); onAdd(draft.trim()); setDraft(""); }
+            }} />
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Recipients({
   value,
@@ -99,61 +143,26 @@ function Recipients({
   value: Record<Field, MailPerson[]>;
   onChange: (v: Record<Field, MailPerson[]>) => void;
 }) {
-  const [draft, setDraft] = useState("");
-  const cycle = (from: Field, addr: string) => {
-    const order: Field[] = ["to", "cc", "bcc"];
-    const next = order[(order.indexOf(from) + 1) % 3];
-    const person = value[from].find((p) => p.address === addr)!;
-    onChange({
-      ...value,
-      [from]: value[from].filter((p) => p.address !== addr),
-      [next]: [...value[next], person],
-    });
-  };
   const remove = (f: Field, addr: string) =>
     onChange({ ...value, [f]: value[f].filter((p) => p.address !== addr) });
-  const add = () => {
-    const a = draft.trim();
-    if (!a) return;
-    onChange({ ...value, to: [...value.to, { name: "", address: a }] });
-    setDraft("");
-  };
   return (
     <div className={styles.recips}>
-      {(["to", "cc", "bcc"] as Field[]).map((f) =>
-        value[f].length ? (
-          <div key={f} className={styles.recipRow}>
-            <span className={styles.recipLabel}>{FIELD_LABEL[f]}</span>
-            <div className={styles.chips}>
-              {value[f].map((p) => (
-                <span key={p.address} className={styles.chip}>
-                  <button className={styles.chipMove} title="Bytt felt" onClick={() => cycle(f, p.address)}>
-                    {p.name || p.address}
-                  </button>
-                  <button className={styles.chipX} onClick={() => remove(f, p.address)}>×</button>
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null
+      <ChipRow f="to" people={value.to} onRemove={(a) => remove("to", a)}
+        onAdd={(a) => onChange({ ...value, to: [...value.to, { name: "", address: a }] })} />
+      {value.cc.length > 0 && (
+        <ChipRow f="cc" people={value.cc} onRemove={(a) => remove("cc", a)} />
       )}
-      <div className={styles.recipRow}>
-        <span className={styles.recipLabel}>+</span>
-        <input className={styles.recipInput} placeholder="Legg til mottaker …"
-          value={draft} onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
-      </div>
     </div>
   );
 }
 
-// ── Svarforslag med Send (launches etter «ja» i chatten) ──
+// ── Svarforslag med Send. Justering skjer via hoved-chatten: den sender et
+// «nordavind:mail-refine»-event som dette kortet lytter på. ──
 export function MailReply({ threadKey }: { threadKey: string }) {
   const [msgs, setMsgs] = useState<MailMessage[] | null>(null);
   const [recips, setRecips] = useState<Record<Field, MailPerson[]>>({ to: [], cc: [], bcc: [] });
   const [subjectBase, setSubjectBase] = useState("");
   const [body, setBody] = useState("");
-  const [feedback, setFeedback] = useState("");
   const [refining, setRefining] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -181,19 +190,27 @@ export function MailReply({ threadKey }: { threadKey: string }) {
     return () => { alive = false; };
   }, [threadKey]);
 
+  // Justering fra hoved-chatten.
+  useEffect(() => {
+    const onRefine = async (e: Event) => {
+      const d = (e as CustomEvent<{ key: string; feedback: string }>).detail;
+      if (d.key !== threadKey) return;
+      setRefining(true);
+      try {
+        setBody((prev) => prev);
+        const next = await refineDraft(threadKey, body, d.feedback);
+        setBody(next);
+      } finally {
+        setRefining(false);
+      }
+    };
+    window.addEventListener("nordavind:mail-refine", onRefine);
+    return () => window.removeEventListener("nordavind:mail-refine", onRefine);
+  }, [threadKey, body]);
+
   const subject = `Re: ${subjectBase}`;
   const last = msgs?.[msgs.length - 1];
 
-  async function refine() {
-    if (!feedback.trim()) return;
-    setRefining(true);
-    try {
-      setBody(await refineDraft(threadKey, body, feedback));
-      setFeedback("");
-    } finally {
-      setRefining(false);
-    }
-  }
   async function send() {
     setSending(true);
     try {
@@ -203,6 +220,7 @@ export function MailReply({ threadKey }: { threadKey: string }) {
         in_reply_to: last?.message_id, references: last?.message_id,
       });
       setSent(true);
+      window.dispatchEvent(new CustomEvent("nordavind:mail-sent", { detail: { key: threadKey } }));
     } catch (e) {
       alert(e instanceof Error ? e.message : "Sending feilet");
     } finally {
@@ -211,31 +229,22 @@ export function MailReply({ threadKey }: { threadKey: string }) {
   }
 
   if (sent)
-    return <div className={styles.thread}><div className={styles.sentBox}>Sendt ✓</div></div>;
+    return <div className={styles.replyCard}><div className={styles.sentBox}>Sendt ✓</div></div>;
 
   return (
-    <div className={styles.thread}>
-      <div className={styles.composer}>
-        <Recipients value={recips} onChange={setRecips} />
-        <div className={styles.subject}>{subject}</div>
-        <textarea className={styles.draft} value={body} rows={7}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={body ? "" : "AI skriver et forslag …"} />
-        <div className={styles.feedbackRow}>
-          <input className={styles.feedback} value={feedback}
-            placeholder="Be AI justere svaret (f.eks. «kortere, mer formell») …"
-            onChange={(e) => setFeedback(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); refine(); } }} />
-          <button className={styles.ghost} onClick={refine} disabled={refining || !feedback.trim()}>
-            {refining ? "…" : "Juster"}
-          </button>
-        </div>
-        <div className={styles.sendRow}>
-          <span className={styles.sigNote}>Signatur legges til automatisk</span>
-          <button className={styles.primary} onClick={send} disabled={sending || !body.trim()}>
-            {sending ? "Sender …" : "Send"}
-          </button>
-        </div>
+    <div className={`${styles.replyCard} ${refining ? styles.refining : ""}`}>
+      <Recipients value={recips} onChange={setRecips} />
+      <div className={styles.subject}>{subject}</div>
+      <textarea className={styles.draft} value={body} rows={8}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder={body ? "" : "AI skriver et forslag …"} />
+      <div className={styles.sendRow}>
+        <span className={styles.sigNote}>
+          {refining ? "AI justerer …" : "Signatur legges til automatisk"}
+        </span>
+        <button className={styles.primary} onClick={send} disabled={sending || !body.trim()}>
+          {sending ? "Sender …" : "Send"}
+        </button>
       </div>
     </div>
   );
