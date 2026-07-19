@@ -239,9 +239,9 @@ export function MailReply({ threadKey }: { threadKey: string }) {
       {refining && <div className={styles.sheen} />}
       <Recipients value={recips} onChange={setRecips} />
       <div className={styles.subject}>{subject}</div>
-      <textarea className={styles.draft} value={body} rows={8}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder={body ? "" : "AI skriver et forslag …"} />
+      <textarea className={styles.draft} value={refining ? "" : body} rows={8}
+        onChange={(e) => setBody(e.target.value)} readOnly={refining}
+        placeholder={refining || body ? "" : "AI skriver et forslag …"} />
       <div className={styles.sendRow}>
         <span className={styles.sigNote}>
           {refining ? "AI justerer …" : "Signatur legges til automatisk"}
