@@ -79,16 +79,19 @@ export async function threadPreview(
 }
 
 // Deles av trådkortet og forslags-meldingen så tråden bare tolkes én gang.
-const analyzeCache = new Map<string, Promise<MailAnalysis>>();
+// TTL slik at en tråd som får ny e-post re-analyseres etter en stund i stedet
+// for å servere et utdatert AI-sammendrag.
+const ANALYZE_TTL_MS = 5 * 60 * 1000;
+const analyzeCache = new Map<string, { p: Promise<MailAnalysis>; ts: number }>();
 
 export function analyzeThread(key: string): Promise<MailAnalysis> {
   const cached = analyzeCache.get(key);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.ts < ANALYZE_TTL_MS) return cached.p;
   const p = apiFetch<MailAnalysis>(
     `/mail/analyze?key=${encodeURIComponent(key)}`,
     { method: "POST" }
   );
-  analyzeCache.set(key, p);
+  analyzeCache.set(key, { p, ts: Date.now() });
   p.catch(() => analyzeCache.delete(key)); // la feil kunne prøves på nytt
   return p;
 }
