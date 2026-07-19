@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Chat } from "../features/chat/Chat";
+import { AnimationsPreview } from "../features/dev/AnimationsPreview";
 import { Login } from "../features/auth/Login";
 import { Settings } from "../features/settings/Settings";
 import { Sidebar } from "../layout/Sidebar";
@@ -14,6 +15,15 @@ import {
 import styles from "./App.module.css";
 
 export default function App() {
+  // MIDLERTIDIG: /animations viser skapelses-animasjonen isolert (kan slettes).
+  if (
+    typeof window !== "undefined" &&
+    (window.location.pathname === "/animations" ||
+      window.location.hash === "#/animations")
+  ) {
+    return <AnimationsPreview />;
+  }
+
   const [view, setView] = useState<"chat" | "settings">("chat");
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke

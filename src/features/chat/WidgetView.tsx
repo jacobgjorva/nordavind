@@ -170,7 +170,7 @@ const makeParticle = (back: boolean) => ({
   depthDelay: -Math.random() * 4,
 });
 
-function WindForming({ dissipating }: { dissipating?: boolean }) {
+export function WindForming({ dissipating }: { dissipating?: boolean }) {
   const parts = useMemo(
     () =>
       // Bakgrunnslaget først i DOM så det males bak forgrunnen.
