@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { swallow } from "../../lib/log";
 import {
   fetchKnowledgeGraph,
   updateNode,
@@ -64,7 +65,7 @@ export function KnowledgeGraph() {
           }
         : d
     );
-    updateNode(id, t, s).catch(() => {});
+    updateNode(id, t, s).catch(swallow);
   }
 
   useEffect(() => {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { createAgent, fetchAgentConnections } from "../../lib/api";
 import type { AgentInfo as ApiAgentInfo } from "../../lib/api";
 import { registerBlock } from "../../features/chat/blocks/registry";
+import { emit } from "../../lib/events";
+import { swallow } from "../../lib/log";
 import styles from "./AgentWidgets.module.css";
 
 // Widget-varianten: samme domenetype som API-et, men alle felt valgfrie
@@ -118,7 +120,7 @@ function AgentSetup({
           c.some((x) => x.id === cur) ? cur : c.length === 1 ? c[0].id : cur
         );
       })
-      .catch(() => {});
+      .catch(swallow);
   }, []);
 
   const intervalSec = Math.max(900, Number(initial("interval")) || 86400);
@@ -148,7 +150,7 @@ function AgentSetup({
         write_access: Boolean(initial("write")),
       });
       setDone(true);
-      window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
+      emit("agents-changed");
     } catch {
       setError("Kunne ikke aktivere agenten.");
     } finally {

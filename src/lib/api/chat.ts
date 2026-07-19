@@ -1,5 +1,6 @@
 import { BASE_URL, API_KEY, authHeaders, apiFetch } from "./client";
 import type { ApiMessage, Role } from "./client";
+import { swallow } from "../log";
 
 export interface ChatSummary {
   id: string;
@@ -47,7 +48,7 @@ export function extractKnowledge(payload: {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(payload),
-  }).catch(() => {});
+  }).catch(swallow);
 }
 
 // Logger neste brukermelding som korrigering på et AI-svar (opptrening senere).

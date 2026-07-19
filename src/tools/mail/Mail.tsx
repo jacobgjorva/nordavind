@@ -10,6 +10,8 @@ import {
   type MailMessage,
   type MailPerson,
 } from "../../lib/api";
+import { emit, on } from "../../lib/events";
+import { swallow } from "../../lib/log";
 import styles from "./Mail.module.css";
 
 function fmtDate(iso: string): string {
@@ -90,7 +92,7 @@ export function MailThread({ threadKey }: { threadKey: string }) {
     analyzeThread(threadKey).then((a) => {
       if (!alive) return;
       setAnalysis(a);
-    }).catch(() => {});
+    }).catch(swallow);
     return () => { alive = false; };
   }, [threadKey]);
 
@@ -199,30 +201,29 @@ export function MailReply({ threadKey }: { threadKey: string }) {
       );
       setRecips({ to, cc, bcc: [] });
     });
-    analyzeThread(threadKey).then((a) => { if (alive) setBody(a.draft); }).catch(() => {});
+    analyzeThread(threadKey).then((a) => { if (alive) setBody(a.draft); }).catch(swallow);
     return () => { alive = false; };
   }, [threadKey]);
 
   // Justering fra hoved-chatten.
-  useEffect(() => {
-    const onRefine = async (e: Event) => {
-      const d = (e as CustomEvent<{ key: string; feedback: string }>).detail;
-      if (d.key !== threadKey) return;
-      const started = performance.now();
-      setRefining(true);
-      try {
-        const next = await refineDraft(threadKey, body, d.feedback);
-        // Glansen kjører til det nye utkastet er satt, og minst én full sveip.
-        const wait = Math.max(0, 1300 - (performance.now() - started));
-        await new Promise((r) => setTimeout(r, wait));
-        setBody(next);
-      } finally {
-        setRefining(false);
-      }
-    };
-    window.addEventListener("nordavind:mail-refine", onRefine);
-    return () => window.removeEventListener("nordavind:mail-refine", onRefine);
-  }, [threadKey, body]);
+  useEffect(
+    () =>
+      on("mail-refine", async (d) => {
+        if (d.key !== threadKey) return;
+        const started = performance.now();
+        setRefining(true);
+        try {
+          const next = await refineDraft(threadKey, body, d.feedback);
+          // Glansen kjører til det nye utkastet er satt, og minst én full sveip.
+          const wait = Math.max(0, 1300 - (performance.now() - started));
+          await new Promise((r) => setTimeout(r, wait));
+          setBody(next);
+        } finally {
+          setRefining(false);
+        }
+      }),
+    [threadKey, body]
+  );
 
   const subject = `Re: ${subjectBase}`;
   const last = msgs?.[msgs.length - 1];
@@ -236,7 +237,7 @@ export function MailReply({ threadKey }: { threadKey: string }) {
         in_reply_to: last?.message_id, references: last?.message_id,
       });
       setSent(true);
-      window.dispatchEvent(new CustomEvent("nordavind:mail-sent", { detail: { key: threadKey } }));
+      emit("mail-sent", { key: threadKey });
     } catch (e) {
       alert(e instanceof Error ? e.message : "Sending feilet");
     } finally {

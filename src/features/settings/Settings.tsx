@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { swallow } from "../../lib/log";
 import { Usage } from "./Usage";
 import { Quota } from "./Quota";
 import { Knowledge } from "./Knowledge";
@@ -46,7 +47,7 @@ export function Settings({ user }: { user: AuthUser }) {
   const [knowSub, setKnowSub] = useState<"graf" | "forslag">("graf");
 
   function reloadConns() {
-    fetchConnections().then(setConns).catch(() => {});
+    fetchConnections().then(setConns).catch(swallow);
   }
 
   useEffect(() => {

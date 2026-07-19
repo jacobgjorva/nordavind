@@ -11,6 +11,8 @@ import {
   type AuthUser,
   type ChatSummary,
 } from "../lib/api";
+import { on } from "../lib/events";
+import { swallow } from "../lib/log";
 import styles from "./App.module.css";
 
 export default function App() {
@@ -42,27 +44,22 @@ export default function App() {
 
   useEffect(() => {
     if (user && user !== null) {
-      fetchChats().then(setChats).catch(() => {});
+      fetchChats().then(setChats).catch(swallow);
     }
   }, [user]);
 
   // Agent-widgeten varsler når en agent opprettes/slettes → oppdater listen.
-  useEffect(() => {
-    const reload = () => fetchChats().then(setChats).catch(() => {});
-    window.addEventListener("nordavind:agents-changed", reload);
-    return () => window.removeEventListener("nordavind:agents-changed", reload);
-  }, []);
+  useEffect(() => on("agents-changed", () => fetchChats().then(setChats).catch(swallow)), []);
 
   // Sletting av en agent-chat: naviger bort hvis den er åpen.
-  useEffect(() => {
-    const onDeleted = (e: Event) => {
-      const id = (e as CustomEvent<string | null>).detail;
-      fetchChats().then(setChats).catch(() => {});
-      if (id && id === activeChatId) newChat();
-    };
-    window.addEventListener("nordavind:chat-deleted", onDeleted);
-    return () => window.removeEventListener("nordavind:chat-deleted", onDeleted);
-  }, [activeChatId]);
+  useEffect(
+    () =>
+      on("chat-deleted", (id) => {
+        fetchChats().then(setChats).catch(swallow);
+        if (id && id === activeChatId) newChat();
+      }),
+    [activeChatId]
+  );
 
   const newChat = useCallback(() => {
     setActiveChatId(null);
@@ -85,7 +82,7 @@ export default function App() {
 
   const onChatCreated = useCallback((chat: ChatSummary) => {
     setActiveChatId(chat.id);
-    fetchChats().then(setChats).catch(() => {});
+    fetchChats().then(setChats).catch(swallow);
   }, []);
 
   const logout = useCallback(() => {
@@ -123,7 +120,7 @@ export default function App() {
             }
             onChatCreated={onChatCreated}
             onTitleGenerated={() => {
-              fetchChats().then(setChats).catch(() => {});
+              fetchChats().then(setChats).catch(swallow);
             }}
           />
         )}

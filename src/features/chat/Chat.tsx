@@ -48,6 +48,8 @@ import {
   thinkingLabel,
 } from "./messageParts";
 import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
+import { emit, on } from "../../lib/events";
+import { swallow } from "../../lib/log";
 import { formatTokens, nextId, isWidgetOnly, slugify } from "./chatHelpers";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
@@ -137,7 +139,7 @@ export function Chat({
   const widgetPendingRef = useRef(false);
 
   function reloadWidgets() {
-    listWidgets().then(setWidgets).catch(() => {});
+    listWidgets().then(setWidgets).catch(swallow);
   }
   useEffect(() => {
     reloadWidgets();
@@ -153,7 +155,7 @@ export function Chat({
   function previewOnHover(key: string) {
     if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = window.setTimeout(() => {
-      threadPreview(key).then(setMailPreview).catch(() => {});
+      threadPreview(key).then(setMailPreview).catch(swallow);
     }, 220);
   }
   function clearPreview() {
@@ -167,7 +169,7 @@ export function Chat({
     if (!trimmed || trimmed === title) return;
     setTitle(trimmed);
     const cid = chatIdRef.current;
-    if (cid) renameChat(cid, trimmed).catch(() => {});
+    if (cid) renameChat(cid, trimmed).catch(swallow);
   }
 
   // Last inn lagrede meldinger når en eksisterende samtale åpnes.
@@ -185,7 +187,7 @@ export function Chat({
           }))
         )
       )
-      .catch(() => {});
+      .catch(swallow);
   }, [chatId]);
 
   // Slå opp om chatten tilhører en agent (viser pause-knapp i topbaren).
@@ -203,7 +205,7 @@ export function Chat({
     setAgent({ ...agent, enabled: next });
     try {
       await setAgentEnabled(agent.id, next);
-      window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
+      emit("agents-changed");
     } catch {
       setAgent({ ...agent, enabled: !next });
     }
@@ -214,10 +216,8 @@ export function Chat({
     if (!confirm(`Slette agenten «${agent.name}» og chatten?`)) return;
     try {
       await deleteAgent(agent.id);
-      window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
-      window.dispatchEvent(
-        new CustomEvent("nordavind:chat-deleted", { detail: chatId })
-      );
+      emit("agents-changed");
+      emit("chat-deleted", chatId ?? undefined);
     } catch {
       // ignorer; brukeren kan prøve igjen
     }
@@ -229,16 +229,12 @@ export function Chat({
   useEffect(() => {
     if (/^\/mail\b/i.test(input) && !mailLoadedRef.current) {
       mailLoadedRef.current = true;
-      fetchInbox().then(setMailThreads).catch(() => {});
+      fetchInbox().then(setMailThreads).catch(swallow);
     }
   }, [input]);
 
   // Sendt e-post: avslutt justerings-modus.
-  useEffect(() => {
-    const onSent = () => { activeMailReplyRef.current = null; };
-    window.addEventListener("nordavind:mail-sent", onSent);
-    return () => window.removeEventListener("nordavind:mail-sent", onSent);
-  }, []);
+  useEffect(() => on("mail-sent", () => { activeMailReplyRef.current = null; }), []);
   // Bris er standard til backend melder hvilken modell som faktisk svarte.
   const [activeModel, setActiveModel] = useState<string | null>(
     "qwen3-235b-a22b-instruct-2507"
@@ -326,7 +322,7 @@ export function Chat({
         .then(() =>
           appendChatMessage(cid, { role: "assistant", content: block })
         )
-        .catch(() => {});
+        .catch(swallow);
     }
   }
 
@@ -361,7 +357,7 @@ export function Chat({
     if (cid) {
       appendChatMessage(cid, { role: "user", content: `📧 ${t?.subject ?? "E-post"}` })
         .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
-        .catch(() => {});
+        .catch(swallow);
     }
 
     // AI tolker tråden og foreslår å svare. Ved «ja» launcher vi svarforslaget.
@@ -376,7 +372,7 @@ export function Chat({
       pendingMailReplyRef.current = key;
       update(proposalId, { loading: false, content: proposal, revealed: true });
       if (cid)
-        appendChatMessage(cid, { role: "assistant", content: proposal }).catch(() => {});
+        appendChatMessage(cid, { role: "assistant", content: proposal }).catch(swallow);
     } catch {
       update(proposalId, { loading: false, content: "Skal jeg skrive et svar?", revealed: true });
       pendingMailReplyRef.current = key;
@@ -405,7 +401,7 @@ export function Chat({
         if (cid) {
           appendChatMessage(cid, { role: "user", content: raw })
             .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
-            .catch(() => {});
+            .catch(swallow);
         }
         return;
       }
@@ -427,11 +423,9 @@ export function Chat({
         const rest = prev.filter((m) => m !== reply);
         return reply ? [...rest, userMsg, reply] : [...rest, userMsg];
       });
-      window.dispatchEvent(
-        new CustomEvent("nordavind:mail-refine", { detail: { key, feedback: raw } })
-      );
+      emit("mail-refine", { key, feedback: raw });
       const cid = chatIdRef.current;
-      if (cid) appendChatMessage(cid, { role: "user", content: raw }).catch(() => {});
+      if (cid) appendChatMessage(cid, { role: "user", content: raw }).catch(swallow);
       return;
     }
     if (raw.startsWith("/")) activeMailReplyRef.current = null;
@@ -651,8 +645,8 @@ export function Chat({
 
       // Agenten kan ha endret seg selv via chatten — synk state + sidepanel.
       if (agent && chatIdRef.current) {
-        fetchChatAgent(chatIdRef.current).then(setAgent).catch(() => {});
-        window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
+        fetchChatAgent(chatIdRef.current).then(setAgent).catch(swallow);
+        emit("agents-changed");
       }
 
       // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
@@ -680,14 +674,14 @@ export function Chat({
               sources: sources.length ? JSON.stringify(sources) : undefined,
             })
           )
-          .catch(() => {});
+          .catch(swallow);
         if (isFirstExchange) {
           generateChatTitle(cid, text, acc)
             .then((t) => {
               setTitle(t);
               onTitleGenerated?.();
             })
-            .catch(() => {});
+            .catch(swallow);
         }
       }
     } catch (e) {

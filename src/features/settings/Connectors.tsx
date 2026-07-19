@@ -8,6 +8,7 @@ import {
 import styles from "./Connectors.module.css";
 import { ChatWizard } from "./ChatWizard";
 import { TableManager } from "./TableManager";
+import { swallow } from "../../lib/log";
 
 // Styrt visning: valget skjer i settings-navigasjonen (undersider av Connectors).
 export function Connectors({
@@ -28,13 +29,13 @@ export function Connectors({
   useEffect(() => {
     setSchema(null);
     if (conn) {
-      fetchConnectionSchema(conn.id).then(setSchema).catch(() => {});
+      fetchConnectionSchema(conn.id).then(setSchema).catch(swallow);
     }
   }, [conn?.id]);
 
   async function remove() {
     if (!conn || !confirm(`Fjerne tilkoblingen ${conn.name}?`)) return;
-    await deleteConnection(conn.id).catch(() => {});
+    await deleteConnection(conn.id).catch(swallow);
     onReload();
   }
 

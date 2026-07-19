@@ -8,6 +8,7 @@ import {
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
 import { AccessEditor } from "./AccessEditor";
+import { swallow } from "../../lib/log";
 
 const SQL_KW = new Set(
   ("select from where join left right inner outer full cross on group order by " +
@@ -92,7 +93,7 @@ export function TableManager({
   );
 
   useEffect(() => {
-    fetchAdminUsers().then(setUsers).catch(() => {});
+    fetchAdminUsers().then(setUsers).catch(swallow);
   }, []);
 
   const adminId = users.find((u) => u.role === "admin")?.id ?? "";

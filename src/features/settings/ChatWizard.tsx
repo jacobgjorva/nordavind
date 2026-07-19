@@ -22,6 +22,7 @@ import {
   type LogMsg,
 } from "./connectorFlow";
 import { TableManager } from "./TableManager";
+import { swallow } from "../../lib/log";
 
 // Ord-for-ord fade-in, samme animasjon som hovedchatten.
 function FadeText({ text }: { text: string }) {
@@ -76,15 +77,15 @@ export function ChatWizard(_props: {
   const [selUsers, setSelUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchAdminUsers().then(setUsers).catch(() => {});
-    fetchMe().then((r) => setMeId(r.user.id)).catch(() => {});
+    fetchAdminUsers().then(setUsers).catch(swallow);
+    fetchMe().then((r) => setMeId(r.user.id)).catch(swallow);
   }, []);
 
   // Redigering av eksisterende kobling: hopp rett til rutenettet.
   useEffect(() => {
     if (!_props.initialConn) return;
     setSavedConn(_props.initialConn);
-    fetchConnectionSchema(_props.initialConn.id).then(setSchema).catch(() => {});
+    fetchConnectionSchema(_props.initialConn.id).then(setSchema).catch(swallow);
   }, []);
 
   // Aktivt felt utledes av svarene: eksplisitt korrigering vinner, ellers
@@ -153,7 +154,7 @@ export function ChatWizard(_props: {
         password: a.password ?? "",
       });
       // Korrigering etter vellykket oppkobling: den nye erstatter den gamle.
-      if (savedConn) await deleteConnection(savedConn.id).catch(() => {});
+      if (savedConn) await deleteConnection(savedConn.id).catch(swallow);
       setSavedConn(conn);
       setStatus("Henter skjemaet");
       const sch = await fetchConnectionSchema(conn.id);
