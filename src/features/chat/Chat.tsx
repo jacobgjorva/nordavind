@@ -5,7 +5,7 @@ import { Logo } from "../../ui/Logo";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AnonymousIcon,
-  DashboardSquare01Icon,
+  BorderNone02Icon,
   Delete01Icon,
   Mail01Icon,
 } from "@hugeicons/core-free-icons";
@@ -96,7 +96,7 @@ const SLASH_ACTIONS: {
     cmd: "widget",
     label: "Ny widget",
     desc: "Bygg en widget med AI",
-    icon: DashboardSquare01Icon,
+    icon: BorderNone02Icon,
   },
   {
     cmd: "mail",
@@ -733,7 +733,7 @@ export function Chat({
               cmd: w.slug,
               label: w.title || w.slug,
               desc: "Widget",
-              icon: DashboardSquare01Icon,
+              icon: BorderNone02Icon,
             })),
         ]
       : [];
