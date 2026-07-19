@@ -168,8 +168,6 @@ export function WidgetView({ slug }: { slug: string }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const prevH = useRef(0);
-  const [h, setH] = useState<number | undefined>(undefined);
-  const [settled, setSettled] = useState(false);
 
   // Husk skeleton-høyden mens vi laster.
   useLayoutEffect(() => {
@@ -178,16 +176,28 @@ export function WidgetView({ slug }: { slug: string }) {
     }
   });
 
-  // Ved avsløring: animer fra skeleton-høyde til kortets høyde.
+  // Ved avsløring: animer fra skeleton-høyde til kortets høyde. Direkte DOM +
+  // tvungen reflow så «fra»-rammen faktisk males før overgangen starter.
   useLayoutEffect(() => {
     if ((!ready && !error) || wasRevealed) return;
+    const wrap = wrapRef.current;
     const inner = innerRef.current;
-    if (!inner) return;
+    if (!wrap || !inner) return;
+    const from = prevH.current;
     const to = inner.offsetHeight;
-    setSettled(false);
-    setH(prevH.current || to);
-    const raf = requestAnimationFrame(() => setH(to));
-    return () => cancelAnimationFrame(raf);
+    if (!from || from === to) return;
+    wrap.style.overflow = "hidden";
+    wrap.style.height = `${from}px`;
+    void wrap.offsetHeight; // tvungen reflow
+    wrap.style.height = `${to}px`;
+    const onEnd = (e: TransitionEvent) => {
+      if (e.propertyName !== "height") return;
+      wrap.style.height = "";
+      wrap.style.overflow = "";
+      wrap.removeEventListener("transitionend", onEnd);
+    };
+    wrap.addEventListener("transitionend", onEnd);
+    return () => wrap.removeEventListener("transitionend", onEnd);
   }, [ready, error, wasRevealed]);
 
   useEffect(() => {
@@ -242,18 +252,7 @@ export function WidgetView({ slug }: { slug: string }) {
 
   // Én container hele veien, så høyden kan animeres mykt ved avsløring.
   return (
-    <div
-      ref={wrapRef}
-      className={styles.widget}
-      style={
-        settled || h === undefined
-          ? undefined
-          : { height: h, overflow: "hidden" }
-      }
-      onTransitionEnd={(e) => {
-        if (e.propertyName === "height") setSettled(true);
-      }}
-    >
+    <div ref={wrapRef} className={styles.widget}>
       <div ref={innerRef}>
         {error ? (
           <div className={styles.card}>
