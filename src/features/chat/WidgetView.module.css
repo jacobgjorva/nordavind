@@ -20,11 +20,11 @@
   inset: 0;
   background: linear-gradient(
     105deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.06) 47%,
-    rgba(255, 255, 255, 0.11) 50%,
-    rgba(255, 255, 255, 0.06) 53%,
-    transparent 65%
+    transparent 33%,
+    rgba(255, 255, 255, 0.12) 46%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.12) 54%,
+    transparent 67%
   );
   transform: translateX(-100%);
   animation: sheen 2.6s ease-in-out infinite;
