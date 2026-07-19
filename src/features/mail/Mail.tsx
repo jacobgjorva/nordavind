@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
   analyzeThread,
-  deleteMailAccount,
   fetchInbox,
   fetchMailAccount,
   fetchThread,
   refineDraft,
-  saveMailAccount,
   sendMail,
   type MailAccount,
   type MailAnalysis,
@@ -46,66 +44,6 @@ function Avatar({ p }: { p: MailPerson }) {
   );
 }
 
-// ── Konto-oppsett ──
-function AccountSetup({ onSaved }: { onSaved: () => void }) {
-  const [f, setF] = useState({
-    email: "",
-    imap_host: "",
-    imap_port: 993,
-    smtp_host: "",
-    smtp_port: 587,
-    password: "",
-    signature: "",
-  });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const set = (k: string, v: string | number) => setF((s) => ({ ...s, [k]: v }));
-
-  async function save() {
-    setBusy(true);
-    setErr(null);
-    try {
-      await saveMailAccount(f);
-      onSaved();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Feil");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className={styles.setup}>
-      <h2>Koble til e-post</h2>
-      <p className={styles.setupHint}>
-        Finn IMAP/SMTP-innstillingene i Apple Mail: Innstillinger → Kontoer →
-        Serverinnstillinger. Bruk et app-passord om kontoen krever det.
-      </p>
-      <input className={styles.field} placeholder="E-post" value={f.email}
-        onChange={(e) => set("email", e.target.value)} />
-      <div className={styles.row2}>
-        <input className={styles.field} placeholder="IMAP-host (imap.…)" value={f.imap_host}
-          onChange={(e) => set("imap_host", e.target.value)} />
-        <input className={styles.fieldSm} placeholder="993" value={f.imap_port}
-          onChange={(e) => set("imap_port", Number(e.target.value) || 993)} />
-      </div>
-      <div className={styles.row2}>
-        <input className={styles.field} placeholder="SMTP-host (smtp.…)" value={f.smtp_host}
-          onChange={(e) => set("smtp_host", e.target.value)} />
-        <input className={styles.fieldSm} placeholder="587" value={f.smtp_port}
-          onChange={(e) => set("smtp_port", Number(e.target.value) || 587)} />
-      </div>
-      <input className={styles.field} type="password" placeholder="Passord / app-passord"
-        value={f.password} onChange={(e) => set("password", e.target.value)} />
-      <textarea className={styles.field} placeholder="Forretnings-signatur" rows={3}
-        value={f.signature} onChange={(e) => set("signature", e.target.value)} />
-      {err && <div className={styles.err}>{err}</div>}
-      <button className={styles.primary} onClick={save} disabled={busy}>
-        {busy ? "Kobler til …" : "Koble til"}
-      </button>
-    </div>
-  );
-}
 
 // ── Mottaker-chips (klikk for å bytte felt, × for å fjerne) ──
 type Field = "to" | "cc" | "bcc";
@@ -327,6 +265,7 @@ export function Mail() {
   }
 
   useEffect(() => {
+    // Kontoen er hardkodet i backend (dev). Vi henter kun status + innboks.
     fetchMailAccount()
       .then((a) => {
         setAccount(a);
@@ -342,8 +281,7 @@ export function Mail() {
   if (account === null)
     return (
       <div className={styles.wrap}>
-        <AccountSetup onSaved={() => { setAccount(undefined); loadedOnce.current = false;
-          fetchMailAccount().then((a) => { setAccount(a); if (a) { loadedOnce.current = true; loadInbox(); } }); }} />
+        <div className={styles.empty}>Ingen e-postkonto konfigurert.</div>
       </div>
     );
 
@@ -394,7 +332,3 @@ export function Mail() {
   );
 }
 
-// Innstillinger-lenke for å koble fra (brukes evt. senere).
-export async function disconnectMail() {
-  await deleteMailAccount();
-}
