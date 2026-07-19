@@ -63,12 +63,3 @@ export async function fetchWidgetData(slug: string): Promise<QueryResult> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
-
-// Sletter en widget.
-export async function deleteWidget(slug: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/widgets/${slug}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}

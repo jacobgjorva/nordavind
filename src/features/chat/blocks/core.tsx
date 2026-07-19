@@ -119,7 +119,7 @@ export function CodeBlock({ children, lang }: { children?: ReactNode; lang?: str
 }
 
 // Enkeltverdi (e-post, tlf, IBAN, ordrenr) med tydelig kopier-plass.
-export function CopyValue({ value, hint }: { value: string; hint?: string }) {
+function CopyValue({ value, hint }: { value: string; hint?: string }) {
   return (
     <span className={styles.valueChip}>
       <span className={styles.valueText}>{value}</span>
@@ -130,7 +130,7 @@ export function CopyValue({ value, hint }: { value: string; hint?: string }) {
 }
 
 // Nøkkeltall-kort for enkeltverdier.
-export function StatCard({
+function StatCard({
   label,
   value,
   unit,
@@ -159,7 +159,7 @@ export function StatCard({
 }
 
 // Tabell for rader (fra databasen), med kopier-hele.
-export function DataTable({
+function DataTable({
   columns,
   rows,
 }: {
@@ -198,7 +198,7 @@ export function DataTable({
 }
 
 // Handlingsrad: send e-post, eksporter CSV, last ned tekst.
-export function ActionBar({ actions }: { actions: WidgetAction[] }) {
+function ActionBar({ actions }: { actions: WidgetAction[] }) {
   function run(a: WidgetAction) {
     if (a.type === "mailto") {
       window.location.href = `mailto:${a.value}`;
@@ -225,7 +225,7 @@ export function ActionBar({ actions }: { actions: WidgetAction[] }) {
   );
 }
 
-export interface WidgetAction {
+interface WidgetAction {
   type: "mailto" | "download" | "copy";
   label: string;
   value: string;

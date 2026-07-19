@@ -52,30 +52,10 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
-export function ShareIcon(props: IconProps) {
-  return (
-    <svg {...svgProps(props)}>
-      <path d="M12 16V4" />
-      <path d="m7 8 5-4 5 4" />
-      <path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
-    </svg>
-  );
-}
-
 export function AttachIcon(props: IconProps) {
   return (
     <svg {...svgProps(props)}>
       <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
-}
-
-export function DotsIcon(props: IconProps) {
-  return (
-    <svg {...svgProps(props)}>
-      <circle cx="5" cy="12" r="0.75" />
-      <circle cx="12" cy="12" r="0.75" />
-      <circle cx="19" cy="12" r="0.75" />
     </svg>
   );
 }

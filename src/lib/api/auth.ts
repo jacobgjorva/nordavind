@@ -7,11 +7,6 @@ export interface AuthUser {
   role: string;
 }
 
-export interface AuthTenant {
-  id: string;
-  name: string;
-}
-
 export async function requestCode(email: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/auth/request-code`, {
     method: "POST",

@@ -1,15 +1,6 @@
 import { BASE_URL, authHeaders } from "./client";
 
 // ── Mail ──
-export interface MailAccount {
-  email: string;
-  imap_host: string;
-  imap_port: number;
-  smtp_host: string;
-  smtp_port: number;
-  signature: string;
-}
-
 export interface MailPerson {
   name: string;
   address: string;
@@ -50,26 +41,6 @@ export interface MailAnalysis {
   essences: string[];
   proposal: string;
   draft: string;
-}
-
-export async function fetchMailAccount(): Promise<MailAccount | null> {
-  const res = await fetch(`${BASE_URL}/mail/account`, { headers: authHeaders() });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function saveMailAccount(a: MailAccount & { password: string }): Promise<void> {
-  const res = await fetch(`${BASE_URL}/mail/account`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(a),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
-}
-
-export async function deleteMailAccount(): Promise<void> {
-  await fetch(`${BASE_URL}/mail/account`, { method: "DELETE", headers: authHeaders() });
 }
 
 export async function fetchInbox(): Promise<MailThreadSummary[]> {

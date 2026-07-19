@@ -102,14 +102,6 @@ export async function renameChat(id: string, title: string): Promise<string> {
   return (await res.json()).title;
 }
 
-export async function deleteChat(id: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/chats/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
 export interface Attachment {
   name: string;
   /** Uttrukket tekst (PDF/tekstfil). Tom for bilder. */

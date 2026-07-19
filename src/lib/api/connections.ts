@@ -71,22 +71,6 @@ export async function createConnection(payload: {
   return res.json();
 }
 
-export async function testConnection(payload: {
-  driver: string;
-  host: string;
-  port: number;
-  database: string;
-  user: string;
-  password: string;
-}): Promise<void> {
-  const res = await fetch(`${BASE_URL}/connections/test`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
-}
-
 export async function deleteConnection(id: string): Promise<void> {
   const res = await fetch(`${BASE_URL}/connections/${id}`, {
     method: "DELETE",

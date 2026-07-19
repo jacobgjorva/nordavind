@@ -46,15 +46,6 @@ export async function updateNode(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
-// Sletter en node.
-export async function deleteKnowledgeNode(id: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/knowledge/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
 // Godkjenner en node (med evt. redigert tekst).
 export async function acceptNode(
   id: string,
