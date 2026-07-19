@@ -199,6 +199,32 @@ export function Chat({
     fetchChatAgent(chatId).then(setAgent).catch(() => setAgent(null));
   }, [chatId]);
 
+  // Agent-chat: poll etter nye agent-meldinger mens chatten er åpen, så et
+  // trigget resultat dukker opp uten at brukeren må forlate og gå tilbake.
+  // Kun én lett henting hvert 15. sek, aldri under streaming.
+  useEffect(() => {
+    if (!chatId || !agent) return;
+    const id = window.setInterval(() => {
+      if (busyRef.current) return;
+      fetchChatMessages(chatId)
+        .then((stored) =>
+          setMessages((prev) => {
+            if (busyRef.current || stored.length <= prev.length) return prev;
+            const tail = stored.slice(prev.length).map((m) => ({
+              id: nextId(),
+              role: m.role,
+              content: m.content,
+              sources: m.sources ? JSON.parse(m.sources) : undefined,
+              revealed: true,
+            }));
+            return [...prev, ...tail];
+          })
+        )
+        .catch(swallow);
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [chatId, agent]);
+
   async function toggleAgentPause() {
     if (!agent) return;
     const next = !agent.enabled;
@@ -240,6 +266,9 @@ export function Chat({
     "qwen3-235b-a22b-instruct-2507"
   );
   const [busy, setBusy] = useState(false);
+  // Speiler busy til en ref så poll-intervallet kan lese ferskeste verdi.
+  const busyRef = useRef(false);
+  busyRef.current = busy;
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Armert svar: neste brukermelding logges som korrigering på dette svaret.
