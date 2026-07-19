@@ -2,23 +2,37 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Logo } from "../../ui/Logo";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  AttachIcon,
-  CopyIcon,
-  DotsIcon,
-  SearchIcon,
-  ShareIcon,
-} from "../../ui/Icons";
+  AnonymousIcon,
+  Copy01Icon,
+  DashboardSquare01Icon,
+  Delete01Icon,
+  FastWindIcon,
+} from "@hugeicons/core-free-icons";
+import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
   apiConfigured,
   appendChatMessage,
   createChat,
   extractFile,
   fetchChatMessages,
+  createWidget,
+  listWidgets,
+  type Widget,
+  deleteAgent,
+  extractKnowledge,
+  fetchChatAgent,
   generateChatTitle,
+  logCorrection,
+  readImage,
+  renameChat,
+  setAgentEnabled,
+  type AgentInfo,
   streamChat,
   type ApiMessage,
   type Attachment,
+  type ContentPart,
   type ChatSummary,
   type SourceRef,
 } from "../../lib/api";
@@ -43,13 +57,19 @@ function MarkdownPre({ children }: { children?: React.ReactNode }) {
   return <CodeBlock lang={lang}>{children}</CodeBlock>;
 }
 
-interface ChatMessage extends ApiMessage {
+interface ChatMessage extends Omit<ApiMessage, "content"> {
+  // content er alltid ren tekst for visning; multimodal payload (bilder)
+  // ligger i apiContent og sendes til modellen.
+  content: string;
+  apiContent?: ApiMessage["content"];
   id: string;
   loading?: boolean;
   error?: boolean;
   reasoning?: string;
   /** Svar under streaming — rendres med fade-in i stedet for markdown */
   streaming?: boolean;
+  /** Satt når fade-inn-animasjonen har spilt helt ut → bytt til markdown */
+  revealed?: boolean;
   /** Faktisk modell backend valgte (fra streamen) */
   resolvedModel?: string;
   /** Kilder fra backendens websøk */
@@ -60,48 +80,117 @@ interface ChatMessage extends ApiMessage {
   display?: string;
   /** Navn på vedlagte filer */
   attachmentNames?: string[];
+  /** data:-URL-er for vedlagte bilder (forhåndsvisning i bobla) */
+  images?: string[];
 }
 
 // Nordavind-aliaser: vindskalaen navngir modellnivåene i UI.
 const MODEL_ALIAS: Record<string, string> = {
-  "mistral-large-3": "Bris",
-  "glm-5.2": "Storm",
+  "qwen3-235b-a22b-instruct-2507": "Bris",
+  "qwen3.5-397b-a17b": "Storm",
+  "glm-5.2": "Orkan",
+  "qwen3.6-35b-a3b": "Kuling",
 };
 
 const modelAlias = (model: string | null) =>
-  model ? MODEL_ALIAS[model] ?? model : "auto";
+  model ? MODEL_ALIAS[model] ?? model : "Bris";
+
+// Kort beskrivelse av hva hver modell er god på.
+const MODEL_DESC: Record<string, string> = {
+  "qwen3-235b-a22b-instruct-2507": "fikser det meste",
+  "qwen3.5-397b-a17b": "god på avanserte oppgaver",
+  "glm-5.2": "for de tyngste oppgavene",
+  "qwen3.6-35b-a3b": "god på bilder",
+};
+
+const modelDesc = (model: string | null) =>
+  model ? MODEL_DESC[model] ?? "" : "";
+
+const formatTokens = (n: number) =>
+  n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+
+// Slash-kommandoer i composeren. Flere kommer; Agent er den eneste nå.
+const SLASH_ACTIONS: {
+  cmd: string;
+  label: string;
+  desc: string;
+  icon: typeof AnonymousIcon;
+}[] = [
+  {
+    cmd: "agent",
+    label: "Agent",
+    desc: "Sett opp en automatisert agent",
+    icon: AnonymousIcon,
+  },
+  {
+    cmd: "widget",
+    label: "Ny widget",
+    desc: "Bygg en widget med AI",
+    icon: DashboardSquare01Icon,
+  },
+];
 
 // Én glød-farge per modell i thinking-animasjonen.
 const MODEL_GLOW: Record<string, string> = {
-  "mistral-large-3": "#ffffff",
-  "glm-5.2": "#c9a8ff",
+  "qwen3-235b-a22b-instruct-2507": "#ffffff",
+  "qwen3.5-397b-a17b": "#c9a8ff",
+  "glm-5.2": "#ff9de0",
+  "qwen3.6-35b-a3b": "#8fd0ff",
 };
 
 // Kollisjonsfrie ID-er: en teller nullstilles ved hot reload og gjenbruker
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
 
+// Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
 // nettverks-chunkenes rykkete ankomst. Ufullstendige ord holdes tilbake;
 // markdown tar over når svaret er ferdig.
-function StreamingText({ content }: { content: string }) {
+function StreamingText({
+  content,
+  done,
+  onDone,
+}: {
+  content: string;
+  done: boolean;
+  onDone?: () => void;
+}) {
   const [visible, setVisible] = useState(0);
 
-  // Commit kun frem til siste ordgrense.
+  // Under streaming committes kun frem til siste ordgrense; når svaret er
+  // ferdig committes alt, så animasjonen alltid spiller helt ut.
   const boundary = Math.max(content.lastIndexOf(" "), content.lastIndexOf("\n"));
-  const committed = boundary >= 0 ? content.slice(0, boundary + 1) : "";
+  const committed = done
+    ? content
+    : boundary >= 0
+      ? content.slice(0, boundary + 1)
+      : "";
   const words = committed.match(/\S+\s*|\s+/g) ?? [];
 
   useEffect(() => {
-    if (visible >= words.length) return;
-    // Jevn takt; øker steget hvis vi ligger langt bak streamen.
+    if (visible >= words.length) {
+      if (done) onDone?.();
+      return;
+    }
+    // Jevn takt; øker steget hvis vi ligger langt bak streamen, men alltid
+    // minst ett ord av gangen så raske svar også animerer synlig.
     const backlog = words.length - visible;
     const t = setTimeout(
-      () => setVisible((v) => Math.min(v + Math.ceil(backlog / 25), words.length)),
-      45
+      () =>
+        setVisible((v) =>
+          Math.min(v + Math.max(1, Math.ceil(backlog / 25)), words.length)
+        ),
+      38
     );
     return () => clearTimeout(t);
-  }, [visible, words.length]);
+  }, [visible, words.length, done]);
 
   return (
     <span className={styles.streamingText}>
@@ -114,13 +203,17 @@ function StreamingText({ content }: { content: string }) {
   );
 }
 
-// Handlingsrad under hvert assistentsvar: kopier, del, kilder.
+// Handlingsrad under hvert assistentsvar: kopier, korriger, kilder.
 function MessageActions({
   content,
   sources = [],
+  armed = false,
+  onArm,
 }: {
   content: string;
   sources?: SourceRef[];
+  armed?: boolean;
+  onArm?: (content: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -128,21 +221,19 @@ function MessageActions({
     navigator.clipboard?.writeText(content);
   }
 
-  function share() {
-    if (navigator.share) {
-      navigator.share({ text: content }).catch(() => {});
-    } else {
-      copy();
-    }
-  }
-
   return (
     <div className={styles.actions}>
       <button className={styles.actionBtn} onClick={copy} title="Kopier" aria-label="Kopier">
-        <CopyIcon size={15} />
+        <HugeiconsIcon icon={Copy01Icon} size={15} strokeWidth={2} />
       </button>
-      <button className={styles.actionBtn} onClick={share} title="Del" aria-label="Del">
-        <ShareIcon size={15} />
+      <button
+        className={`${styles.actionBtn} ${armed ? styles.actionBtnActive : ""}`}
+        onClick={() => onArm?.(content)}
+        title={armed ? "Neste melding logges som korrigering" : "Korriger dette svaret"}
+        aria-label="Korriger svar"
+        aria-pressed={armed}
+      >
+        <HugeiconsIcon icon={FastWindIcon} size={15} strokeWidth={2} />
       </button>
       {sources.length > 0 && (
         <>
@@ -238,15 +329,33 @@ export function Chat({
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [title, setTitle] = useState<string | null>(initialTitle ?? null);
-  const [titleMenuOpen, setTitleMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!titleMenuOpen) return;
-    const close = () => setTitleMenuOpen(false);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, [titleMenuOpen]);
+  // Topbar fader inn når man scroller forbi første melding.
+  const [scrolledPast, setScrolledPast] = useState(false);
+  // Agent bak denne chatten (for pause-knappen), null for vanlige chatter.
+  const [agent, setAgent] = useState<AgentInfo | null>(null);
+  // Inline-redigering av tittel (dobbeltklikk).
+  const [editingTitle, setEditingTitle] = useState(false);
   const chatIdRef = useRef<string | null>(chatId);
+  // Brukerens widgets — fyller slash-menyen (/<slug>) og kalles inline.
+  const [widgets, setWidgets] = useState<Widget[]>([]);
+  // Satt til en slug mens en widget bygges/redigeres i denne samtalen.
+  const widgetEditRef = useRef<string | null>(null);
+
+  function reloadWidgets() {
+    listWidgets().then(setWidgets).catch(() => {});
+  }
+  useEffect(() => {
+    reloadWidgets();
+  }, []);
+
+  function saveTitle(next: string) {
+    setEditingTitle(false);
+    const trimmed = next.trim().slice(0, 60);
+    if (!trimmed || trimmed === title) return;
+    setTitle(trimmed);
+    const cid = chatIdRef.current;
+    if (cid) renameChat(cid, trimmed).catch(() => {});
+  }
 
   // Last inn lagrede meldinger når en eksisterende samtale åpnes.
   useEffect(() => {
@@ -259,20 +368,69 @@ export function Chat({
             role: m.role,
             content: m.content,
             sources: m.sources ? JSON.parse(m.sources) : undefined,
+            revealed: true,
           }))
         )
       )
       .catch(() => {});
   }, [chatId]);
+
+  // Slå opp om chatten tilhører en agent (viser pause-knapp i topbaren).
+  useEffect(() => {
+    if (!chatId) {
+      setAgent(null);
+      return;
+    }
+    fetchChatAgent(chatId).then(setAgent).catch(() => setAgent(null));
+  }, [chatId]);
+
+  async function toggleAgentPause() {
+    if (!agent) return;
+    const next = !agent.enabled;
+    setAgent({ ...agent, enabled: next });
+    try {
+      await setAgentEnabled(agent.id, next);
+      window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
+    } catch {
+      setAgent({ ...agent, enabled: !next });
+    }
+  }
+
+  async function deleteThisAgent() {
+    if (!agent) return;
+    if (!confirm(`Slette agenten «${agent.name}» og chatten?`)) return;
+    try {
+      await deleteAgent(agent.id);
+      window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
+      window.dispatchEvent(
+        new CustomEvent("nordavind:chat-deleted", { detail: chatId })
+      );
+    } catch {
+      // ignorer; brukeren kan prøve igjen
+    }
+  }
+
   const [input, setInput] = useState("");
-  const [activeModel, setActiveModel] = useState<string | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  // Bris er standard til backend melder hvilken modell som faktisk svarte.
+  const [activeModel, setActiveModel] = useState<string | null>(
+    "qwen3-235b-a22b-instruct-2507"
+  );
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Armert svar: neste brukermelding logges som korrigering på dette svaret.
+  const [correctionTarget, setCorrectionTarget] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // /agent slår på agent-oppsettmodus for resten av denne samtalen, så
+  // modellen beholder verktøyene gjennom hele den flerstegs-samtalen.
+  const agentModeRef = useRef(false);
   const hasMessages = messages.length > 0;
 
   // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
@@ -310,6 +468,16 @@ export function Chat({
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Fade topbar inn så snart første melding scrolles under toppen.
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    const onScroll = () => setScrolledPast(el.scrollTop > 40);
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [hasMessages]);
+
   // Zoom/vindusendring endrer scrollHeight — juster tekstfeltet på nytt.
   useEffect(() => {
     function resize() {
@@ -333,7 +501,9 @@ export function Chat({
     setUploadError(null);
     for (const file of [...files].slice(0, 3 - attachments.length)) {
       try {
-        const att = await extractFile(file);
+        const att = file.type.startsWith("image/")
+          ? await readImage(file)
+          : await extractFile(file);
         setAttachments((prev) => [...prev, att]);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "ukjent feil";
@@ -343,9 +513,85 @@ export function Chat({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  async function send() {
-    const text = input.trim();
-    if ((!text && attachments.length === 0) || busy) return;
+  // Kaller en widget inline i chatten: ingen LLM, bare en ```widget <slug>```-
+  // blokk som renderer visualiseringen der og da.
+  async function renderWidgetInline(raw: string, slug: string) {
+    setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    const block = "```widget " + slug + "\n```";
+    if (!chatIdRef.current) {
+      try {
+        const chat = await createChat(`/${slug}`);
+        chatIdRef.current = chat.id;
+        onChatCreated?.(chat);
+      } catch {
+        // persistens er ikke kritisk
+      }
+    }
+    setMessages((prev) => [
+      ...prev,
+      { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+      { id: nextId(), role: "assistant", content: block, revealed: true },
+    ]);
+    const cid = chatIdRef.current;
+    if (cid) {
+      appendChatMessage(cid, { role: "user", content: raw })
+        .then(() =>
+          appendChatMessage(cid, { role: "assistant", content: block })
+        )
+        .catch(() => {});
+    }
+  }
+
+  async function send(overrideText?: string) {
+    const raw = (overrideText ?? input).trim();
+    if ((!raw && attachments.length === 0) || busy) return;
+
+    // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
+    const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
+    if (firstTok && firstTok !== "widget" && firstTok !== "agent") {
+      const w = widgets.find((x) => x.slug === firstTok);
+      if (w) {
+        await renderWidgetInline(raw, w.slug);
+        return;
+      }
+    }
+
+    // /agent starter (eller fortsetter) agent-oppsett. Kommandoen fjernes
+    // fra selve meldingen; en tom kommando får en frø-melding.
+    const isAgentCmd = /^\/agent\b/i.test(raw);
+    if (isAgentCmd) agentModeRef.current = true;
+
+    // /widget <navn> [instruks]: opprett (om ny) og bygg widgeten. Editoren
+    // holdes åpen resten av samtalen, som /agent.
+    const isWidgetCmd = /^\/widget\b/i.test(raw);
+    let widgetSeed = raw;
+    if (isWidgetCmd) {
+      const rest = raw.replace(/^\/widget\s*/i, "").trim();
+      const [name, ...instr] = rest.split(/\s+/);
+      if (name) {
+        try {
+          const wg = await createWidget(name);
+          widgetEditRef.current = wg.slug;
+        } catch {
+          widgetEditRef.current = slugify(name);
+        }
+        reloadWidgets();
+      }
+      widgetSeed = instr.join(" ");
+    }
+
+    const stripped = isAgentCmd ? raw.replace(/^\/agent\s*/i, "").trim() : raw;
+    const text = isAgentCmd
+      ? stripped || "Jeg vil sette opp en agent."
+      : isWidgetCmd
+        ? widgetSeed || "Jeg vil bygge en widget."
+        : stripped;
+
+    // Armert korrigering: logg denne meldingen som feedback på svaret.
+    const correcting = text ? correctionTarget : null;
+    setCorrectionTarget(null);
+
     setInput("");
     setUploadError(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -361,18 +607,43 @@ export function Chat({
       }
     }
 
+    if (correcting) {
+      logCorrection({
+        answer: correcting.content,
+        correction: text,
+        chat_id: chatIdRef.current ?? undefined,
+      }).catch(() => {
+        // Logging er ikke kritisk for å fortsette samtalen
+      });
+    }
+
     // Vedleggstekst sendes til modellen, men vises ikke i bobla.
     const files = attachments;
     setAttachments([]);
+    const images = files.filter((a) => a.image);
     const fileBlocks = files
+      .filter((a) => !a.image)
       .map((a) => `[Vedlegg: ${a.name}]\n${a.text}`)
       .join("\n\n");
-    const apiContent = fileBlocks ? `${fileBlocks}\n\n${text}` : text;
+    const textContent = fileBlocks ? `${fileBlocks}\n\n${text}` : text;
+
+    // Med bilder sendes innholdet som deler (tekst + bilde) til vision-modellen.
+    const apiContent: string | ContentPart[] = images.length
+      ? [
+          { type: "text", text: textContent },
+          ...images.map(
+            (a): ContentPart => ({
+              type: "image_url",
+              image_url: { url: a.image! },
+            })
+          ),
+        ]
+      : textContent;
 
     const history: ApiMessage[] = [
       ...messages
         .filter((m) => !m.error)
-        .map(({ role, content }) => ({ role, content })),
+        .map((m) => ({ role: m.role, content: m.apiContent ?? m.content })),
       { role: "user", content: apiContent },
     ];
 
@@ -383,9 +654,11 @@ export function Chat({
       {
         id: userMsgId,
         role: "user",
-        content: apiContent,
+        content: textContent,
+        apiContent,
         display: text,
-        attachmentNames: files.map((a) => a.name),
+        attachmentNames: files.filter((a) => !a.image).map((a) => a.name),
+        images: images.map((a) => a.image!),
       },
       { id: replyId, role: "assistant", content: "", loading: true },
     ]);
@@ -438,10 +711,42 @@ export function Chat({
             steps: [...steps],
           });
         },
-        abortRef.current.signal
+        abortRef.current.signal,
+        {
+          agentSetup: agentModeRef.current,
+          agentEdit: agent?.id,
+          widget: widgetEditRef.current ?? undefined,
+        }
       );
       update(replyId, { streaming: false });
       if (!acc) update(replyId, { loading: false, content: "(tomt svar)" });
+
+      // Widget-editor: vis den ferdige widgeten inline i stedet for «Ok»,
+      // og oppdater slash-registeret så /<slug> blir tilgjengelig.
+      if (widgetEditRef.current) {
+        const slug = widgetEditRef.current;
+        update(replyId, {
+          loading: false,
+          content: "```widget " + slug + "\n```",
+        });
+        acc = "```widget " + slug + "\n```";
+        reloadWidgets();
+      }
+
+      // Agenten kan ha endret seg selv via chatten — synk state + sidepanel.
+      if (agent && chatIdRef.current) {
+        fetchChatAgent(chatIdRef.current).then(setAgent).catch(() => {});
+        window.dispatchEvent(new CustomEvent("nordavind:agents-changed"));
+      }
+
+      // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
+      if (acc && text && !agentModeRef.current && !widgetEditRef.current) {
+        extractKnowledge({
+          chat_id: chatIdRef.current ?? undefined,
+          question: text,
+          answer: acc,
+        });
+      }
 
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
       if (chatIdRef.current && acc) {
@@ -482,7 +787,59 @@ export function Chat({
     }
   }
 
+  // Slash-meny: vises mens brukeren skriver en kommando (før mellomrom).
+  // Innebygde handlinger (agent, ny widget) + brukerens widgets som /<slug>.
+  const slashMatch = /^\/([a-z0-9-]*)$/i.exec(input);
+  const slashPrefix = slashMatch?.[1].toLowerCase() ?? "";
+  const slashItems = slashMatch
+    ? [
+        ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
+        ...widgets
+          .filter((w) => w.slug.startsWith(slashPrefix))
+          .map((w) => ({
+            cmd: w.slug,
+            label: w.title || w.slug,
+            desc: "Widget",
+            icon: DashboardSquare01Icon,
+          })),
+      ]
+    : [];
+  const slashOpen = slashItems.length > 0;
+
+  function pickSlash(cmd: string) {
+    setSlashIndex(0);
+    if (cmd === "widget") {
+      // La brukeren skrive navnet: "/widget <navn>".
+      setInput("/widget ");
+      return;
+    }
+    setInput("");
+    send(`/${cmd}`);
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (slashOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % slashItems.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + slashItems.length) % slashItems.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pickSlash(slashItems[slashIndex]?.cmd ?? slashItems[0].cmd);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setInput("");
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       send();
@@ -491,6 +848,7 @@ export function Chat({
 
   function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setInput(e.target.value);
+    setSlashIndex(0);
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
   }
@@ -500,8 +858,17 @@ export function Chat({
       {(attachments.length > 0 || uploadError) && (
         <div className={styles.attachRow}>
           {attachments.map((a) => (
-            <span key={a.name} className={styles.attachChip}>
-              {a.name}
+            <span
+              key={a.name}
+              className={`${styles.attachChip} ${
+                a.image ? styles.attachImageChip : ""
+              }`}
+            >
+              {a.image ? (
+                <img src={a.image} alt={a.name} className={styles.attachThumb} />
+              ) : (
+                a.name
+              )}
               <button
                 className={styles.attachRemove}
                 onClick={() =>
@@ -530,17 +897,43 @@ export function Chat({
           autoFocus
         />
       </div>
+      {slashOpen && (
+        <div className={styles.slashBody}>
+          <ul className={styles.slashList}>
+            {slashItems.map((a, i) => (
+              <li key={a.cmd}>
+                <button
+                  type="button"
+                  className={`${styles.slashItem} ${
+                    i === slashIndex ? styles.slashItemActive : ""
+                  }`}
+                  onMouseEnter={() => setSlashIndex(i)}
+                  onClick={() => pickSlash(a.cmd)}
+                >
+                  <HugeiconsIcon
+                    icon={a.icon}
+                    size={16}
+                    className={styles.slashIcon}
+                  />
+                  <span className={styles.slashLabel}>{a.label}</span>
+                  <span className={styles.slashHint}>{a.desc}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className={styles.footer}>
         <input
           ref={fileInputRef}
           type="file"
           hidden
           multiple
-          accept=".pdf,.txt,.md,.csv,.json,.log,text/*"
+          accept=".pdf,.txt,.md,.csv,.json,.log,text/*,image/*"
           onChange={(e) => handleFiles(e.target.files)}
         />
         <button
-          className={styles.actionBtn}
+          className={`${styles.actionBtn} ${styles.attachBtn}`}
           onClick={() => fileInputRef.current?.click()}
           title="Legg ved fil"
           aria-label="Legg ved fil"
@@ -548,7 +941,9 @@ export function Chat({
           <AttachIcon size={15} />
         </button>
         <span className={styles.modelInfo}>
-          Modell: {modelAlias(activeModel)}
+          <span className={styles.modelLabel}>Modell:</span>{" "}
+          {modelAlias(activeModel)}
+          {modelDesc(activeModel) && ` - ${modelDesc(activeModel)}`}
         </span>
         <span className={styles.sendHint}>
           Send <span className={styles.kbd}>↵</span>
@@ -559,23 +954,85 @@ export function Chat({
 
   return (
     <div className={styles.chatRoot}>
-      {title && hasMessages && (
-        <div className={styles.titlePill}>
-          <span className={styles.titleText}>{title}</span>
-          <button
-            className={styles.titleMenuBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              setTitleMenuOpen((o) => !o);
-            }}
-            aria-label="Samtalemeny"
-          >
-            <DotsIcon size={15} />
-          </button>
-          {titleMenuOpen && (
-            <div className={styles.titleMenu}>
-              <span className={styles.titleMenuEmpty}>Kommer snart</span>
-            </div>
+      {title && (hasMessages || agent) && (
+        <div
+          className={`${styles.topbar} ${
+            scrolledPast || agent ? styles.topbarVisible : ""
+          }`}
+        >
+          {editingTitle ? (
+            <input
+              className={styles.titleInput}
+              defaultValue={title}
+              autoFocus
+              maxLength={60}
+              onBlur={(e) => saveTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") setEditingTitle(false);
+              }}
+            />
+          ) : (
+            <span
+              className={styles.titleText}
+              onDoubleClick={() => setEditingTitle(true)}
+              title="Dobbeltklikk for å endre"
+            >
+              {title}
+            </span>
+          )}
+          {agent && (
+            <button
+              className={styles.agentPause}
+              onClick={toggleAgentPause}
+              title={agent.enabled ? "Sett agenten på pause" : "Gjenoppta agenten"}
+              aria-label={agent.enabled ? "Pause agent" : "Gjenoppta agent"}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="9.25"
+                  fill={agent.enabled ? "#007EFF" : "#5b5b60"}
+                  stroke={agent.enabled ? "#00CAFF" : "none"}
+                  strokeWidth="0.75"
+                />
+                {agent.enabled ? (
+                  <>
+                    <rect x="7" y="6" width="2" height="8" rx="1" fill="white" />
+                    <rect x="11" y="6" width="2" height="8" rx="1" fill="white" />
+                  </>
+                ) : (
+                  <path d="M8 6.5 L14 10 L8 13.5 Z" fill="white" />
+                )}
+              </svg>
+            </button>
+          )}
+          {agent && (
+            <button
+              className={styles.agentDelete}
+              onClick={deleteThisAgent}
+              title="Slett agent og chat"
+              aria-label="Slett agent"
+            >
+              <HugeiconsIcon icon={Delete01Icon} size={16} strokeWidth={2} />
+            </button>
+          )}
+          {agent && (
+            <span className={styles.agentStats}>
+              {agent.schedule_label && <span>{agent.schedule_label}</span>}
+              {agent.daily_token_limit ? (
+                <span>
+                  ~{formatTokens(agent.daily_token_limit * 30)} tokens/mnd
+                </span>
+              ) : null}
+            </span>
           )}
         </div>
       )}
@@ -598,25 +1055,61 @@ export function Chat({
                     }`}
                   >
                     {m.content ? (
-                      m.role === "assistant" && m.streaming ? (
-                        <StreamingText content={m.content} />
+                      m.role === "assistant" && !m.error && !m.revealed ? (
+                        <StreamingText
+                          content={m.content}
+                          done={!m.streaming}
+                          onDone={() => update(m.id, { revealed: true })}
+                        />
                       ) : m.role === "assistant" && !m.error ? (
                         <div className={styles.markdown}>
-                          <Markdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{ a: SourceLink, pre: MarkdownPre }}
-                          >
-                            {m.content}
-                          </Markdown>
+                          {(() => {
+                            const ts =
+                              agent &&
+                              m.content.match(/^\*\*(.+?)\*\*\n\n([\s\S]*)$/);
+                            return (
+                              <>
+                                {ts && (
+                                  <div className={styles.agentStamp}>{ts[1]}</div>
+                                )}
+                                <Markdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{ a: SourceLink, pre: MarkdownPre }}
+                                >
+                                  {ts ? ts[2] : m.content}
+                                </Markdown>
+                              </>
+                            );
+                          })()}
                           {!m.streaming && !m.loading && (
                             <MessageActions
                               content={m.content}
                               sources={m.sources}
+                              armed={correctionTarget?.id === m.id}
+                              onArm={(content) =>
+                                setCorrectionTarget((cur) =>
+                                  cur?.id === m.id
+                                    ? null
+                                    : { id: m.id, content }
+                                )
+                              }
                             />
                           )}
                         </div>
                       ) : (
                         <>
+                          {m.images && m.images.length > 0 && (
+                            <span className={styles.attachRow}>
+                              {m.images.map((src, i) => (
+                                <img
+                                  key={i}
+                                  src={src}
+                                  alt="Vedlagt bilde"
+                                  className={styles.bubbleImage}
+                                />
+                              ))}
+                            </span>
+                          )}
                           {m.display ?? m.content}
                           {m.attachmentNames &&
                             m.attachmentNames.length > 0 && (

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Usage } from "./Usage";
+import { Quota } from "./Quota";
+import { Knowledge } from "./Knowledge";
+import { KnowledgeGraph } from "./KnowledgeGraph";
 import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
 import {
@@ -9,7 +12,7 @@ import {
 } from "../../lib/api";
 import styles from "./Settings.module.css";
 
-type Tab = "general" | "usage" | "connectors" | "admin";
+type Tab = "general" | "usage" | "connectors" | "knowledge" | "admin";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
@@ -23,6 +26,7 @@ export function Settings({ user }: { user: AuthUser }) {
       ? [
           ...TABS,
           { key: "connectors" as Tab, label: "Connectors" },
+          { key: "knowledge" as Tab, label: "Kunnskap" },
           { key: "admin" as Tab, label: "Admin" },
         ]
       : TABS;
@@ -35,6 +39,11 @@ export function Settings({ user }: { user: AuthUser }) {
   const [conns, setConns] = useState<Connection[]>([]);
   const [connId, setConnId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  // Usage har to undersider: Kvote og Stats.
+  const [usageSub, setUsageSub] = useState<"kvote" | "stats">("stats");
+  // Kunnskap har to undersider: Graf (default) og Forslag.
+  const [knowSub, setKnowSub] = useState<"graf" | "forslag">("graf");
 
   function reloadConns() {
     fetchConnections().then(setConns).catch(() => {});
@@ -65,6 +74,50 @@ export function Settings({ user }: { user: AuthUser }) {
             >
               {t.label}
             </button>
+            {t.key === "usage" && tab === "usage" && (
+              <div className={styles.navSub}>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    usageSub === "kvote" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setUsageSub("kvote")}
+                >
+                  Kvote
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    usageSub === "stats" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setUsageSub("stats")}
+                >
+                  Stats
+                </button>
+              </div>
+            )}
+            {t.key === "knowledge" && tab === "knowledge" && (
+              <div className={styles.navSub}>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    knowSub === "graf" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setKnowSub("graf")}
+                >
+                  Graf
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    knowSub === "forslag" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setKnowSub("forslag")}
+                >
+                  Forslag
+                </button>
+              </div>
+            )}
             {t.key === "connectors" && tab === "connectors" && (
               <div className={styles.navSub}>
                 {conns.map((c) => (
@@ -99,7 +152,9 @@ export function Settings({ user }: { user: AuthUser }) {
 
       <div className={styles.panel}>
         {tab === "usage" ? (
-          <Usage />
+          usageSub === "kvote" ? <Quota /> : <Usage />
+        ) : tab === "knowledge" ? (
+          knowSub === "forslag" ? <Knowledge /> : <KnowledgeGraph />
         ) : tab === "admin" ? (
           <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (

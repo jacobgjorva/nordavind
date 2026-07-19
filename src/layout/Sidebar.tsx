@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AnonymousIcon } from "@hugeicons/core-free-icons";
 import { PlusIcon, SearchIcon, SettingsIcon, SidebarIcon } from "../ui/Icons";
 import { Logo } from "../ui/Logo";
 import type { ChatSummary } from "../lib/api";
@@ -47,6 +49,10 @@ export function Sidebar({
   onLogout,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
+
+  // Agent-chatter pinnes i egen «Agenter»-seksjon; resten grupperes på dato.
+  const agentChats = chats.filter((c) => c.agent_id);
+  const regularChats = chats.filter((c) => !c.agent_id);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -132,7 +138,27 @@ export function Sidebar({
         {chats.length === 0 && (
           <div className={styles.emptyList}>Ingen chatter ennå</div>
         )}
-        {groupChats(chats).map((g) => (
+        {agentChats.length > 0 && (
+          <div className={styles.group}>
+            <div className={styles.groupLabel}>AGENTER</div>
+            {agentChats.map((c) => (
+              <button
+                key={c.id}
+                className={`${styles.chat} ${styles.chatAgent} ${
+                  c.id === activeChatId ? styles.chatActive : ""
+                }`}
+                onClick={() => onOpenChat(c.id)}
+              >
+                <HugeiconsIcon icon={AnonymousIcon} size={14} className={styles.chatIcon} />
+                <span className={styles.chatTitleText}>{c.title}</span>
+                {c.agent_enabled && (
+                  <span className={styles.agentLive} aria-label="Aktiv" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {groupChats(regularChats).map((g) => (
           <div key={g.label} className={styles.group}>
             <div className={styles.groupLabel}>{g.label}</div>
             {g.chats.map((c) => (

@@ -8,21 +8,33 @@
   overflow: hidden;
 }
 
-.titlePill {
+/* Sticky topbar: venstrejustert tittel + modell-badge, fader inn ved scroll. */
+.topbar {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 4px;
-  max-width: 60%;
-  padding: 5px 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  animation: titleIn 0.5s var(--ease-out) backwards;
+  gap: 10px;
+  height: 58px;
+  padding: 0 24px;
+  background: linear-gradient(
+    to bottom,
+    var(--bg) 55%,
+    color-mix(in srgb, var(--bg) 0%, transparent)
+  );
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+
+.topbarVisible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .titleText {
@@ -30,9 +42,32 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: text;
 }
 
-.titleMenuBtn {
+/* Pause/gjenoppta-knapp for agent-chatter (custom SVG). */
+.agentPause {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease);
+}
+
+.agentPause:hover {
+  filter: brightness(1.08);
+}
+
+.agentDelete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -42,44 +77,50 @@
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
+  cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 
-.titleMenuBtn:hover {
+.agentDelete:hover {
+  background: var(--bg-hover);
+  color: #e8888d;
+}
+
+/* Tidsplan + estimert forbruk, høyrestilt i agent-topbaren. */
+/* Subtilt tidsstempel over agent-kjøringens output. */
+.agentStamp {
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.agentStats {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.titleInput {
+  min-width: 0;
+  flex: 0 1 auto;
+  padding: 2px 6px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   background: var(--bg-hover);
   color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
 }
 
-.titleMenu {
-  position: absolute;
-  top: 30px;
-  right: 0;
-  min-width: 140px;
-  padding: 6px;
-  background: #232326;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-.titleMenuEmpty {
-  display: block;
-  padding: 6px 8px;
-  color: var(--text-faint);
-  font-size: 13px;
-}
-
-@keyframes titleIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -6px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
 
 .empty {
   flex: 1;
@@ -423,6 +464,12 @@
   color: var(--text);
 }
 
+.actionBtnActive,
+.actionBtnActive:hover {
+  background: var(--accent, var(--bg-hover));
+  color: var(--text);
+}
+
 .sourcesBtn {
   display: inline-flex;
   align-items: center;
@@ -522,9 +569,51 @@
   font-size: 12.5px;
 }
 
+/* Bilde-vedlegg: miniatyr i chip med fjern-knapp oppå. */
+.attachImageChip {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+.attachThumb {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong);
+  display: block;
+}
+
+.attachImageChip .attachRemove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: #232326;
+  border: 0.5px solid var(--border-strong);
+  color: var(--text);
+}
+
+/* Bilde vist i en sendt melding. */
+.bubbleImage {
+  max-width: 260px;
+  max-height: 260px;
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-strong);
+  display: block;
+  margin-bottom: 8px;
+}
+
 /* Composer */
 
 .composer {
+  position: relative;
   width: 100%;
   background: rgba(38, 38, 42, 0.38);
   backdrop-filter: blur(48px) saturate(160%);
@@ -533,6 +622,60 @@
   border-radius: var(--radius-lg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   animation: paletteIn 0.22s var(--ease-out);
+}
+
+/* Slash-meny: inne i composeren under input, som handlingsliste. */
+.slashBody {
+  padding: 8px;
+  border-top: 0.5px solid var(--border);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.slashList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.slashItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.slashItemActive {
+  background: var(--bg-hover);
+}
+
+.slashIcon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.slashLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slashHint {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-faint);
 }
 
 @keyframes paletteIn {
@@ -594,10 +737,21 @@
 
 .modelInfo {
   padding: 0 6px;
-  color: var(--text-muted);
+  color: #ffffff;
   font-size: 13.5px;
   font-weight: 500;
 }
+
+/* Vedlegg-ikonet i footeren er hvitt. */
+.attachBtn {
+  color: #ffffff;
+}
+
+.modelLabel {
+  color: var(--text-muted);
+}
+
+
 
 .sendHint {
   display: inline-flex;
@@ -605,6 +759,7 @@
   gap: 6px;
   margin-left: auto;
   font-size: 13.5px;
+  font-weight: 500;
   color: var(--text-muted);
 }
 

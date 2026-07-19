@@ -223,3 +223,432 @@
 .actionBtn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* Agent-widget */
+.agentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.agentCard {
+  padding: 12px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+}
+
+.agentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agentName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agentBadge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(110, 240, 106, 0.15);
+  color: #6ef16a;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.agentBadgeWrite {
+  background: rgba(255, 176, 90, 0.16);
+  color: #ffb05a;
+}
+
+.agentTask {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.agentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.agentEmpty {
+  padding: 12px 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Agent-oppsett-widget: bygget som connector-kortenes ekspanderte bord */
+.agentSetup {
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.setupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+}
+
+.setupHead .setupMeta {
+  margin-left: auto;
+}
+
+.setupName {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text);
+}
+
+.setupMeta {
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.setupPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 14px 18px;
+}
+
+.setupField {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setupLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.setupMissionBox {
+  width: 100%;
+  padding: 12px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #0a0a0a;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.setupMissionBox:focus {
+  border-color: #047aff;
+}
+
+/* Inspector-rader: 2-kolonners rutenett med tynne, kompakte rader. */
+.setupRows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.rowLabel {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+/* Select-rad (Intervall) */
+.rowSelectWrap {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rowSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: right;
+  outline: none;
+  cursor: pointer;
+}
+
+.rowSelect option {
+  background: #1c1c1e;
+  color: var(--text);
+}
+
+.rowChevron {
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Intervall-kontroll: Hver [N] [enhet] */
+.rowIntervalCtl {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rowMuted {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.rowNum {
+  width: 34px;
+  height: 22px;
+  padding: 0 4px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.rowNum::-webkit-outer-spin-button,
+.rowNum::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.rowNum:focus {
+  border-color: #047aff;
+}
+
+/* Tid-rad */
+.rowTime {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Slider-rad (Tokens): raden er selve sporet. */
+.rowSlider {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rowFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  transition: width 60ms linear;
+}
+
+.rowRange {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+
+.rowValue {
+  position: relative;
+  z-index: 1;
+  font-size: 12.5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Toggle-rad (Skrivetilgang) */
+.toggle {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.toggleOn {
+  background: #047aff;
+}
+
+.toggleKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.toggleOn .toggleKnob {
+  transform: translateX(14px);
+}
+
+.setupError {
+  font-size: 12.5px;
+  color: #e8888d;
+}
+
+.setupDone {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #6ef16a;
+}
+
+/* Agent-editor */
+.editName {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 550;
+  outline: none;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.editName:focus {
+  background: var(--bg-hover);
+}
+
+.editFoot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.editSave {
+  height: 32px;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: #047aff;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+.editSave:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.editSave:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Start-widget: navn + Aktiver-knapp */
+.startCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 0;
+  padding: 7px 8px 7px 16px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.startName {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.startError {
+  font-size: 12.5px;
+  color: #e8888d;
+}
+
+.startBtn {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 14px;
+  border: 0.5px solid #00caff;
+  border-radius: var(--radius-sm);
+  background: #007eff;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.startBtn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.startBtnDone {
+  background: var(--bg-hover);
+  color: #6ef16a;
+}
+
+.startBtn:disabled {
+  cursor: default;
+}

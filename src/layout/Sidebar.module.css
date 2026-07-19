@@ -151,6 +151,50 @@
     color var(--dur-fast) var(--ease);
 }
 
+.chatIcon {
+  margin-right: 7px;
+  vertical-align: -2px;
+  color: var(--text-faint);
+}
+
+/* Agent-rad: ikon + tittel + aktiv-indikator. */
+.chatAgent {
+  display: flex;
+  align-items: center;
+}
+
+.chatAgent .chatIcon {
+  flex-shrink: 0;
+  margin-right: 0;
+}
+
+.chatTitleText {
+  flex: 1;
+  min-width: 0;
+  margin-left: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Spinnende blå border-sirkel = agenten er aktiv. */
+.agentLive {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(47, 123, 253, 0.25);
+  border-top-color: #2f7bfd;
+  animation: agentSpin 1.2s linear infinite;
+}
+
+@keyframes agentSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .chat:hover {
   background: var(--bg-hover);
   color: var(--text);

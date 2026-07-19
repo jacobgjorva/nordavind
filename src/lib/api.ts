@@ -1,8 +1,14 @@
 export type Role = "user" | "assistant" | "system";
 
+// Multimodalt innhold: enten ren tekst, eller en array av deler
+// (tekst + bilde) i OpenAI-format for vision-modeller.
+export type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface ApiMessage {
   role: Role;
-  content: string;
+  content: string | ContentPart[];
 }
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
@@ -83,6 +89,82 @@ export interface ChatSummary {
   id: string;
   title: string;
   updated_at: string;
+  agent_id?: string;
+  agent_enabled?: boolean;
+  kind?: string;
+}
+
+// WidgetSpec er én visualisering (kpi/text/table/bar/line).
+export interface WidgetSpec {
+  type?: string;
+  title?: string;
+  value?: string;
+  unit?: string;
+  delta?: string;
+  content?: string;
+  connection_id?: string;
+  sql?: string;
+  x?: string;
+  y?: string;
+}
+
+// Widget slik den ligger i registeret; spec finnes kun ved henting av én.
+export interface Widget {
+  id: string;
+  slug: string;
+  title: string;
+  spec?: WidgetSpec;
+  updated_at: string;
+}
+
+export interface QueryResult {
+  columns: string[];
+  rows: (string | number | null)[][];
+}
+
+// Lister brukerens widgets (til slash-menyen).
+export async function listWidgets(): Promise<Widget[]> {
+  const res = await fetch(`${BASE_URL}/widgets`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Oppretter en tom widget med gitt navn.
+export async function createWidget(title: string): Promise<Widget> {
+  const res = await fetch(`${BASE_URL}/widgets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Henter én widget med spec.
+export async function fetchWidget(slug: string): Promise<Widget> {
+  const res = await fetch(`${BASE_URL}/widgets/${slug}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Kjører widgetens datakilde (read-only).
+export async function fetchWidgetData(slug: string): Promise<QueryResult> {
+  const res = await fetch(`${BASE_URL}/widgets/${slug}/query`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Sletter en widget.
+export async function deleteWidget(slug: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/widgets/${slug}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 export interface StoredMessage {
@@ -125,6 +207,208 @@ export async function appendChatMessage(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+export interface AgentConnection {
+  id: string;
+  name: string;
+  driver: string;
+}
+
+// Tilkoblingene agent-widgeten lar brukeren velge mellom.
+export async function fetchAgentConnections(): Promise<AgentConnection[]> {
+  const res = await fetch(`${BASE_URL}/agent-connections`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).connections ?? [];
+}
+
+export interface NewAgent {
+  name: string;
+  task: string;
+  connection_id: string;
+  schedule_label: string;
+  interval_seconds: number;
+  run_time: string;
+  daily_token_limit: number;
+  write_access: boolean;
+}
+
+// Oppretter en agent fra config-widgeten; returnerer den lagrede agenten.
+export async function createAgent(
+  payload: NewAgent
+): Promise<{ id: string; chat_id: string }> {
+  const res = await fetch(`${BASE_URL}/agents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+  return res.json();
+}
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  enabled: boolean;
+  task?: string;
+  connection_id?: string;
+  schedule_label?: string;
+  interval_seconds?: number;
+  run_time?: string;
+  daily_token_limit?: number;
+  write_access?: boolean;
+}
+
+// Oppdaterer en agents konfigurasjon (redigering i agent-chatten).
+export async function updateAgent(
+  id: string,
+  payload: NewAgent
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/agents/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+}
+
+// Henter agenten som eier en chat (for pause-knappen). null hvis ikke agent-chat.
+export async function fetchChatAgent(chatId: string): Promise<AgentInfo | null> {
+  const res = await fetch(`${BASE_URL}/chats/${chatId}/agent`, {
+    headers: authHeaders(),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Pauser eller gjenopptar en agent.
+export async function setAgentEnabled(
+  id: string,
+  enabled: boolean
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/agents/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// Deaktiverer (sletter) en agent.
+export async function deleteAgent(id: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/agents/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export interface KnowledgeNode {
+  id: string;
+  type: string;
+  title: string;
+  summary: string;
+  created_at: string;
+  user_email?: string;
+}
+
+// Henter noder som venter på admin-godkjenning.
+export async function fetchPendingNodes(): Promise<KnowledgeNode[]> {
+  const res = await fetch(`${BASE_URL}/knowledge/pending`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).nodes ?? [];
+}
+
+export interface GraphData {
+  nodes: { id: string; type: string; title: string; summary: string }[];
+  edges: { from_id: string; to_id: string; relation: string }[];
+}
+
+// Henter kunnskapsgrafen (aksepterte noder + kanter) til visualisering.
+export async function fetchKnowledgeGraph(): Promise<GraphData> {
+  const res = await fetch(`${BASE_URL}/knowledge/graph`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Redigerer en akseptert node manuelt.
+export async function updateNode(
+  id: string,
+  title: string,
+  summary: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/knowledge/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title, summary }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// Sletter en node.
+export async function deleteKnowledgeNode(id: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/knowledge/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// Godkjenner en node (med evt. redigert tekst).
+export async function acceptNode(
+  id: string,
+  title: string,
+  summary: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/knowledge/${id}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title, summary }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// Avviser en node.
+export async function rejectNode(id: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/knowledge/${id}/reject`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// Starter passivt kunnskaps-uttrekk fra en utveksling (fyr og glem).
+export function extractKnowledge(payload: {
+  chat_id?: string;
+  question: string;
+  answer: string;
+}): void {
+  fetch(`${BASE_URL}/knowledge/extract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+// Logger neste brukermelding som korrigering på et AI-svar (opptrening senere).
+export async function logCorrection(payload: {
+  answer: string;
+  correction: string;
+  chat_id?: string;
+}): Promise<void> {
+  const res = await fetch(`${BASE_URL}/corrections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 export async function generateChatTitle(
   id: string,
   question: string,
@@ -134,6 +418,17 @@ export async function generateChatTitle(
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ question, answer }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).title;
+}
+
+// Setter en manuell tittel på samtalen.
+export async function renameChat(id: string, title: string): Promise<string> {
+  const res = await fetch(`${BASE_URL}/chats/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()).title;
@@ -193,7 +488,22 @@ export async function fetchMe(): Promise<{
 
 export interface Attachment {
   name: string;
+  /** Uttrukket tekst (PDF/tekstfil). Tom for bilder. */
   text: string;
+  /** data:-URL for bilder som sendes til vision-modellen. */
+  image?: string;
+}
+
+// Leser et bilde som base64 data-URL – sendes direkte til vision-modellen,
+// ingen server-prosessering eller betalt OCR.
+export function readImage(file: File): Promise<Attachment> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      resolve({ name: file.name, text: "", image: String(reader.result) });
+    reader.onerror = () => reject(new Error("kunne ikke lese bildet"));
+    reader.readAsDataURL(file);
+  });
 }
 
 // Laster opp en fil og får ren tekst tilbake (PDF/tekst).
@@ -225,6 +535,8 @@ export interface StreamDelta {
   sources?: SourceRef[];
   /** Fremdriftssteg til thinking-tidslinjen */
   step?: string;
+  /** Widget-specen ble endret av et verktøykall */
+  widgetUpdated?: boolean;
 }
 
 // Ett enkelt ikke-streamet chatkall (brukes av connector-agenten).
@@ -253,7 +565,8 @@ export async function streamChat(
   model: string,
   messages: ApiMessage[],
   onDelta: (delta: StreamDelta) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  opts?: { agentSetup?: boolean; agentEdit?: string; widget?: string }
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",
@@ -269,6 +582,12 @@ export async function streamChat(
       stream: true,
       // Reasoning gir merkbart tregere første token; av som default i test-UI.
       reasoning: { enabled: false },
+      // /agent-flyten: gir modellen verktøy til å administrere agenter.
+      ...(opts?.agentSetup ? { nordavind_agent_setup: true } : {}),
+      // Agent-chat: la modellen endre agenten når brukeren ber om det.
+      ...(opts?.agentEdit ? { nordavind_agent_edit: opts.agentEdit } : {}),
+      // Widget-editor: modellen bygger én widget via verktøy.
+      ...(opts?.widget ? { nordavind_widget: opts.widget } : {}),
     }),
   });
 
@@ -298,13 +617,16 @@ export async function streamChat(
         const json = JSON.parse(data);
         const sources = json.nordavind_sources as SourceRef[] | undefined;
         const step = json.nordavind_step as string | undefined;
+        const widgetUpdated = json.nordavind_widget_updated as
+          | boolean
+          | undefined;
         const delta = json.choices?.[0]?.delta;
         const content = delta?.content;
         const reasoning = delta?.reasoning ?? delta?.reasoning_content;
         // Modellnavn kan ha leverandørprefiks ("lyceum/glm-5.2")
         const model = (json.model as string | undefined)?.split("/").pop();
-        if (content || reasoning || model || sources || step) {
-          onDelta({ content, reasoning, model, sources, step });
+        if (content || reasoning || model || sources || step || widgetUpdated) {
+          onDelta({ content, reasoning, model, sources, step, widgetUpdated });
         }
       } catch {
         // ufullstendig chunk — ignorer

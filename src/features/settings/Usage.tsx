@@ -5,8 +5,6 @@ import styles from "./Usage.module.css";
 
 const DAYS = 14;
 
-// Midlertidig: tjenesteavgift som påslag på EUrouter-kostnaden.
-const SERVICE_FEE_RATE = 0.2;
 
 
 function formatTokens(v: number): string {
@@ -91,20 +89,6 @@ export function Usage() {
             <div className={styles.statValue}>
               {formatUsd(data.totalCost)}
               {usdNok > 0 && ` (${formatNok(data.totalCost * usdNok)})`}
-            </div>
-          </div>
-
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Tjenesteavgift</div>
-            <div className={styles.statValue}>
-              {formatNok(data.totalCost * SERVICE_FEE_RATE * usdNok)}
-            </div>
-          </div>
-
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Totalt</div>
-            <div className={styles.statValue}>
-              {formatNok(data.totalCost * (1 + SERVICE_FEE_RATE) * usdNok)}
             </div>
           </div>
 

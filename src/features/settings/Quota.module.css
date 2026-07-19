@@ -1,0 +1,117 @@
+.content {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-bottom: 60px;
+}
+
+/* Hero: stort forbrukstall sentrert. */
+.hero {
+  text-align: center;
+  padding: 24px 0 40px;
+}
+
+.heroNumber {
+  font-size: 72px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.heroLabel {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* Forbruksbar mot kvotegrense. */
+.meter {
+  margin-bottom: 44px;
+}
+
+.track {
+  height: 30px;
+  border-radius: 8px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 8px;
+  background: #6ea8fe;
+  transition: width var(--dur-fast) var(--ease);
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* To-kolonne statistikk. */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  padding-top: 32px;
+  border-top: 0.5px solid var(--border);
+}
+
+.statMainLabel {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+.statMainValue {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.statMainUnit {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.statRows {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 4px;
+}
+
+.statRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statKey {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.statVal {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.note {
+  margin-top: 40px;
+  padding: 18px 20px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 14px;
+  color: var(--text-muted);
+}

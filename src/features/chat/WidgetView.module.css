@@ -1,0 +1,169 @@
+/* Inline widget i chat — én visualisering, ingen tekst rundt. */
+.widget {
+  margin: 10px 0;
+  width: 100%;
+  max-width: 520px;
+}
+
+/* KPI-kort */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.kpiLabel {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.kpiValue {
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.kpiUnit {
+  margin-left: 5px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.kpiDelta {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.up {
+  color: #6ef16a;
+}
+
+.down {
+  color: #e8686d;
+}
+
+/* Tekstblokk */
+.textBlock {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* Data-kort (table/bar/line) */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
+  min-height: 180px;
+}
+
+.cardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cardEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* Stolpediagram */
+.chart {
+  flex: 1;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.barCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bar {
+  width: 100%;
+  max-width: 40px;
+  background: linear-gradient(180deg, #6ea8fe, #3f7ae0);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+
+.barLabel {
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Linjediagram */
+.line {
+  width: 100%;
+  height: 130px;
+}
+
+.lineLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* Tabell */
+.tableScroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.table th,
+.table td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
