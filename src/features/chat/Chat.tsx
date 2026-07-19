@@ -23,6 +23,7 @@ import {
   type Widget,
   fetchInbox,
   analyzeThread,
+  threadPreview,
   type MailThreadSummary,
   deleteAgent,
   extractKnowledge,
@@ -367,6 +368,20 @@ export function Chat({
   // Innboks-tråder til /mail-komboboksen (deklareres etter input-state under).
   const [mailThreads, setMailThreads] = useState<MailThreadSummary[]>([]);
   const mailLoadedRef = useRef(false);
+  // Hover-forhåndsvisning av en tråd (rått utdrag, ingen AI).
+  const [mailPreview, setMailPreview] = useState<{ subject: string; snippet: string } | null>(null);
+  const hoverTimerRef = useRef<number | null>(null);
+
+  function previewOnHover(key: string) {
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => {
+      threadPreview(key).then(setMailPreview).catch(() => {});
+    }, 220);
+  }
+  function clearPreview() {
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    setMailPreview(null);
+  }
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -1100,7 +1115,12 @@ export function Chat({
                   className={`${styles.slashItem} ${
                     i === slashIndex ? styles.slashItemActive : ""
                   }`}
-                  onMouseEnter={() => setSlashIndex(i)}
+                  onMouseEnter={() => {
+                    setSlashIndex(i);
+                    if (a.cmd.startsWith("mailthread:")) previewOnHover(a.cmd.slice("mailthread:".length));
+                    else clearPreview();
+                  }}
+                  onMouseLeave={clearPreview}
                   onClick={() => pickSlash(a.cmd)}
                 >
                   <HugeiconsIcon
@@ -1351,6 +1371,16 @@ export function Chat({
                   </div>
                 </div>
               ))}
+              {slashOpen && mailPreview && (
+                <div className={styles.mailGhostRow}>
+                  <div className={styles.mailGhost}>
+                    <div className={styles.mailGhostSubject}>
+                      {mailPreview.subject || "(uten emne)"}
+                    </div>
+                    <div className={styles.mailGhostBody}>{mailPreview.snippet}</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className={styles.composerDocked}>

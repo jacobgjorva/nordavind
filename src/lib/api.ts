@@ -832,14 +832,41 @@ export async function fetchInbox(): Promise<MailThreadSummary[]> {
   return (await res.json()).threads ?? [];
 }
 
-export async function fetchThread(
+type ThreadResult = { messages: MailMessage[]; signature: string; me: string };
+
+// Cachet: hover-preview, trådkortet og svarforslaget deler samme henting.
+const threadCache = new Map<string, Promise<ThreadResult>>();
+
+export function fetchThread(key: string): Promise<ThreadResult> {
+  const cached = threadCache.get(key);
+  if (cached) return cached;
+  const p = (async () => {
+    const res = await fetch(`${BASE_URL}/mail/thread?key=${encodeURIComponent(key)}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<ThreadResult>;
+  })();
+  threadCache.set(key, p);
+  p.catch(() => threadCache.delete(key));
+  return p;
+}
+
+// Rått forhåndsvisnings-utdrag (ingen AI): siste melding, første linjer.
+export async function threadPreview(
   key: string
-): Promise<{ messages: MailMessage[]; signature: string; me: string }> {
-  const res = await fetch(`${BASE_URL}/mail/thread?key=${encodeURIComponent(key)}`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+): Promise<{ subject: string; snippet: string }> {
+  const r = await fetchThread(key);
+  const last = r.messages[r.messages.length - 1];
+  const subject = (r.messages[0]?.subject ?? "").replace(/^\s*(re|sv|svar)\s*:\s*/i, "");
+  const snippet = (last?.body ?? "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .filter((l) => l.trim())
+    .slice(0, 5)
+    .join("\n")
+    .slice(0, 320);
+  return { subject, snippet };
 }
 
 // Deles av trådkortet og forslags-meldingen så tråden bare tolkes én gang.

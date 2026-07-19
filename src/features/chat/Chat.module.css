@@ -788,3 +788,35 @@
   color: var(--text-muted);
   font-size: 11px;
 }
+
+/* Hover-forhåndsvisning av en e-posttråd (ghost der kortet vil lande). */
+.mailGhostRow {
+  display: flex;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.mailGhost {
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.015);
+  opacity: 0.85;
+}
+
+.mailGhostSubject {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.mailGhostBody {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
