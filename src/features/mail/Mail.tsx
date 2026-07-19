@@ -21,10 +21,14 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("no-NO", { day: "2-digit", month: "short" });
 }
 
+const AVATAR_COLORS = [
+  "#E6F2FF", "#CDFBFB", "#D8FDE4", "#E8FDCA", "#FDF2B2", "#FFE6E8", "#EEEAFF",
+];
+
 function avatarColor(addr: string): string {
   let h = 0;
-  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) % 360;
-  return `hsl(${h}, 45%, 45%)`;
+  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
 function initials(p: MailPerson): string {
