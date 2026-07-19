@@ -78,7 +78,7 @@
   padding: 16px 18px;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.028);
+  background: var(--card-surface);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -102,8 +102,6 @@
   animation: sheen 1.4s ease-in-out infinite;
 }
 
-@keyframes sheen {
-  0% { transform: translateX(-100%); }
   55%, 100% { transform: translateX(100%); }
 }
 
@@ -227,4 +225,9 @@
   padding: 20px;
   font-size: 13px;
   color: var(--text-faint);
+}
+
+@keyframes sheen {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(100%); }
 }

@@ -1622,7 +1622,7 @@
 
 .tmRowOn {
   border-color: var(--border-strong);
-  background: rgba(255, 255, 255, 0.028);
+  background: var(--card-surface);
 }
 
 .tmTop {

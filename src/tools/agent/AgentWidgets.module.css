@@ -71,7 +71,7 @@
   flex-direction: column;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.028);
+  background: var(--card-surface);
 }
 
 .setupHead {
@@ -380,7 +380,7 @@
   padding: 7px 8px 7px 16px;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.028);
+  background: var(--card-surface);
 }
 
 .startName {
