@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { TelegramIcon } from "@hugeicons/core-free-icons";
 import {
   analyzeThread,
   fetchThread,
@@ -246,8 +248,9 @@ export function MailReply({ threadKey }: { threadKey: string }) {
         <span className={styles.sigNote}>
           {refining ? "AI justerer …" : "Signatur legges til automatisk"}
         </span>
-        <button className={styles.primary} onClick={send} disabled={sending || !body.trim()}>
-          {sending ? "Sender …" : "Send"}
+        <button className={styles.sendBtn} onClick={send} disabled={sending || !body.trim()}
+          title="Send" aria-label="Send">
+          <HugeiconsIcon icon={TelegramIcon} size={18} />
         </button>
       </div>
     </div>
