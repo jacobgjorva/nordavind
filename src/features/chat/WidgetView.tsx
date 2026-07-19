@@ -183,22 +183,31 @@ function WindForming({ dissipating }: { dissipating?: boolean }) {
 // Minimumstid gløden får forme seg, så avsløringen føles fortjent.
 const FORM_MS = 1500;
 
+// Widgets som allerede er avslørt i denne økta — recall/reload skal ikke
+// spille skapelses-animasjonen på nytt.
+const revealed = new Set<string>();
+
 // WidgetView henter widgetens spec fra /<slug> og rendrer den inline. Mens
 // spec hentes (og i minst FORM_MS) spilles vind-animasjonen.
 export function WidgetView({ slug }: { slug: string }) {
   const [spec, setSpec] = useState<WidgetSpec | null>(null);
   const [error, setError] = useState(false);
-  const [forming, setForming] = useState(true);
+  // Animer kun første gang widgeten vises i økta.
+  const [forming, setForming] = useState(!revealed.has(slug));
 
   useEffect(() => {
     let alive = true;
     const started = performance.now();
+    const animate = !revealed.has(slug);
     fetchWidget(slug)
       .then((w) => {
         if (!alive) return;
         setSpec(w.spec ?? {});
-        // Hold gløden til minst FORM_MS har gått.
-        const wait = Math.max(0, FORM_MS - (performance.now() - started));
+        revealed.add(slug);
+        // Hold gløden til minst FORM_MS har gått (kun ved skapelse).
+        const wait = animate
+          ? Math.max(0, FORM_MS - (performance.now() - started))
+          : 0;
         setTimeout(() => alive && setForming(false), wait);
       })
       .catch(() => alive && setError(true));
