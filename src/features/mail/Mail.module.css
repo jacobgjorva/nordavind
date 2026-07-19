@@ -187,8 +187,8 @@
   margin-bottom: 4px;
 }
 
-.msgFrom { font-size: 12px; font-weight: 500; color: var(--text-faint); }
-.msgDate { font-size: 11px; color: var(--text-faint); }
+.msgFrom { font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.msgDate { font-size: 11.5px; color: var(--text-muted); }
 
 .essence {
   font-size: 14.5px;
