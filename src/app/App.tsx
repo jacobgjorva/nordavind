@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Chat } from "../features/chat/Chat";
+import { Mail } from "../features/mail/Mail";
 import { Login } from "../features/auth/Login";
 import { Settings } from "../features/settings/Settings";
 import { Sidebar } from "../layout/Sidebar";
@@ -14,7 +15,7 @@ import {
 import styles from "./App.module.css";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "settings">("chat");
+  const [view, setView] = useState<"chat" | "settings" | "mail">("chat");
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
   // remonter komponenten og dreper streamen.
@@ -70,6 +71,13 @@ export default function App() {
     setView("chat");
   }, []);
 
+  // /mail åpner e-postvisningen.
+  useEffect(() => {
+    const onMail = () => setView("mail");
+    window.addEventListener("nordavind:open-mail", onMail);
+    return () => window.removeEventListener("nordavind:open-mail", onMail);
+  }, []);
+
   const openChat = useCallback(
     (id: string, kind?: string) => {
       setActiveChatId(id);
@@ -110,8 +118,10 @@ export default function App() {
         onLogout={logout}
       />
       <div className={styles.main}>
-        {view !== "chat" ? (
+        {view === "settings" ? (
           <Settings user={user} />
+        ) : view === "mail" ? (
+          <Mail />
         ) : (
           <Chat
             key={session.key}

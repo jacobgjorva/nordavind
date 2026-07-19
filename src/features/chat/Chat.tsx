@@ -128,6 +128,12 @@ const SLASH_ACTIONS: {
     desc: "Bygg en widget med AI",
     icon: DashboardSquare01Icon,
   },
+  {
+    cmd: "mail",
+    label: "Mail",
+    desc: "Les og svar på e-post med AI",
+    icon: AnonymousIcon,
+  },
 ];
 
 // Én glød-farge per modell i thinking-animasjonen.
@@ -841,6 +847,11 @@ export function Chat({
 
   function pickSlash(cmd: string) {
     setSlashIndex(0);
+    if (cmd === "mail") {
+      setInput("");
+      window.dispatchEvent(new CustomEvent("nordavind:open-mail"));
+      return;
+    }
     if (cmd === "widget") {
       // La brukeren skrive navnet: "/widget <navn>".
       setInput("/widget ");
