@@ -50,7 +50,7 @@ import {
 import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
-import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory } from "./chatHelpers";
+import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit } from "./chatHelpers";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
 
@@ -624,7 +624,8 @@ export function Chat({
         abortRef.current.signal,
         {
           agentSetup: agentModeRef.current,
-          agentEdit: agent?.id,
+          // Kun send agent-edit-stien når meldingen faktisk ber om en endring.
+          agentEdit: agent?.id && wantsAgentEdit(text) ? agent.id : undefined,
           widget: widgetEditRef.current ?? undefined,
         }
       );

@@ -41,6 +41,14 @@ export const nextId = () => crypto.randomUUID();
 export const isWidgetOnly = (content?: string) =>
   !!content && /^```(widget|mailthread|mailreply)\n[\s\S]*?\n```$/.test(content.trim());
 
+// Tegn på at brukeren vil endre agentens oppsett. Kun da sendes agent-edit-
+// verktøystien til backend — vanlige spørsmål i en agent-chat slipper den
+// ekstra verktøykonteksten.
+const AGENT_EDIT_RE =
+  /\b(endre|endra|rediger|oppdater|juster|bytt|sett|pause|stopp|stans|skru|aktiver|deaktiver|slett|hyppig|sjeldne|intervall|tidspunkt|kjør oftere|kjør sjeldnere|frekvens|tokengrense|token-grense|navn)\b/i;
+
+export const wantsAgentEdit = (text: string) => AGENT_EDIT_RE.test(text);
+
 // Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
 export const slugify = (s: string) =>
   s
