@@ -142,6 +142,10 @@ const MODEL_GLOW: Record<string, string> = {
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
 
+// En melding som kun er en widget-blokk vises i full bredde (uten boble).
+const isWidgetOnly = (content?: string) =>
+  !!content && /^```widget\n[\s\S]*?\n```$/.test(content.trim());
+
 // Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
 const slugify = (s: string) =>
   s
@@ -1070,12 +1074,12 @@ export function Chat({
                   data-role={m.role}
                   className={`${styles.row} ${
                     m.role === "user" ? styles.user : styles.assistant
-                  }`}
+                  } ${isWidgetOnly(m.content) ? styles.widgetRow : ""}`}
                 >
                   <div
                     className={`${styles.bubble} ${
                       m.error ? styles.error : ""
-                    }`}
+                    } ${isWidgetOnly(m.content) ? styles.widgetBubble : ""}`}
                   >
                     {m.content ? (
                       m.role === "assistant" && !m.error && !m.revealed ? (

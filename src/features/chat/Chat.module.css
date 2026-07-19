@@ -162,8 +162,6 @@
   flex-direction: column;
   gap: 24px;
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
 }
 
 .composerDocked {
@@ -182,7 +180,21 @@
 .row {
   display: flex;
   width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
   animation: msgIn 0.4s var(--ease-out) backwards;
+}
+
+/* Widget-melding: bredere kolonne enn vanlig tekst, uten boble. */
+.widgetRow {
+  max-width: 1080px;
+}
+
+.widgetBubble {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  background: none;
 }
 
 @keyframes msgIn {
