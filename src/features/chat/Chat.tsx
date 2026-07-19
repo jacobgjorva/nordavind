@@ -47,6 +47,9 @@ import {
   SourceLink,
   thinkingLabel,
 } from "./messageParts";
+import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
+import { formatTokens, nextId, isWidgetOnly, slugify } from "./chatHelpers";
+import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
 
 interface ChatMessage extends Omit<ApiMessage, "content"> {
@@ -76,31 +79,6 @@ interface ChatMessage extends Omit<ApiMessage, "content"> {
   images?: string[];
 }
 
-// Nordavind-aliaser: vindskalaen navngir modellnivåene i UI.
-const MODEL_ALIAS: Record<string, string> = {
-  "qwen3-235b-a22b-instruct-2507": "Bris",
-  "qwen3.5-397b-a17b": "Storm",
-  "glm-5.2": "Orkan",
-  "qwen3.6-35b-a3b": "Kuling",
-};
-
-const modelAlias = (model: string | null) =>
-  model ? MODEL_ALIAS[model] ?? model : "Bris";
-
-// Kort beskrivelse av hva hver modell er god på.
-const MODEL_DESC: Record<string, string> = {
-  "qwen3-235b-a22b-instruct-2507": "fikser det meste",
-  "qwen3.5-397b-a17b": "god på avanserte oppgaver",
-  "glm-5.2": "for de tyngste oppgavene",
-  "qwen3.6-35b-a3b": "god på bilder",
-};
-
-const modelDesc = (model: string | null) =>
-  model ? MODEL_DESC[model] ?? "" : "";
-
-const formatTokens = (n: number) =>
-  n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
-
 // Slash-kommandoer i composeren. Flere kommer; Agent er den eneste nå.
 const SLASH_ACTIONS: {
   cmd: string;
@@ -128,30 +106,6 @@ const SLASH_ACTIONS: {
   },
 ];
 
-// Én glød-farge per modell i thinking-animasjonen.
-const MODEL_GLOW: Record<string, string> = {
-  "qwen3-235b-a22b-instruct-2507": "#ffffff",
-  "qwen3.5-397b-a17b": "#c9a8ff",
-  "glm-5.2": "#ff9de0",
-  "qwen3.6-35b-a3b": "#8fd0ff",
-};
-
-// Kollisjonsfrie ID-er: en teller nullstilles ved hot reload og gjenbruker
-// ID-er, som gjør at update() overskriver gamle meldinger.
-const nextId = () => crypto.randomUUID();
-
-// En melding som kun er en widget/mailthread/mailreply-blokk vises i full bredde.
-const isWidgetOnly = (content?: string) =>
-  !!content && /^```(widget|mailthread|mailreply)\n[\s\S]*?\n```$/.test(content.trim());
-
-// Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
 // nettverks-chunkenes rykkete ankomst. Ufullstendige ord holdes tilbake;
 // markdown tar over når svaret er ferdig.
@@ -168,8 +122,8 @@ export function Chat({
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [title, setTitle] = useState<string | null>(initialTitle ?? null);
-  // Topbar fader inn når man scroller forbi første melding.
-  const [scrolledPast, setScrolledPast] = useState(false);
+  // Scroll-ankring + topbar-fade eies av hooken; den gir ref til meldingslista.
+  const { messagesRef, scrolledPast } = useAnchoredScroll(messages);
   // Agent bak denne chatten (for pause-knappen), null for vanlige chatter.
   const [agent, setAgent] = useState<AgentInfo | null>(null);
   // Inline-redigering av tittel (dobbeltklikk).
@@ -298,7 +252,6 @@ export function Chat({
     content: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // /agent slår på agent-oppsettmodus for resten av denne samtalen, så
@@ -310,50 +263,7 @@ export function Chat({
   const activeMailReplyRef = useRef<string | null>(null);
   const hasMessages = messages.length > 0;
 
-  // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
-  // strømmer nedover derfra og brukeren eier scrollen ellers.
-  const ANCHOR = 96;
-
-  // Én gang per ny melding: reserver plass i siste svar-rad slik at siste
-  // spørsmål står ved ankeret når vi ligger helt nede. Ingen måling per
-  // chunk — teksten strømmer inn i allerede reservert plass.
-  useEffect(() => {
-    const el = messagesRef.current;
-    if (!el) return;
-    const rows = el.querySelectorAll<HTMLElement>("[data-role]");
-    rows.forEach((r) => (r.style.minHeight = ""));
-    const users = el.querySelectorAll<HTMLElement>('[data-role="user"]');
-    const lastUser = users[users.length - 1];
-    const last = rows[rows.length - 1];
-    if (lastUser && last && last.dataset.role === "assistant") {
-      const offset =
-        last.getBoundingClientRect().top -
-        lastUser.getBoundingClientRect().top;
-      const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-      const needed = el.clientHeight - ANCHOR - padBottom - offset;
-      last.style.minHeight = `${Math.max(0, needed)}px`;
-    }
-    el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
-
-  // Per chunk: bare hold oss helt nede (no-op til svaret overstiger
-  // reservert plass).
-  useEffect(() => {
-    const el = messagesRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
-
   useEffect(() => () => abortRef.current?.abort(), []);
-
-  // Fade topbar inn så snart første melding scrolles under toppen.
-  useEffect(() => {
-    const el = messagesRef.current;
-    if (!el) return;
-    const onScroll = () => setScrolledPast(el.scrollTop > 40);
-    onScroll();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [hasMessages]);
 
   // Zoom/vindusendring endrer scrollHeight — juster tekstfeltet på nytt.
   useEffect(() => {
@@ -1187,9 +1097,7 @@ export function Chat({
                             <Logo
                               size={10}
                               flutter
-                              glow={
-                                MODEL_GLOW[m.resolvedModel ?? ""] ?? "#ffffff"
-                              }
+                              glow={modelGlow(m.resolvedModel ?? null)}
                             />
                           </span>
                           <span className={styles.stepActive}>
