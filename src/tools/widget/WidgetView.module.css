@@ -31,9 +31,6 @@
   animation: sheen 2.6s ease-in-out infinite;
 }
 
-  55%, 100% { transform: translateX(100%); }
-}
-
 /* Skeleton-overlegg som fyller (og krymper med) boksen mens kortet dukker
    opp under, og toner ut → synlig, myk resize + krysstoning. */
 .skeletonOverlay {

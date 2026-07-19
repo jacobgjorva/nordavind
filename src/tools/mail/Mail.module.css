@@ -102,9 +102,6 @@
   animation: sheen 1.4s ease-in-out infinite;
 }
 
-  55%, 100% { transform: translateX(100%); }
-}
-
 .recips { display: flex; flex-direction: column; gap: 8px; }
 
 .recipRow { display: flex; align-items: center; gap: 12px; }
