@@ -49,8 +49,6 @@ import {
 } from "./messageParts";
 import styles from "./Chat.module.css";
 
-// Fenced kodeblokker: spesial-språk (```stat/```table/```copy/```actions)
-// blir widgets, resten blir kodeblokk med kopier-knapp.
 interface ChatMessage extends Omit<ApiMessage, "content"> {
   // content er alltid ren tekst for visning; multimodal payload (bilder)
   // ligger i apiContent og sendes til modellen.
