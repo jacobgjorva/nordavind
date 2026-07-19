@@ -663,15 +663,21 @@ export function Chat({
       // Ikke «ja» → fall gjennom til vanlig chat.
     }
 
-    // Åpent svarforslag: en vanlig melding blir justering av utkastet.
+    // Åpent svarforslag: en vanlig melding blir justering av utkastet, og
+    // svar-widgeten flyttes ned under iterasjons-meldingen (samme id →
+    // beholder tilstand/utkast, oppdateres via refine-eventet).
     if (activeMailReplyRef.current && !raw.startsWith("/")) {
       const key = activeMailReplyRef.current;
       setInput("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
-      setMessages((prev) => [
-        ...prev,
-        { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
-      ]);
+      const userMsg = { id: nextId(), role: "user" as const, content: raw, display: raw, revealed: true };
+      setMessages((prev) => {
+        const reply = prev.find(
+          (m) => m.role === "assistant" && m.content.startsWith("```mailreply")
+        );
+        const rest = prev.filter((m) => m !== reply);
+        return reply ? [...rest, userMsg, reply] : [...rest, userMsg];
+      });
       window.dispatchEvent(
         new CustomEvent("nordavind:mail-refine", { detail: { key, feedback: raw } })
       );
