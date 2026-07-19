@@ -178,8 +178,14 @@ export function WidgetView({ slug }: { slug: string }) {
     }
   });
 
-  // Ved avsløring: animer fra skeleton-høyde til kortets høyde. Direkte DOM +
-  // tvungen reflow så «fra»-rammen faktisk males før overgangen starter.
+  // revealing = skeleton-overlegget krymper + krysstoner mens kortet dukker opp
+  // under det, så selve boksen resizer synlig (ikke bare en usynlig container).
+  const [revealing, setRevealing] = useState(false);
+
+  const REVEAL_MS = 550;
+
+  // Ved avsløring: animer høyden fra skeleton til kortet med Web Animations
+  // API (uavhengig av transition/reflow-timing → pålitelig i React).
   useLayoutEffect(() => {
     if ((!ready && !error) || wasRevealed) return;
     const wrap = wrapRef.current;
@@ -187,19 +193,20 @@ export function WidgetView({ slug }: { slug: string }) {
     if (!wrap || !inner) return;
     const from = prevH.current;
     const to = inner.offsetHeight;
-    if (!from || from === to) return;
+    if (!from || from === to || typeof wrap.animate !== "function") return;
     wrap.style.overflow = "hidden";
-    wrap.style.height = `${from}px`;
-    void wrap.offsetHeight; // tvungen reflow
-    wrap.style.height = `${to}px`;
-    const onEnd = (e: TransitionEvent) => {
-      if (e.propertyName !== "height") return;
-      wrap.style.height = "";
+    setRevealing(true);
+    const anim = wrap.animate(
+      [{ height: `${from}px` }, { height: `${to}px` }],
+      { duration: REVEAL_MS, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" }
+    );
+    const done = () => {
       wrap.style.overflow = "";
-      wrap.removeEventListener("transitionend", onEnd);
+      setRevealing(false);
     };
-    wrap.addEventListener("transitionend", onEnd);
-    return () => wrap.removeEventListener("transitionend", onEnd);
+    anim.addEventListener("finish", done);
+    anim.addEventListener("cancel", done);
+    return () => anim.cancel();
   }, [ready, error, wasRevealed]);
 
   useEffect(() => {
@@ -254,7 +261,7 @@ export function WidgetView({ slug }: { slug: string }) {
 
   // Én container hele veien, så høyden kan animeres mykt ved avsløring.
   return (
-    <div ref={wrapRef} className={styles.widget}>
+    <div ref={wrapRef} className={styles.widget} style={{ position: "relative" }}>
       <div ref={innerRef}>
         {error ? (
           <div className={styles.card}>
@@ -268,6 +275,13 @@ export function WidgetView({ slug }: { slug: string }) {
           </div>
         )}
       </div>
+      {/* Skeleton-overlegg som krymper med boksen og toner ut. */}
+      {revealing && (
+        <div
+          className={styles.skeletonOverlay}
+          style={{ animationDuration: `${REVEAL_MS}ms` }}
+        />
+      )}
     </div>
   );
 }

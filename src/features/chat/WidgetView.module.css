@@ -36,6 +36,40 @@
   55%, 100% { transform: translateX(100%); }
 }
 
+/* Skeleton-overlegg som fyller (og krymper med) boksen mens kortet dukker
+   opp under, og toner ut → synlig, myk resize + krysstoning. */
+.skeletonOverlay {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  overflow: hidden;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg, #101013);
+  animation: overlayFade both ease-out;
+}
+
+.skeletonOverlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 33%,
+    rgba(255, 255, 255, 0.12) 46%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.12) 54%,
+    transparent 67%
+  );
+  transform: translateX(-100%);
+  animation: sheen 2.6s ease-in-out infinite;
+}
+
+@keyframes overlayFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Widget-kortet felles inn når all info er på plass. */
 .reveal {
   animation: cardIn 1.1s var(--ease-out, cubic-bezier(0.2, 0.7, 0.2, 1)) both;
