@@ -144,21 +144,25 @@ function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
 
 // WindForming er skapelses-animasjonen: hvite partikler som beveger seg
 // tilfeldig og fader inn/ut med blur mens widgeten bygges.
-const PARTICLE_COUNT = 34;
+const PARTICLE_COUNT = 90;
+
+// Tilnærmet normalfordelt rundt 50% (sum av tre tilfeldige) — tetter i midten.
+const centered = (spread: number) =>
+  50 + ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * spread;
 
 function WindForming({ dissipating }: { dissipating?: boolean }) {
   const parts = useMemo(
     () =>
       Array.from({ length: PARTICLE_COUNT }, () => ({
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        size: 2 + Math.random() * 5,
-        dx: (Math.random() * 2 - 1) * 46,
-        dy: (Math.random() * 2 - 1) * 46,
-        blur: 1 + Math.random() * 3,
-        peak: 0.35 + Math.random() * 0.55,
-        dur: 2.4 + Math.random() * 3.2,
-        delay: -Math.random() * 5,
+        left: centered(70),
+        top: centered(90),
+        size: 1 + Math.random() * 2.5,
+        dx: (Math.random() * 2 - 1) * 70,
+        dy: (Math.random() * 2 - 1) * 70,
+        blur: 0.6 + Math.random() * 2.4,
+        peak: 0.4 + Math.random() * 0.55,
+        dur: 1.5 + Math.random() * 2,
+        delay: -Math.random() * 4,
       })),
     []
   );
