@@ -21,11 +21,18 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("no-NO", { day: "2-digit", month: "short" });
 }
 
-const AVATAR_COLORS = [
-  "#E6F2FF", "#CDFBFB", "#D8FDE4", "#E8FDCA", "#FDF2B2", "#FFE6E8", "#EEEAFF",
+// Lys bakgrunn + mørk variant av samme farge til initialene.
+const AVATAR_COLORS: [string, string][] = [
+  ["#E6F2FF", "#2e6bad"],
+  ["#CDFBFB", "#1f8a8a"],
+  ["#D8FDE4", "#2f8a54"],
+  ["#E8FDCA", "#5f7d1e"],
+  ["#FDF2B2", "#94711a"],
+  ["#FFE6E8", "#b0505a"],
+  ["#EEEAFF", "#6152b3"],
 ];
 
-function avatarColor(addr: string): string {
+function avatarColor(addr: string): [string, string] {
   let h = 0;
   for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
@@ -123,7 +130,8 @@ function ChipRow({ f, people, onRemove, onAdd }: {
       <div className={styles.chips}>
         {people.map((p) => (
           <span key={p.address} className={styles.chip}>
-            <span className={styles.chipAvatar} style={{ background: avatarColor(p.address) }}>
+            <span className={styles.chipAvatar}
+              style={{ background: avatarColor(p.address)[0], color: avatarColor(p.address)[1] }}>
               {initials(p)}
             </span>
             <span className={styles.chipName}>{p.name || p.address}</span>
