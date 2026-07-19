@@ -5,6 +5,7 @@ import {
   analyzeThread,
   fetchThread,
   refineDraft,
+  initialDraft,
   sendMail,
   type MailAnalysis,
   type MailMessage,
@@ -201,7 +202,9 @@ export function MailReply({ threadKey }: { threadKey: string }) {
       );
       setRecips({ to, cc, bcc: [] });
     });
-    analyzeThread(threadKey).then((a) => { if (alive) setBody(a.draft); }).catch(swallow);
+    // Utkastet genereres først nå — brukeren har valgt å svare (denne
+    // komponenten mountes kun da), ikke ved åpning av tråden.
+    initialDraft(threadKey).then((d) => { if (alive) setBody(d); }).catch(swallow);
     return () => { alive = false; };
   }, [threadKey]);
 

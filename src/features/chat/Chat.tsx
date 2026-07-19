@@ -650,7 +650,9 @@ export function Chat({
       }
 
       // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
-      if (acc && text && !agentModeRef.current && !widgetEditRef.current) {
+      // Hopp over korte meldinger uten substans; backend gater videre på
+      // bedriftsinterne markører før den bruker et LLM-kall.
+      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current) {
         extractKnowledge({
           chat_id: chatIdRef.current ?? undefined,
           question: text,

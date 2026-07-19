@@ -40,7 +40,6 @@ export interface MailAnalysis {
   summary: string;
   essences: string[];
   proposal: string;
-  draft: string;
 }
 
 export async function fetchInbox(): Promise<MailThreadSummary[]> {
@@ -102,6 +101,16 @@ export async function refineDraft(
   const data = await apiFetch<{ draft: string }>("/mail/draft", {
     method: "POST",
     body: { key, current, feedback },
+  });
+  return data.draft;
+}
+
+// initialDraft genererer førsteutkastet — kalles først når brukeren faktisk
+// vil svare (tomt current signaliserer førsteutkast til backend).
+export async function initialDraft(key: string): Promise<string> {
+  const data = await apiFetch<{ draft: string }>("/mail/draft", {
+    method: "POST",
+    body: { key, current: "", feedback: "" },
   });
   return data.draft;
 }
