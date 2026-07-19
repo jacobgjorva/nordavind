@@ -1,4 +1,4 @@
-import { registerBlock } from "../../chat/blocks/registry";
+import { registerBlock } from "../../features/chat/blocks/registry";
 import { MailThread, MailReply } from "./Mail";
 
 // ```mailthread\n<key>``` → tråd-kortet, ```mailreply\n<key>``` → svarforslag.

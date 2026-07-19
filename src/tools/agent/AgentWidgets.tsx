@@ -6,7 +6,7 @@ import {
   type AgentConnection,
   type AgentInfo as AgentRecord,
 } from "../../lib/api";
-import { registerBlock } from "../../chat/blocks/registry";
+import { registerBlock } from "../../features/chat/blocks/registry";
 import styles from "./AgentWidgets.module.css";
 
 interface AgentInfo {

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { CopyIcon } from "../../ui/Icons";
+import { CopyIcon } from "../../../ui/Icons";
 import { registerBlock } from "./registry";
 import styles from "./blocks.module.css";
 

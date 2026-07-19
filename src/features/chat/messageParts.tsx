@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Copy01Icon, FastWindIcon } from "@hugeicons/core-free-icons";
-import { CodeBlock } from "../../chat/blocks/core";
-import { renderBlock } from "../../chat/blocks/registry";
+import { CodeBlock } from "./blocks/core";
+import { renderBlock } from "./blocks/registry";
 import type { SourceRef } from "../../lib/api";
 import styles from "./Chat.module.css";
 

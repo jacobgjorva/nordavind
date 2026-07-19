@@ -1,4 +1,4 @@
-import { registerBlock } from "../../chat/blocks/registry";
+import { registerBlock } from "../../features/chat/blocks/registry";
 import { WidgetView } from "./WidgetView";
 
 // ```widget\n<slug>\n``` → widget-kortet.
