@@ -41,7 +41,9 @@ import {
   type ChatSummary,
   type SourceRef,
 } from "../../lib/api";
-import { CodeBlock, renderFenced } from "./Widgets";
+import "../../tools"; // registrerer alle verktøyenes fenced-blokker
+import { CodeBlock } from "../../chat/blocks/core";
+import { renderBlock } from "../../chat/blocks/registry";
 import styles from "./Chat.module.css";
 
 // Fenced kodeblokker: spesial-språk (```stat/```table/```copy/```actions)
@@ -56,7 +58,7 @@ function MarkdownPre({ children }: { children?: React.ReactNode }) {
         ? code.children.join("")
         : "";
   if (lang) {
-    const widget = renderFenced(lang, body.replace(/\n$/, ""));
+    const widget = renderBlock(lang, body.replace(/\n$/, ""));
     if (widget) return <>{widget}</>;
   }
   return <CodeBlock lang={lang}>{children}</CodeBlock>;
