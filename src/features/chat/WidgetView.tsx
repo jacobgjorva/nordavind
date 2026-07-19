@@ -156,13 +156,14 @@ function WindForming({ dissipating }: { dissipating?: boolean }) {
       Array.from({ length: PARTICLE_COUNT }, () => ({
         left: centered(70),
         top: centered(90),
-        size: 1 + Math.random() * 2.5,
-        dx: (Math.random() * 2 - 1) * 70,
-        dy: (Math.random() * 2 - 1) * 70,
-        blur: 0.6 + Math.random() * 2.4,
-        peak: 0.4 + Math.random() * 0.55,
-        dur: 1.5 + Math.random() * 2,
-        delay: -Math.random() * 4,
+        size: 2.5 + Math.random() * 3,
+        dx: (Math.random() * 2 - 1) * 60,
+        dy: (Math.random() * 2 - 1) * 60,
+        peak: 0.45 + Math.random() * 0.5,
+        driftDur: 1.6 + Math.random() * 2.2,
+        driftDelay: -Math.random() * 4,
+        depthDur: 1.3 + Math.random() * 2,
+        depthDelay: -Math.random() * 4,
       })),
     []
   );
@@ -180,13 +181,22 @@ function WindForming({ dissipating }: { dissipating?: boolean }) {
               height: `${p.size}px`,
               "--dx": `${p.dx}px`,
               "--dy": `${p.dy}px`,
-              "--blur": `${p.blur}px`,
-              "--peak": p.peak,
-              animationDuration: `${p.dur}s`,
-              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.driftDur}s`,
+              animationDelay: `${p.driftDelay}s`,
             } as CSSProperties
           }
-        />
+        >
+          <span
+            className={styles.dot}
+            style={
+              {
+                "--peak": p.peak,
+                animationDuration: `${p.depthDur}s`,
+                animationDelay: `${p.depthDelay}s`,
+              } as CSSProperties
+            }
+          />
+        </span>
       ))}
     </div>
   );
