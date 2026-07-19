@@ -195,10 +195,13 @@ export function MailReply({ threadKey }: { threadKey: string }) {
     const onRefine = async (e: Event) => {
       const d = (e as CustomEvent<{ key: string; feedback: string }>).detail;
       if (d.key !== threadKey) return;
+      const started = performance.now();
       setRefining(true);
       try {
-        setBody((prev) => prev);
         const next = await refineDraft(threadKey, body, d.feedback);
+        // Glansen kjører til det nye utkastet er satt, og minst én full sveip.
+        const wait = Math.max(0, 1300 - (performance.now() - started));
+        await new Promise((r) => setTimeout(r, wait));
         setBody(next);
       } finally {
         setRefining(false);
