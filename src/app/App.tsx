@@ -14,7 +14,6 @@ import {
 import styles from "./App.module.css";
 
 export default function App() {
-
   const [view, setView] = useState<"chat" | "settings">("chat");
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
