@@ -1,4 +1,4 @@
-import { BASE_URL, API_KEY, authHeaders } from "./client";
+import { BASE_URL, API_KEY, authHeaders, apiFetch } from "./client";
 import type { ApiMessage, Role } from "./client";
 
 export interface ChatSummary {
@@ -17,37 +17,24 @@ export interface StoredMessage {
 }
 
 export async function fetchChats(): Promise<ChatSummary[]> {
-  const res = await fetch(`${BASE_URL}/chats`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).chats ?? [];
+  const data = await apiFetch<{ chats?: ChatSummary[] }>("/chats");
+  return data.chats ?? [];
 }
 
 export async function createChat(title: string): Promise<ChatSummary> {
-  const res = await fetch(`${BASE_URL}/chats`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/chats", { method: "POST", body: { title } });
 }
 
 export async function fetchChatMessages(id: string): Promise<StoredMessage[]> {
-  const res = await fetch(`${BASE_URL}/chats/${id}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).messages ?? [];
+  const data = await apiFetch<{ messages?: StoredMessage[] }>(`/chats/${id}`);
+  return data.messages ?? [];
 }
 
 export async function appendChatMessage(
   id: string,
   msg: StoredMessage
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/chats/${id}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(msg),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/chats/${id}/messages`, { method: "POST", body: msg });
 }
 
 // Starter passivt kunnskaps-uttrekk fra en utveksling (fyr og glem).
@@ -69,12 +56,7 @@ export async function logCorrection(payload: {
   correction: string;
   chat_id?: string;
 }): Promise<void> {
-  const res = await fetch(`${BASE_URL}/corrections`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch("/corrections", { method: "POST", body: payload });
 }
 
 export async function generateChatTitle(
@@ -82,24 +64,20 @@ export async function generateChatTitle(
   question: string,
   answer: string
 ): Promise<string> {
-  const res = await fetch(`${BASE_URL}/chats/${id}/title`, {
+  const data = await apiFetch<{ title: string }>(`/chats/${id}/title`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ question, answer }),
+    body: { question, answer },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).title;
+  return data.title;
 }
 
 // Setter en manuell tittel på samtalen.
 export async function renameChat(id: string, title: string): Promise<string> {
-  const res = await fetch(`${BASE_URL}/chats/${id}`, {
+  const data = await apiFetch<{ title: string }>(`/chats/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title }),
+    body: { title },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).title;
+  return data.title;
 }
 
 export interface Attachment {

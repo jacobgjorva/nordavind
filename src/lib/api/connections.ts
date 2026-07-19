@@ -1,4 +1,4 @@
-import { BASE_URL, authHeaders } from "./client";
+import { apiFetch } from "./client";
 
 export interface Connection {
   id: string;
@@ -48,9 +48,8 @@ export interface ConnectionSchema {
 }
 
 export async function fetchConnections(): Promise<Connection[]> {
-  const res = await fetch(`${BASE_URL}/connections`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).connections ?? [];
+  const data = await apiFetch<{ connections?: Connection[] }>("/connections");
+  return data.connections ?? [];
 }
 
 export async function createConnection(payload: {
@@ -62,29 +61,15 @@ export async function createConnection(payload: {
   user: string;
   password: string;
 }): Promise<Connection> {
-  const res = await fetch(`${BASE_URL}/connections`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/connections", { method: "POST", body: payload });
 }
 
 export async function deleteConnection(id: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/connections/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/connections/${id}`, { method: "DELETE" });
 }
 
 export async function fetchConnectionSchema(id: string): Promise<ConnectionSchema> {
-  const res = await fetch(`${BASE_URL}/connections/${id}/schema`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
-  return res.json();
+  return apiFetch(`/connections/${id}/schema`);
 }
 
 export async function saveConnectionConfig(
@@ -93,10 +78,8 @@ export async function saveConnectionConfig(
   links: DbLink[],
   views: DbView[]
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/connections/${id}/config`, {
+  await apiFetch(`/connections/${id}/config`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ tables, links, views }),
+    body: { tables, links, views },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

@@ -1,4 +1,4 @@
-import { BASE_URL, authHeaders } from "./client";
+import { apiFetch } from "./client";
 
 export interface KnowledgeNode {
   id: string;
@@ -11,11 +11,8 @@ export interface KnowledgeNode {
 
 // Henter noder som venter på admin-godkjenning.
 export async function fetchPendingNodes(): Promise<KnowledgeNode[]> {
-  const res = await fetch(`${BASE_URL}/knowledge/pending`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).nodes ?? [];
+  const data = await apiFetch<{ nodes?: KnowledgeNode[] }>("/knowledge/pending");
+  return data.nodes ?? [];
 }
 
 export interface GraphData {
@@ -25,11 +22,7 @@ export interface GraphData {
 
 // Henter kunnskapsgrafen (aksepterte noder + kanter) til visualisering.
 export async function fetchKnowledgeGraph(): Promise<GraphData> {
-  const res = await fetch(`${BASE_URL}/knowledge/graph`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/knowledge/graph");
 }
 
 // Redigerer en akseptert node manuelt.
@@ -38,12 +31,7 @@ export async function updateNode(
   title: string,
   summary: string
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/knowledge/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title, summary }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/knowledge/${id}`, { method: "PUT", body: { title, summary } });
 }
 
 // Godkjenner en node (med evt. redigert tekst).
@@ -52,19 +40,13 @@ export async function acceptNode(
   title: string,
   summary: string
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/knowledge/${id}/accept`, {
+  await apiFetch(`/knowledge/${id}/accept`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title, summary }),
+    body: { title, summary },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 // Avviser en node.
 export async function rejectNode(id: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/knowledge/${id}/reject`, {
-    method: "POST",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/knowledge/${id}/reject`, { method: "POST" });
 }

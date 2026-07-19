@@ -1,4 +1,4 @@
-import { BASE_URL, authHeaders } from "./client";
+import { apiFetch, ApiError } from "./client";
 
 export interface AuthUser {
   id: string;
@@ -7,27 +7,30 @@ export interface AuthUser {
   role: string;
 }
 
+export interface AuthTenant {
+  id: string;
+  name: string;
+}
+
 export async function requestCode(email: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/auth/request-code`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch("/auth/request-code", { method: "POST", body: { email } });
 }
 
 export async function verifyCode(
   email: string,
   code: string
 ): Promise<{ token: string; user: AuthUser }> {
-  const res = await fetch(`${BASE_URL}/auth/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, code }),
-  });
-  if (res.status === 401) throw new Error("Ugyldig kode");
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  try {
+    return await apiFetch("/auth/verify", {
+      method: "POST",
+      body: { email, code },
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      throw new Error("Ugyldig kode");
+    }
+    throw err;
+  }
 }
 
 export interface AdminUser extends AuthUser {
@@ -40,36 +43,24 @@ export interface AdminUser extends AuthUser {
 }
 
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
-  const res = await fetch(`${BASE_URL}/admin/users`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).users ?? [];
+  const data = await apiFetch<{ users?: AdminUser[] }>("/admin/users");
+  return data.users ?? [];
 }
 
 export async function createAdminUser(
   email: string,
   role: string
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/admin/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ email, role }),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+  await apiFetch("/admin/users", { method: "POST", body: { email, role } });
 }
 
 export async function deleteAdminUser(id: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/admin/users/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/admin/users/${id}`, { method: "DELETE" });
 }
 
 export async function fetchMe(): Promise<{
   user: AuthUser;
   tenant: AuthTenant;
 }> {
-  const res = await fetch(`${BASE_URL}/auth/me`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/auth/me");
 }

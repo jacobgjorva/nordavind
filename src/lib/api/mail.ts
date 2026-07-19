@@ -1,4 +1,4 @@
-import { BASE_URL, authHeaders } from "./client";
+import { apiFetch } from "./client";
 
 // ── Mail ──
 export interface MailPerson {
@@ -44,9 +44,8 @@ export interface MailAnalysis {
 }
 
 export async function fetchInbox(): Promise<MailThreadSummary[]> {
-  const res = await fetch(`${BASE_URL}/mail/inbox`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).threads ?? [];
+  const data = await apiFetch<{ threads?: MailThreadSummary[] }>("/mail/inbox");
+  return data.threads ?? [];
 }
 
 type ThreadResult = { messages: MailMessage[]; signature: string; me: string };
@@ -57,13 +56,7 @@ const threadCache = new Map<string, Promise<ThreadResult>>();
 export function fetchThread(key: string): Promise<ThreadResult> {
   const cached = threadCache.get(key);
   if (cached) return cached;
-  const p = (async () => {
-    const res = await fetch(`${BASE_URL}/mail/thread?key=${encodeURIComponent(key)}`, {
-      headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json() as Promise<ThreadResult>;
-  })();
+  const p = apiFetch<ThreadResult>(`/mail/thread?key=${encodeURIComponent(key)}`);
   threadCache.set(key, p);
   p.catch(() => threadCache.delete(key));
   return p;
@@ -92,14 +85,10 @@ const analyzeCache = new Map<string, Promise<MailAnalysis>>();
 export function analyzeThread(key: string): Promise<MailAnalysis> {
   const cached = analyzeCache.get(key);
   if (cached) return cached;
-  const p = (async () => {
-    const res = await fetch(`${BASE_URL}/mail/analyze?key=${encodeURIComponent(key)}`, {
-      method: "POST",
-      headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json() as Promise<MailAnalysis>;
-  })();
+  const p = apiFetch<MailAnalysis>(
+    `/mail/analyze?key=${encodeURIComponent(key)}`,
+    { method: "POST" }
+  );
   analyzeCache.set(key, p);
   p.catch(() => analyzeCache.delete(key)); // la feil kunne prøves på nytt
   return p;
@@ -110,13 +99,11 @@ export async function refineDraft(
   current: string,
   feedback: string
 ): Promise<string> {
-  const res = await fetch(`${BASE_URL}/mail/draft`, {
+  const data = await apiFetch<{ draft: string }>("/mail/draft", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ key, current, feedback }),
+    body: { key, current, feedback },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).draft;
+  return data.draft;
 }
 
 export interface SendMailPayload {
@@ -130,10 +117,5 @@ export interface SendMailPayload {
 }
 
 export async function sendMail(p: SendMailPayload): Promise<void> {
-  const res = await fetch(`${BASE_URL}/mail/send`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(p),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+  await apiFetch("/mail/send", { method: "POST", body: p });
 }

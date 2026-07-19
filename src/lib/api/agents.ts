@@ -1,4 +1,4 @@
-import { BASE_URL, authHeaders } from "./client";
+import { apiFetch, ApiError } from "./client";
 
 export interface AgentConnection {
   id: string;
@@ -8,11 +8,8 @@ export interface AgentConnection {
 
 // Tilkoblingene agent-widgeten lar brukeren velge mellom.
 export async function fetchAgentConnections(): Promise<AgentConnection[]> {
-  const res = await fetch(`${BASE_URL}/agent-connections`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).connections ?? [];
+  const data = await apiFetch<{ connections?: AgentConnection[] }>("/agent-connections");
+  return data.connections ?? [];
 }
 
 export interface NewAgent {
@@ -30,13 +27,7 @@ export interface NewAgent {
 export async function createAgent(
   payload: NewAgent
 ): Promise<{ id: string; chat_id: string }> {
-  const res = await fetch(`${BASE_URL}/agents`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/agents", { method: "POST", body: payload });
 }
 
 export interface AgentInfo {
@@ -57,22 +48,17 @@ export async function updateAgent(
   id: string,
   payload: NewAgent
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/agents/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+  await apiFetch(`/agents/${id}`, { method: "PUT", body: payload });
 }
 
 // Henter agenten som eier en chat (for pause-knappen). null hvis ikke agent-chat.
 export async function fetchChatAgent(chatId: string): Promise<AgentInfo | null> {
-  const res = await fetch(`${BASE_URL}/chats/${chatId}/agent`, {
-    headers: authHeaders(),
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  try {
+    return await apiFetch<AgentInfo>(`/chats/${chatId}/agent`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 // Pauser eller gjenopptar en agent.
@@ -80,19 +66,10 @@ export async function setAgentEnabled(
   id: string,
   enabled: boolean
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/agents/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ enabled }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/agents/${id}`, { method: "PATCH", body: { enabled } });
 }
 
 // Deaktiverer (sletter) en agent.
 export async function deleteAgent(id: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/agents/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await apiFetch(`/agents/${id}`, { method: "DELETE" });
 }

@@ -1,4 +1,4 @@
-import { BASE_URL, authHeaders } from "./client";
+import { apiFetch } from "./client";
 
 // WidgetSpec er én visualisering (kpi/text/table/bar/line).
 export interface WidgetSpec {
@@ -30,36 +30,20 @@ export interface QueryResult {
 
 // Lister brukerens widgets (til slash-menyen).
 export async function listWidgets(): Promise<Widget[]> {
-  const res = await fetch(`${BASE_URL}/widgets`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/widgets");
 }
 
 // Oppretter en tom widget med gitt navn.
 export async function createWidget(title: string): Promise<Widget> {
-  const res = await fetch(`${BASE_URL}/widgets`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch("/widgets", { method: "POST", body: { title } });
 }
 
 // Henter én widget med spec.
 export async function fetchWidget(slug: string): Promise<Widget> {
-  const res = await fetch(`${BASE_URL}/widgets/${slug}`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch(`/widgets/${slug}`);
 }
 
 // Kjører widgetens datakilde (read-only).
 export async function fetchWidgetData(slug: string): Promise<QueryResult> {
-  const res = await fetch(`${BASE_URL}/widgets/${slug}/query`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return apiFetch(`/widgets/${slug}/query`);
 }
