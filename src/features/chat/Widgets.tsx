@@ -8,7 +8,7 @@ import {
   type AgentInfo as AgentRecord,
 } from "../../lib/api";
 import { WidgetView } from "./WidgetView";
-import { MailThread } from "../mail/Mail";
+import { MailThread, MailReply } from "../mail/Mail";
 import styles from "./Widgets.module.css";
 
 // Rekursivt ut med ren tekst fra react-markdown-noder (til kopiering).
@@ -638,6 +638,10 @@ export function renderFenced(lang: string, body: string): ReactNode {
     if (lang === "mailthread") {
       const key = body.trim();
       if (key) return <MailThread threadKey={key} />;
+    }
+    if (lang === "mailreply") {
+      const key = body.trim();
+      if (key) return <MailReply threadKey={key} />;
     }
     if (lang === "copy") {
       const [value, hint] = body.split("\n");

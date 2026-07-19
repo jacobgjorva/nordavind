@@ -22,6 +22,7 @@ import {
   listWidgets,
   type Widget,
   fetchInbox,
+  analyzeThread,
   type MailThreadSummary,
   deleteAgent,
   extractKnowledge,
@@ -151,9 +152,9 @@ const MODEL_GLOW: Record<string, string> = {
 // ID-er, som gjør at update() overskriver gamle meldinger.
 const nextId = () => crypto.randomUUID();
 
-// En melding som kun er en widget- eller mailthread-blokk vises i full bredde.
+// En melding som kun er en widget/mailthread/mailreply-blokk vises i full bredde.
 const isWidgetOnly = (content?: string) =>
-  !!content && /^```(widget|mailthread)\n[\s\S]*?\n```$/.test(content.trim());
+  !!content && /^```(widget|mailthread|mailreply)\n[\s\S]*?\n```$/.test(content.trim());
 
 // Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
 const slugify = (s: string) =>
@@ -457,6 +458,8 @@ export function Chat({
   // /agent slår på agent-oppsettmodus for resten av denne samtalen, så
   // modellen beholder verktøyene gjennom hele den flerstegs-samtalen.
   const agentModeRef = useRef(false);
+  // Tråd-nøkkel som venter på «ja» for å launche svarforslag.
+  const pendingMailReplyRef = useRef<string | null>(null);
   const hasMessages = messages.length > 0;
 
   // Nytt spørsmål ankres i toppen av viewporten (ChatGPT-stil); svaret
@@ -602,11 +605,53 @@ export function Chat({
         .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
         .catch(() => {});
     }
+
+    // AI tolker tråden og foreslår å svare. Ved «ja» launcher vi svarforslaget.
+    const proposalId = nextId();
+    setMessages((prev) => [
+      ...prev,
+      { id: proposalId, role: "assistant", content: "", loading: true },
+    ]);
+    try {
+      const a = await analyzeThread(key);
+      const proposal = a.proposal || "Skal jeg skrive et svar på denne?";
+      pendingMailReplyRef.current = key;
+      update(proposalId, { loading: false, content: proposal, revealed: true });
+      if (cid)
+        appendChatMessage(cid, { role: "assistant", content: proposal }).catch(() => {});
+    } catch {
+      update(proposalId, { loading: false, content: "Skal jeg skrive et svar?", revealed: true });
+      pendingMailReplyRef.current = key;
+    }
   }
 
   async function send(overrideText?: string) {
     const raw = (overrideText ?? input).trim();
     if ((!raw && attachments.length === 0) || busy) return;
+
+    // Venter på svar på et mail-forslag: «ja» launcher svarforslaget.
+    if (pendingMailReplyRef.current) {
+      const key = pendingMailReplyRef.current;
+      pendingMailReplyRef.current = null;
+      const yes = /^(ja|jepp|jada|ja takk|gjør det|yes|ok|greit)\b/i.test(raw);
+      if (yes) {
+        setInput("");
+        const block = "```mailreply\n" + key + "\n```";
+        setMessages((prev) => [
+          ...prev,
+          { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+          { id: nextId(), role: "assistant", content: block, revealed: true },
+        ]);
+        const cid = chatIdRef.current;
+        if (cid) {
+          appendChatMessage(cid, { role: "user", content: raw })
+            .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
+            .catch(() => {});
+        }
+        return;
+      }
+      // Ikke «ja» → fall gjennom til vanlig chat.
+    }
 
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();

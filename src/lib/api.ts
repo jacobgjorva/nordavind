@@ -802,6 +802,7 @@ export interface MailMessage {
 export interface MailAnalysis {
   summary: string;
   essences: string[];
+  proposal: string;
   draft: string;
 }
 
@@ -841,13 +842,23 @@ export async function fetchThread(
   return res.json();
 }
 
-export async function analyzeThread(key: string): Promise<MailAnalysis> {
-  const res = await fetch(`${BASE_URL}/mail/analyze?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+// Deles av trådkortet og forslags-meldingen så tråden bare tolkes én gang.
+const analyzeCache = new Map<string, Promise<MailAnalysis>>();
+
+export function analyzeThread(key: string): Promise<MailAnalysis> {
+  const cached = analyzeCache.get(key);
+  if (cached) return cached;
+  const p = (async () => {
+    const res = await fetch(`${BASE_URL}/mail/analyze?key=${encodeURIComponent(key)}`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<MailAnalysis>;
+  })();
+  analyzeCache.set(key, p);
+  p.catch(() => analyzeCache.delete(key)); // la feil kunne prøves på nytt
+  return p;
 }
 
 export async function refineDraft(
