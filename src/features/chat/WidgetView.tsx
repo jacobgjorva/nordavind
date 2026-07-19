@@ -166,12 +166,13 @@ const makeParticle = () => {
     dy: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 42),
     blurFar: lerp(1.4, 8, depth) + Math.random(),
     blurNear: lerp(0, 4.5, depth) + Math.random() * 0.4,
-    floor: lerp(0.75, 0.18, depth),
-    peak: lerp(1, 0.42, depth),
-    driftDur: lerp(1.6, 3.2, depth) + Math.random() * 1.2,
-    driftDelay: -Math.random() * 4,
-    depthDur: lerp(1.3, 2.6, depth) + Math.random() * 1.2,
-    depthDelay: -Math.random() * 4,
+    floor: lerp(0.72, 0.28, depth),
+    peak: lerp(1, 0.5, depth),
+    // Trege, usynkroniserte sykluser → mykt, kontinuerlig liv (aldri stopp).
+    driftDur: lerp(7, 12, Math.random()),
+    driftDelay: -Math.random() * 12,
+    depthDur: lerp(5, 10, Math.random()),
+    depthDelay: -Math.random() * 10,
   };
 };
 

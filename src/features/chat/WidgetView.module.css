@@ -69,8 +69,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .particle, .dot { animation-duration: 0s; animation-iteration-count: 1; }
-  .dot { opacity: 0.5; }
+  /* Dempet, men fortsatt levende: ingen drift, bare rolig pust. */
+  .particle { animation: none; }
   .reveal { animation: none; }
 }
 
