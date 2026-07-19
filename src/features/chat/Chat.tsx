@@ -674,6 +674,13 @@ export function Chat({
       { role: "user", content: apiContent },
     ];
 
+    // Widget-tur: svaret ER widgeten. Sett blokka med én gang så vind-
+    // animasjonen starter umiddelbart — ingen loading-prikker, ingen «Ok».
+    const widgetTurnSlug = widgetEditRef.current;
+    const widgetBlock = widgetTurnSlug
+      ? "```widget\n" + widgetTurnSlug + "\n```"
+      : "";
+
     const userMsgId = nextId();
     const replyId = nextId();
     setMessages((prev) => [
@@ -687,7 +694,9 @@ export function Chat({
         attachmentNames: files.filter((a) => !a.image).map((a) => a.name),
         images: images.map((a) => a.image!),
       },
-      { id: replyId, role: "assistant", content: "", loading: true },
+      widgetTurnSlug
+        ? { id: replyId, role: "assistant", content: widgetBlock, revealed: true }
+        : { id: replyId, role: "assistant", content: "", loading: true },
     ]);
 
     if (!apiConfigured) {
@@ -728,6 +737,8 @@ export function Chat({
               if (!sources.some((x) => x.url === s.url)) sources.push(s);
             }
           }
+          // Widget-tur: ikke rør svaret — blokka + animasjonen står til data er klar.
+          if (widgetTurnSlug) return;
           update(replyId, {
             loading: !acc && !think && steps.length === 0,
             content: acc,
@@ -745,19 +756,14 @@ export function Chat({
           widget: widgetEditRef.current ?? undefined,
         }
       );
-      update(replyId, { streaming: false });
-      if (!acc) update(replyId, { loading: false, content: "(tomt svar)" });
-
-      // Widget-editor: vis den ferdige widgeten inline i stedet for «Ok»,
-      // og oppdater slash-registeret så /<slug> blir tilgjengelig.
-      if (widgetEditRef.current) {
-        const slug = widgetEditRef.current;
-        update(replyId, {
-          loading: false,
-          content: "```widget\n" + slug + "\n```",
-        });
-        acc = "```widget\n" + slug + "\n```";
+      // Widget-tur: blokka står allerede, WidgetView poller til data er klar.
+      // Bare oppdater slash-registeret så /<slug> blir tilgjengelig.
+      if (widgetTurnSlug) {
+        acc = widgetBlock;
         reloadWidgets();
+      } else {
+        update(replyId, { streaming: false });
+        if (!acc) update(replyId, { loading: false, content: "(tomt svar)" });
       }
 
       // Agenten kan ha endret seg selv via chatten — synk state + sidepanel.

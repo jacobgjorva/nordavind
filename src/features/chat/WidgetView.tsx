@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -114,116 +114,146 @@ function Table({ data }: { data: QueryResult }) {
   );
 }
 
-// Data-drevet visning (kpi/table/bar/line med SQL): henter query-resultatet.
-function DataComponent({ slug, c }: { slug: string; c: WidgetSpec }) {
-  const [data, setData] = useState<QueryResult | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    fetchWidgetData(slug)
-      .then(setData)
-      .catch(() => setError(true));
-  }, [slug, c.sql, c.connection_id]);
-
-  // KPI fra database: første celle blir tallet.
+// WidgetCard rendrer én ferdig widget fra spec + evt. forhåndslastet data.
+// Ingen henting her — data er alltid klar før kortet vises.
+function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
   if (c.type === "kpi") {
-    const value =
-      error || !data
-        ? error
-          ? "—"
-          : "…"
-        : String(data.rows[0]?.[0] ?? "—");
+    if (!c.sql) return <Kpi c={c} />;
+    const value = String(data?.rows[0]?.[0] ?? "—");
     return <Kpi c={{ ...c, value }} />;
   }
-
-  return (
-    <div className={styles.card}>
-      {c.title && <div className={styles.cardTitle}>{c.title}</div>}
-      {error ? (
-        <div className={styles.cardEmpty}>Kunne ikke hente data.</div>
-      ) : !data ? (
-        <div className={styles.cardEmpty}>Laster …</div>
-      ) : c.type === "table" ? (
-        <Table data={data} />
-      ) : c.type === "line" ? (
-        <LineChart c={c} data={data} />
-      ) : (
-        <BarChart c={c} data={data} />
-      )}
-    </div>
-  );
-}
-
-// Rendrer én widget-spec (uten henting).
-export function WidgetBody({ slug, c }: { slug: string; c: WidgetSpec }) {
-  if (c.type === "kpi")
-    return c.sql ? <DataComponent slug={slug} c={c} /> : <Kpi c={c} />;
   if (c.type === "text") return <TextBlock c={c} />;
-  if (c.type === "table" || c.type === "bar" || c.type === "line")
-    return <DataComponent slug={slug} c={c} />;
+  if (c.type === "table" || c.type === "bar" || c.type === "line") {
+    return (
+      <div className={styles.card}>
+        {c.title && <div className={styles.cardTitle}>{c.title}</div>}
+        {!data ? (
+          <div className={styles.cardEmpty}>Ingen data.</div>
+        ) : c.type === "table" ? (
+          <Table data={data} />
+        ) : c.type === "line" ? (
+          <LineChart c={c} data={data} />
+        ) : (
+          <BarChart c={c} data={data} />
+        )}
+      </div>
+    );
+  }
   return null;
 }
 
-// WindForming er skapelses-animasjonen: diffus hvit glød som driver som vind
-// og gradvis former widgeten før kortet felles inn.
+// WindForming er skapelses-animasjonen: hvite partikler som beveger seg
+// tilfeldig og fader inn/ut med blur mens widgeten bygges.
+const PARTICLE_COUNT = 34;
+
 function WindForming({ dissipating }: { dissipating?: boolean }) {
+  const parts = useMemo(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }, () => ({
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        size: 2 + Math.random() * 5,
+        dx: (Math.random() * 2 - 1) * 46,
+        dy: (Math.random() * 2 - 1) * 46,
+        blur: 1 + Math.random() * 3,
+        peak: 0.35 + Math.random() * 0.55,
+        dur: 2.4 + Math.random() * 3.2,
+        delay: -Math.random() * 5,
+      })),
+    []
+  );
   return (
     <div className={`${styles.forming} ${dissipating ? styles.dissipate : ""}`}>
-      <div className={`${styles.glow} ${styles.glow1}`} />
-      <div className={`${styles.glow} ${styles.glow2}`} />
-      <div className={`${styles.glow} ${styles.glow3}`} />
-      <div className={`${styles.streak} ${styles.streak1}`} />
-      <div className={`${styles.streak} ${styles.streak2}`} />
-      <div className={`${styles.streak} ${styles.streak3}`} />
-      <div className={styles.outline} />
+      {parts.map((p, i) => (
+        <span
+          key={i}
+          className={styles.particle}
+          style={
+            {
+              left: `${p.left}%`,
+              top: `${p.top}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              "--dx": `${p.dx}px`,
+              "--dy": `${p.dy}px`,
+              "--blur": `${p.blur}px`,
+              "--peak": p.peak,
+              animationDuration: `${p.dur}s`,
+              animationDelay: `${p.delay}s`,
+            } as CSSProperties
+          }
+        />
+      ))}
     </div>
   );
 }
-
-// Minimumstid gløden får forme seg, så avsløringen føles fortjent.
-const FORM_MS = 1500;
 
 // Widgets som allerede er avslørt i denne økta — recall/reload skal ikke
 // spille skapelses-animasjonen på nytt.
 const revealed = new Set<string>();
 
 // WidgetView henter widgetens spec fra /<slug> og rendrer den inline. Mens
-// spec hentes (og i minst FORM_MS) spilles vind-animasjonen.
+// spec + data er klar. Kortet vises aldri halvferdig — animasjonen står til alt
+// er på plass. Minst MIN_FORM_MS så bloomet rekker å føles.
+const MIN_FORM_MS = 900;
+const POLL_MS = 400;
+const MAX_WAIT_MS = 30000;
+
 export function WidgetView({ slug }: { slug: string }) {
-  const [spec, setSpec] = useState<WidgetSpec | null>(null);
+  // ready = { spec, data } først når ALT er lastet; da felles kortet inn.
+  const [ready, setReady] = useState<{ spec: WidgetSpec; data: QueryResult | null } | null>(null);
   const [error, setError] = useState(false);
-  // Animer kun første gang widgeten vises i økta.
-  const [forming, setForming] = useState(!revealed.has(slug));
+  const wasRevealed = revealed.has(slug);
 
   useEffect(() => {
     let alive = true;
     const started = performance.now();
     const animate = !revealed.has(slug);
-    fetchWidget(slug)
-      .then((w) => {
-        if (!alive) return;
-        setSpec(w.spec ?? {});
-        revealed.add(slug);
-        // Hold gløden til minst FORM_MS har gått (kun ved skapelse).
-        const wait = animate
-          ? Math.max(0, FORM_MS - (performance.now() - started))
-          : 0;
-        setTimeout(() => alive && setForming(false), wait);
-      })
-      .catch(() => alive && setError(true));
+
+    // Poll til spec har en type (modellen kan fortsatt bygge), hent så data.
+    async function load() {
+      while (alive) {
+        try {
+          const w = await fetchWidget(slug);
+          const spec = w.spec ?? {};
+          if (spec.type) {
+            // Data-widget: hent resultatet før avsløring.
+            let data: QueryResult | null = null;
+            if (spec.sql) {
+              try {
+                data = await fetchWidgetData(slug);
+              } catch {
+                data = null;
+              }
+            }
+            if (!alive) return;
+            const wait = animate
+              ? Math.max(0, MIN_FORM_MS - (performance.now() - started))
+              : 0;
+            setTimeout(() => {
+              if (!alive) return;
+              revealed.add(slug);
+              setReady({ spec, data });
+            }, wait);
+            return;
+          }
+        } catch {
+          if (!alive) return;
+          setError(true);
+          return;
+        }
+        if (performance.now() - started > MAX_WAIT_MS) {
+          if (alive) setError(true);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, POLL_MS));
+      }
+    }
+    load();
     return () => {
       alive = false;
     };
   }, [slug]);
-
-  // Spilles mens widgeten «formes» av vinden.
-  if (forming && !error) {
-    return (
-      <div className={styles.widget}>
-        <WindForming />
-      </div>
-    );
-  }
 
   if (error)
     return (
@@ -233,26 +263,19 @@ export function WidgetView({ slug }: { slug: string }) {
         </div>
       </div>
     );
-  if (!spec)
+
+  // Vind-animasjonen kjører til alt er klart.
+  if (!ready)
     return (
       <div className={styles.widget}>
-        <div className={styles.card}>
-          <div className={styles.cardEmpty}>Laster …</div>
-        </div>
+        <WindForming />
       </div>
     );
-  if (!spec.type)
-    return (
-      <div className={styles.widget}>
-        <div className={styles.card}>
-          <div className={styles.cardEmpty}>/{slug} er tom.</div>
-        </div>
-      </div>
-    );
+
   return (
     <div className={styles.widget}>
-      <div className={styles.reveal}>
-        <WidgetBody slug={slug} c={spec} />
+      <div className={wasRevealed ? "" : styles.reveal}>
+        <WidgetCard c={ready.spec} data={ready.data} />
       </div>
     </div>
   );
