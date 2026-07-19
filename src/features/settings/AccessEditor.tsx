@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SearchIcon } from "../../ui/Icons";
 import type { AdminUser } from "../../lib/api";
-import styles from "./Connectors.module.css";
+import styles from "./AccessEditor.module.css";
 
 // Tilgang per bord: full brukertabell med søk, avkrysning og «alle»-modus.
 export function AccessEditor({

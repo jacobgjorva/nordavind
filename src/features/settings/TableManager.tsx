@@ -6,7 +6,7 @@ import {
   type Connection,
   type ConnectionSchema,
 } from "../../lib/api";
-import styles from "./Connectors.module.css";
+import styles from "./TableManager.module.css";
 import { AccessEditor } from "./AccessEditor";
 import { swallow } from "../../lib/log";
 

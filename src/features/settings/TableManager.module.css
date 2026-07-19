@@ -1,0 +1,272 @@
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.sectionDesc {
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.primary {
+  padding: 7px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.primary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.primary:disabled {
+  opacity: 0.5;
+}
+
+.cancel {
+  padding: 7px 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cancel:hover {
+  color: var(--text);
+}
+
+.tableName {
+  font-size: 14px;
+  font-weight: 550;
+  font-family: var(--font-mono);
+}
+
+.colCount {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.sqlEditor {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #0a0a0a;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.sqlGutter {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--text-faint);
+  user-select: none;
+}
+
+.sqlField {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.sqlHighlight, .sqlInput {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sqlHighlight {
+  color: var(--text);
+  pointer-events: none;
+  min-height: 100%;
+}
+
+.sqlKw {
+  color: #9778F6;
+}
+
+.sqlInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  resize: none;
+  outline: none;
+}
+
+.sqlInput::placeholder {
+  color: var(--text-faint);
+}
+
+.headActions {
+  display: flex;
+  gap: 10px;
+}
+
+.tmPage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  padding: 4px 4px 20px;
+}
+
+.tmHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tmHead .sectionTitle {
+  font-size: 15px;
+}
+
+.tmHead .sectionDesc {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.tmSearch {
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.tmSearch::placeholder {
+  color: var(--text-faint);
+}
+
+.tmSearch:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tmList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+  scrollbar-width: none;
+}
+
+.tmList::-webkit-scrollbar {
+  display: none;
+}
+
+.tmRow {
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.012);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.tmRow:hover {
+  border-color: var(--border-strong);
+}
+
+.tmRowOn {
+  border-color: var(--border-strong);
+  background: var(--card-surface);
+}
+
+.tmTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+
+.tmTop input {
+  width: 14px;
+  height: 14px;
+  accent-color: #047AFF;
+  cursor: pointer;
+}
+
+.tmTop .tableName {
+  font-size: 13px;
+}
+
+.tmPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  padding: 14px 14px 22px;
+}
+
+.tmField {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tmDesc {
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.tmDesc::placeholder {
+  color: var(--text-faint);
+}
+
+.costWrap {
+  margin-left: auto;
+}
+
+.costBar {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.costSeg {
+  width: 6px;
+  height: 11px;
+  border-radius: 1.5px;
+}
+
+.costSegEmpty {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.35) 0px,
+    rgba(255, 255, 255, 0.35) 1.5px,
+    transparent 1.5px,
+    transparent 3.5px
+  );
+}

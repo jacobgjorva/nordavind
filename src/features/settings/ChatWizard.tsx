@@ -13,7 +13,7 @@ import {
   type Connection,
   type ConnectionSchema,
 } from "../../lib/api";
-import styles from "./Connectors.module.css";
+import styles from "./ChatWizard.module.css";
 import {
   SOURCE_OPTIONS,
   DRIVER_MAP,

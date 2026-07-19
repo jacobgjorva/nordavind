@@ -1,0 +1,98 @@
+.acc {
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.accSearchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 0.5px solid var(--border-strong);
+}
+
+.accSearchIcon {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.accSearch {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.accSearch::placeholder {
+  color: var(--text-faint);
+}
+
+.accCount {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.accBody {
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.accBody::-webkit-scrollbar {
+  display: none;
+}
+
+.accRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+}
+
+.accBody .accRow:last-child {
+  border-bottom: none;
+}
+
+.accRow input {
+  width: 14px;
+  height: 14px;
+  accent-color: #047AFF;
+  cursor: pointer;
+}
+
+.accRow input:disabled {
+  cursor: default;
+}
+
+.accEmail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.accRole {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+.accEmpty {
+  padding: 12px;
+  color: var(--text-faint);
+  font-size: 13px;
+}
