@@ -4,22 +4,8 @@ import {
   fetchThread,
   type MailAnalysis,
   type MailMessage,
-  type MailPerson,
 } from "../../lib/api";
 import styles from "./Mail.module.css";
-
-// Deterministisk avatar-farge fra e-postadresse.
-function avatarColor(addr: string): string {
-  let h = 0;
-  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) % 360;
-  return `hsl(${h}, 42%, 42%)`;
-}
-
-function initials(p: MailPerson): string {
-  const src = (p.name || p.address).trim();
-  const parts = src.split(/[\s@.]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
-}
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -30,22 +16,11 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("no-NO", { day: "2-digit", month: "short" });
 }
 
-function Avatar({ p }: { p: MailPerson }) {
-  return (
-    <span className={styles.avatar} style={{ background: avatarColor(p.address) }}>
-      {initials(p)}
-    </span>
-  );
-}
-
-
-
 // ── Én melding i tråden ──
 function ThreadMessage({ m, essence }: { m: MailMessage; essence?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={styles.msg}>
-      <Avatar p={m.from} />
       <div className={styles.msgBody}>
         <div className={styles.msgHead}>
           <span className={styles.msgFrom}>{m.from.name || m.from.address}</span>
