@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WindForming } from "../chat/WidgetView";
+import { WindStreams } from "../chat/WindStreams";
 import styles from "./AnimationsPreview.module.css";
 
 // MIDLERTIDIG forhåndsvisningsside for skapelses-animasjonen. Åpnes på
@@ -17,7 +17,7 @@ export function AnimationsPreview() {
       </div>
       <div className={styles.stage}>
         <div className={styles.frame}>
-          <WindForming key={n} />
+          <WindStreams key={n} />
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -7,6 +7,7 @@ import {
   type QueryResult,
   type WidgetSpec,
 } from "../../lib/api";
+import { WindStreams } from "./WindStreams";
 import styles from "./WidgetView.module.css";
 
 // Standardisert KPI-kort.
@@ -142,87 +143,6 @@ function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
   return null;
 }
 
-// WindForming er skapelses-animasjonen: hvite partikler som beveger seg
-// tilfeldig og fader inn/ut med blur mens widgeten bygges.
-const PARTICLE_COUNT = 135;
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-// Tilnærmet normalfordelt rundt 50% (sum av tre tilfeldige) — tetter i midten.
-const centered = (spread: number) =>
-  50 + ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * spread;
-
-// depth 0 = helt fremme (skarp, hvit), 1 = langt bak (stor, svært blurred,
-// svak). Størrelse, blur, opacity og fart skalerer kontinuerlig med dybden.
-const makeParticle = () => {
-  const depth = Math.random();
-  return {
-    depth,
-    left: centered(70),
-    top: centered(90),
-    size: lerp(3, 13, depth),
-    // Stor drift hver vei (tilfeldig fortegn) — mye, kontinuerlig bevegelse.
-    dx: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 160),
-    dy: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 160),
-    blurFar: lerp(1.4, 8, depth) + Math.random(),
-    blurNear: lerp(0, 4.5, depth) + Math.random() * 0.4,
-    floor: lerp(0.72, 0.28, depth),
-    peak: lerp(1, 0.5, depth),
-    // Raske, usynkroniserte sykluser → mye liv, fortsatt myk easing.
-    driftDur: lerp(1.8, 3.4, Math.random()),
-    driftDelay: -Math.random() * 4,
-    depthDur: lerp(2, 4, Math.random()),
-    depthDelay: -Math.random() * 4,
-  };
-};
-
-export function WindForming({ dissipating }: { dissipating?: boolean }) {
-  const parts = useMemo(
-    () =>
-      // Sortert bakerst-først i DOM så de fremste males oppå.
-      Array.from({ length: PARTICLE_COUNT }, makeParticle).sort(
-        (a, b) => b.depth - a.depth
-      ),
-    []
-  );
-  return (
-    <div className={`${styles.forming} ${dissipating ? styles.dissipate : ""}`}>
-      {parts.map((p, i) => (
-        <span
-          key={i}
-          className={styles.particle}
-          style={
-            {
-              left: `${p.left}%`,
-              top: `${p.top}%`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              "--dx": `${p.dx}px`,
-              "--dy": `${p.dy}px`,
-              animationDuration: `${p.driftDur}s`,
-              animationDelay: `${p.driftDelay}s`,
-            } as CSSProperties
-          }
-        >
-          <span
-            className={styles.dot}
-            style={
-              {
-                "--peak": p.peak,
-                "--floor": p.floor,
-                "--blurFar": `${p.blurFar}px`,
-                "--blurNear": `${p.blurNear}px`,
-                animationDuration: `${p.depthDur}s`,
-                animationDelay: `${p.depthDelay}s`,
-              } as CSSProperties
-            }
-          />
-        </span>
-      ))}
-    </div>
-  );
-}
-
 // Widgets som allerede er avslørt i denne økta — recall/reload skal ikke
 // spille skapelses-animasjonen på nytt.
 const revealed = new Set<string>();
@@ -303,7 +223,7 @@ export function WidgetView({ slug }: { slug: string }) {
   if (!ready)
     return (
       <div className={styles.widget}>
-        <WindForming />
+        <WindStreams />
       </div>
     );
 
