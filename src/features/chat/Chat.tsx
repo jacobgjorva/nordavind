@@ -520,7 +520,7 @@ export function Chat({
   async function renderWidgetInline(raw: string, slug: string) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    const block = "```widget " + slug + "\n```";
+    const block = "```widget\n" + slug + "\n```";
     if (!chatIdRef.current) {
       try {
         const chat = await createChat(`/${slug}`);
@@ -750,9 +750,9 @@ export function Chat({
         const slug = widgetEditRef.current;
         update(replyId, {
           loading: false,
-          content: "```widget " + slug + "\n```",
+          content: "```widget\n" + slug + "\n```",
         });
-        acc = "```widget " + slug + "\n```";
+        acc = "```widget\n" + slug + "\n```";
         reloadWidgets();
       }
 
