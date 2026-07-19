@@ -7,7 +7,6 @@ import {
   type QueryResult,
   type WidgetSpec,
 } from "../../lib/api";
-import { WindStreams } from "./WindStreams";
 import styles from "./WidgetView.module.css";
 
 // Standardisert KPI-kort.
@@ -219,11 +218,11 @@ export function WidgetView({ slug }: { slug: string }) {
       </div>
     );
 
-  // Vind-animasjonen kjører til alt er klart.
+  // Pulserende kort mens widgeten bygges.
   if (!ready)
     return (
       <div className={styles.widget}>
-        <WindStreams />
+        <div className={`${styles.card} ${styles.pulse}`} />
       </div>
     );
 

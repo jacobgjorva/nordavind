@@ -50,3 +50,16 @@
   width: 100%;
   max-width: 640px;
 }
+
+.pulseCard {
+  min-height: 180px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.028);
+  animation: cardPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes cardPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.85; }
+}

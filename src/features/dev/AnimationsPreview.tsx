@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { WindStreams } from "../chat/WindStreams";
 import styles from "./AnimationsPreview.module.css";
 
-// MIDLERTIDIG forhåndsvisningsside for skapelses-animasjonen. Åpnes på
-// /animations (eller #/animations) så vi kan finjustere uten å bygge widgets.
-// Kan slettes når animasjonen er ferdig.
+// MIDLERTIDIG forhåndsvisningsside for skapelses-animasjonen (pulserende kort).
+// Åpnes på /animations. Kan slettes når animasjonen er ferdig.
 export function AnimationsPreview() {
   const [n, setN] = useState(0);
   return (
@@ -16,8 +14,8 @@ export function AnimationsPreview() {
         </button>
       </div>
       <div className={styles.stage}>
-        <div className={styles.frame}>
-          <WindStreams key={n} />
+        <div className={styles.frame} key={n}>
+          <div className={styles.pulseCard} />
         </div>
       </div>
     </div>
