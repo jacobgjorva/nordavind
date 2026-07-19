@@ -1004,6 +1004,28 @@ export function Chat({
         ]
       : [];
   const slashOpen = slashItems.length > 0;
+  // Aktivt (markert) element — driver forhåndsvisningen (pil + hover).
+  const activeSlashCmd = slashOpen
+    ? slashItems[slashIndex]?.cmd ?? slashItems[0]?.cmd
+    : undefined;
+  useEffect(() => {
+    if (activeSlashCmd?.startsWith("mailthread:")) {
+      previewOnHover(activeSlashCmd.slice("mailthread:".length));
+    } else {
+      clearPreview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlashCmd]);
+
+  const mailGhostEl =
+    slashOpen && mailPreview ? (
+      <div className={styles.mailGhost}>
+        <div className={styles.mailGhostSubject}>
+          {mailPreview.subject || "(uten emne)"}
+        </div>
+        <div className={styles.mailGhostBody}>{mailPreview.snippet}</div>
+      </div>
+    ) : null;
 
   function pickSlash(cmd: string) {
     setSlashIndex(0);
@@ -1115,12 +1137,7 @@ export function Chat({
                   className={`${styles.slashItem} ${
                     i === slashIndex ? styles.slashItemActive : ""
                   }`}
-                  onMouseEnter={() => {
-                    setSlashIndex(i);
-                    if (a.cmd.startsWith("mailthread:")) previewOnHover(a.cmd.slice("mailthread:".length));
-                    else clearPreview();
-                  }}
-                  onMouseLeave={clearPreview}
+                  onMouseEnter={() => setSlashIndex(i)}
                   onClick={() => pickSlash(a.cmd)}
                 >
                   <HugeiconsIcon
@@ -1371,25 +1388,15 @@ export function Chat({
                   </div>
                 </div>
               ))}
-              {slashOpen && mailPreview && (
-                <div className={styles.mailGhostRow}>
-                  <div className={styles.mailGhost}>
-                    <div className={styles.mailGhostSubject}>
-                      {mailPreview.subject || "(uten emne)"}
-                    </div>
-                    <div className={styles.mailGhostBody}>{mailPreview.snippet}</div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <div className={styles.composerDocked}>
-            <div className={styles.composerWrap}>{composer}</div>
+            <div className={styles.composerWrap}>{mailGhostEl}{composer}</div>
           </div>
         </div>
       ) : (
         <div className={styles.empty}>
-          <div className={styles.composerWrap}>{composer}</div>
+          <div className={styles.composerWrap}>{mailGhostEl}{composer}</div>
         </div>
       )}
     </div>
