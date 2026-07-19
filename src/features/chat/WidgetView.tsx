@@ -162,8 +162,8 @@ const makeParticle = () => {
     top: centered(90),
     size: lerp(3, 13, depth),
     // Stor drift hver vei (tilfeldig fortegn) — mye, kontinuerlig bevegelse.
-    dx: (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 120),
-    dy: (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 120),
+    dx: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 160),
+    dy: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 160),
     blurFar: lerp(1.4, 8, depth) + Math.random(),
     blurNear: lerp(0, 4.5, depth) + Math.random() * 0.4,
     floor: lerp(0.72, 0.28, depth),
