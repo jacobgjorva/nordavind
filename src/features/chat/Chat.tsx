@@ -50,7 +50,7 @@ import {
 import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
-import { formatTokens, nextId, isWidgetOnly, slugify } from "./chatHelpers";
+import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory } from "./chatHelpers";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
 
@@ -544,12 +544,7 @@ export function Chat({
         ]
       : textContent;
 
-    const history: ApiMessage[] = [
-      ...messages
-        .filter((m) => !m.error)
-        .map((m) => ({ role: m.role, content: m.apiContent ?? m.content })),
-      { role: "user", content: apiContent },
-    ];
+    const history = buildHistory(messages, { role: "user", content: apiContent });
 
     // Widget-tur: svaret ER widgeten. Sett blokka med én gang så vind-
     // animasjonen starter umiddelbart — ingen loading-prikker, ingen «Ok».
