@@ -148,35 +148,46 @@ function LineChart({ c, data }: { c: WidgetSpec; data: QueryResult }) {
   const last = pts[pts.length - 1];
   const grid = [0.25, 0.5, 0.75];
 
+  // Y-akse-verdier (topp, midt, bunn).
+  const yTicks = [max, min + span / 2, min];
+
   return (
     <div className={styles.card}>
       {c.title && <div className={styles.cardTitle}>{c.title}</div>}
-      <div className={styles.plot}>
-        <svg className={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="lineFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={ACCENT} stopOpacity="0.22" />
-              <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {grid.map((g) => (
-            <line key={g} x1="0" x2={W} y1={H * g} y2={H * g}
-              stroke="var(--border)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      <div className={styles.chartGrid}>
+        <div className={styles.yAxis}>
+          {yTicks.map((t, i) => (
+            <span key={i}>{fmt(t)}</span>
           ))}
-          <path d={area} fill="url(#lineFill)" />
-          <path d={line} fill="none" stroke={ACCENT} strokeWidth="2"
-            strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
-        {last && (
-          <span
-            className={styles.endDot}
-            style={{ left: `${(last[0] / W) * 100}%`, top: `${(last[1] / H) * 100}%`, background: ACCENT }}
-          />
-        )}
-      </div>
-      <div className={styles.axis}>
-        <span>{labels[0]}</span>
-        <span>{labels[labels.length - 1]}</span>
+        </div>
+        <div className={styles.plot}>
+          <svg className={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="lineFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={ACCENT} stopOpacity="0.22" />
+                <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {grid.map((g) => (
+              <line key={g} x1="0" x2={W} y1={H * g} y2={H * g}
+                stroke="var(--border)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            ))}
+            <path d={area} fill="url(#lineFill)" />
+            <path d={line} fill="none" stroke={ACCENT} strokeWidth="2"
+              strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+          {last && (
+            <span
+              className={styles.endDot}
+              style={{ left: `${(last[0] / W) * 100}%`, top: `${(last[1] / H) * 100}%`, background: ACCENT }}
+            />
+          )}
+        </div>
+        <span />
+        <div className={styles.axis}>
+          <span>{labels[0]}</span>
+          <span>{labels[labels.length - 1]}</span>
+        </div>
       </div>
     </div>
   );

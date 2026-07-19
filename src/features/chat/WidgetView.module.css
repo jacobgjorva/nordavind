@@ -154,6 +154,24 @@
 }
 
 /* ── Linjediagram ── */
+.chartGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+}
+
+.yAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 150px;
+  font-size: 10px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  padding: 2px 0;
+}
+
 .plot {
   position: relative;
   width: 100%;
