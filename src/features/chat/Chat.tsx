@@ -1150,7 +1150,9 @@ export function Chat({
                   <div
                     className={`${styles.bubble} ${
                       m.error ? styles.error : ""
-                    } ${isWidgetOnly(m.content) ? styles.widgetBubble : ""}`}
+                    } ${isWidgetOnly(m.content) ? styles.widgetBubble : ""} ${
+                      trainOffer?.id === m.id ? styles.bubbleOffer : ""
+                    }`}
                   >
                     {m.content ? (
                       m.role === "assistant" && !m.error && !m.revealed ? (
@@ -1213,12 +1215,7 @@ export function Chat({
                             m.attachmentNames.length > 0 && (
                               <span className={styles.attachRow}>
                                 {m.attachmentNames.map((name) => (
-                                  <span
-                                    key={name}
-                                    className={`${styles.attachChip} ${
-                                      trainOffer?.id === m.id ? styles.attachChipOffer : ""
-                                    }`}
-                                  >
+                                  <span key={name} className={styles.attachChip}>
                                     {name}
                                   </span>
                                 ))}

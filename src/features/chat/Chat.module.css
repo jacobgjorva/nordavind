@@ -557,11 +557,9 @@
   font-weight: 500;
 }
 
-/* Vedlegg som venter på lagre-svar: avdempet, stiplet border. */
-.attachChipOffer {
-  border-style: dashed;
-  border-color: var(--text-muted);
-  opacity: 0.7;
+/* Meldingsbobla mens et lagre-forslag venter: stiplet border. */
+.bubbleOffer {
+  border: 1px dashed var(--text-muted);
 }
 
 /* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
