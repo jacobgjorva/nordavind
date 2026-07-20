@@ -976,7 +976,7 @@ export function Chat({
           type="file"
           hidden
           multiple
-          accept=".pdf,.txt,.md,.csv,.json,.log,text/*,image/*"
+          accept=".pdf,.docx,.txt,.md,.csv,.json,.log,text/*,image/*"
           onChange={(e) => handleFiles(e.target.files)}
         />
         <button
