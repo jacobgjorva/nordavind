@@ -563,10 +563,12 @@
   opacity: 0.7;
 }
 
-/* «Tren modellen?»-forslaget under en dokument-melding. */
+/* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
 .trainOffer {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }

@@ -1224,27 +1224,6 @@ export function Chat({
                                 ))}
                               </span>
                             )}
-                          {trainOffer?.id === m.id && (
-                            <span className={styles.trainOffer}>
-                              <span className={styles.trainOfferText}>
-                                Tren modellen på dette?
-                              </span>
-                              <button
-                                type="button"
-                                className={styles.trainYes}
-                                onClick={acceptTrain}
-                              >
-                                Ja
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.trainNo}
-                                onClick={dismissTrain}
-                              >
-                                Nei
-                              </button>
-                            </span>
-                          )}
                         </>
                       )
                     ) : m.role === "assistant" && !m.error ? (
@@ -1275,6 +1254,27 @@ export function Chat({
                       </div>
                     ) : null}
                   </div>
+                  {trainOffer?.id === m.id && (
+                    <div className={styles.trainOffer}>
+                      <span className={styles.trainOfferText}>
+                        Tren modellen på dette?
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.trainYes}
+                        onClick={acceptTrain}
+                      >
+                        Ja
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.trainNo}
+                        onClick={dismissTrain}
+                      >
+                        Nei
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
