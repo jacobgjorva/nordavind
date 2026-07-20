@@ -35,3 +35,12 @@ export async function listDocuments(): Promise<LibraryDocument[]> {
 export async function deleteDocument(id: string): Promise<void> {
   await apiFetch(`/documents/${id}`, { method: "DELETE" });
 }
+
+// classifyDocument avgjør billig om et vedlegg er verdt å tilby lagring for.
+export async function classifyDocument(filename: string, text: string): Promise<boolean> {
+  const data = await apiFetch<{ save: boolean }>("/documents/classify", {
+    method: "POST",
+    body: { filename, text },
+  });
+  return data.save;
+}

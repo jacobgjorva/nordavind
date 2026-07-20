@@ -34,6 +34,7 @@ import {
   type AgentInfo,
   streamChat,
   saveDocument,
+  classifyDocument,
   type ApiMessage,
   type Attachment,
   type ContentPart,
@@ -700,11 +701,16 @@ export function Chat({
         : { id: replyId, role: "assistant", content: "", loading: true },
     ]);
 
-    // Vanlig dokument-vedlegg (ikke widget/agent): tilby å lagre det i
-    // kunnskapsbasen under brukermeldingen. Ren heuristikk, ingen AI-kall.
+    // Vanlig dokument-vedlegg (ikke widget/agent): la agenten billig vurdere om
+    // dette er verdifull, gjenbrukbar kunnskap før vi tilbyr lagring — så
+    // brukeren kun spørres om det som er verdt å huske. Ett lite kall, async.
     const trainDocs = files.filter((a) => !a.image && a.text.trim());
     if (trainDocs.length > 0 && !widgetTurnSlug && !agentModeRef.current) {
-      setTrainOffer({ id: userMsgId, docs: trainDocs });
+      classifyDocument(trainDocs[0].name, trainDocs[0].text)
+        .then((save) => {
+          if (save) setTrainOffer({ id: userMsgId, docs: trainDocs });
+        })
+        .catch(swallow);
     }
 
     if (!apiConfigured) {
