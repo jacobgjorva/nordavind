@@ -556,6 +556,54 @@
   font-weight: 500;
 }
 
+/* Vedlegg som venter på lagre-svar: avdempet, stiplet border. */
+.attachChipOffer {
+  border-style: dashed;
+  border-color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* «Tren modellen?»-forslaget under en dokument-melding. */
+.trainOffer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.trainOfferText {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.trainYes,
+.trainNo {
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 0.5px solid var(--border-strong);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.trainYes {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  border-color: transparent;
+}
+
+.trainYes:hover {
+  background: #fff;
+}
+
+.trainNo:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
 .attachRemove {
   display: inline-flex;
   align-items: center;

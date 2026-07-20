@@ -271,6 +271,9 @@ export function Chat({
   const busyRef = useRef(false);
   busyRef.current = busy;
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Forslag om å lagre et vedlagt dokument i kunnskapsbasen, knyttet til
+  // brukermeldingen det gjelder.
+  const [trainOffer, setTrainOffer] = useState<{ id: string; docs: Attachment[] } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Armert svar: neste brukermelding logges som korrigering på dette svaret.
   const [correctionTarget, setCorrectionTarget] = useState<{
@@ -324,6 +327,41 @@ export function Chat({
       }
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // Bruker takket ja til å trene modellen på det vedlagte dokumentet: lagre og
+  // bekreft, uten en ny brukermelding.
+  async function acceptTrain() {
+    const offer = trainOffer;
+    if (!offer) return;
+    setTrainOffer(null);
+    const replyId = nextId();
+    setMessages((prev) => [
+      ...prev,
+      { id: replyId, role: "assistant", content: "", loading: true },
+    ]);
+    try {
+      const saved = await Promise.all(
+        offer.docs.map((d) =>
+          saveDocument({ filename: d.name, text: d.text, chat_id: chatIdRef.current ?? undefined })
+        )
+      );
+      const titles = saved.map((s) => `«${s.title}»`).join(", ");
+      const content = `Lagret ${titles} i kunnskapsbasen. Jeg bruker det automatisk framover.`;
+      update(replyId, { loading: false, content, revealed: true });
+      const cid = chatIdRef.current;
+      if (cid) appendChatMessage(cid, { role: "assistant", content }).catch(swallow);
+    } catch (e) {
+      update(replyId, {
+        loading: false,
+        error: true,
+        content: "Kunne ikke lagre: " + (e instanceof Error ? e.message : "ukjent feil"),
+      });
+    }
+  }
+
+  function dismissTrain() {
+    setTrainOffer(null);
   }
 
   // Lagrer vedlagte dokumenter som bedriftskunnskap. Ingen LLM-tur: teksten er
@@ -661,6 +699,13 @@ export function Chat({
         ? { id: replyId, role: "assistant", content: widgetBlock, revealed: true }
         : { id: replyId, role: "assistant", content: "", loading: true },
     ]);
+
+    // Vanlig dokument-vedlegg (ikke widget/agent): tilby å lagre det i
+    // kunnskapsbasen under brukermeldingen. Ren heuristikk, ingen AI-kall.
+    const trainDocs = files.filter((a) => !a.image && a.text.trim());
+    if (trainDocs.length > 0 && !widgetTurnSlug && !agentModeRef.current) {
+      setTrainOffer({ id: userMsgId, docs: trainDocs });
+    }
 
     if (!apiConfigured) {
       update(replyId, {
@@ -1164,13 +1209,36 @@ export function Chat({
                                 {m.attachmentNames.map((name) => (
                                   <span
                                     key={name}
-                                    className={styles.attachChip}
+                                    className={`${styles.attachChip} ${
+                                      trainOffer?.id === m.id ? styles.attachChipOffer : ""
+                                    }`}
                                   >
                                     {name}
                                   </span>
                                 ))}
                               </span>
                             )}
+                          {trainOffer?.id === m.id && (
+                            <span className={styles.trainOffer}>
+                              <span className={styles.trainOfferText}>
+                                Tren modellen på dette?
+                              </span>
+                              <button
+                                type="button"
+                                className={styles.trainYes}
+                                onClick={acceptTrain}
+                              >
+                                Ja
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.trainNo}
+                                onClick={dismissTrain}
+                              >
+                                Nei
+                              </button>
+                            </span>
+                          )}
                         </>
                       )
                     ) : m.role === "assistant" && !m.error ? (
