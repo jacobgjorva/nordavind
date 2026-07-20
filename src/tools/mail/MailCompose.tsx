@@ -142,7 +142,7 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
       <textarea
         className={styles.draft}
         value={body}
-        rows={8}
+        rows={2}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Skriv meldingen …"
       />
