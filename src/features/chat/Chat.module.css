@@ -210,6 +210,7 @@
 
 .user {
   justify-content: flex-end;
+  flex-wrap: wrap;
   margin-top: 16px;
 }
 
@@ -565,6 +566,8 @@
 
 /* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
 .trainOffer {
+  flex-basis: 100%;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-end;
