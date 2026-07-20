@@ -233,6 +233,9 @@
   background: var(--bg-hover);
   color: var(--text);
   border-bottom-right-radius: var(--radius-sm);
+  /* Alltid reservert (usynlig) border så lagre-forslaget kan gjøre den
+     stiplet uten reflow eller blink. */
+  border: 1.5px solid transparent;
 }
 
 .assistant .bubble {
@@ -557,11 +560,11 @@
   font-weight: 500;
 }
 
-/* Meldingsboksen mens et lagre-forslag venter: stiplet markering. Outline
-   endrer ikke boks-størrelsen (ingen reflow/blink) og rører ikke bakgrunnen. */
+/* Meldingskortet mens et lagre-forslag venter: kortets egen border blir
+   stiplet (borderen er alltid reservert, så bare stil/farge endres). */
 .user .bubble.bubbleOffer {
-  outline: 1.5px dashed var(--border-strong);
-  outline-offset: 2px;
+  border-color: var(--border-strong);
+  border-style: dashed;
 }
 
 /* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
