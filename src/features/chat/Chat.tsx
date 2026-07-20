@@ -31,6 +31,7 @@ import {
   readImage,
   renameChat,
   setAgentEnabled,
+  setAgentPush,
   type AgentInfo,
   streamChat,
   saveDocument,
@@ -236,6 +237,17 @@ export function Chat({
       emit("agents-changed");
     } catch {
       setAgent({ ...agent, enabled: !next });
+    }
+  }
+
+  async function togglePush() {
+    if (!agent) return;
+    const next = !agent.push_enabled;
+    setAgent({ ...agent, push_enabled: next });
+    try {
+      await setAgentPush(agent.id, next);
+    } catch {
+      setAgent({ ...agent, push_enabled: !next });
     }
   }
 
@@ -1109,6 +1121,34 @@ export function Chat({
                 ) : (
                   <path d="M8 6.5 L14 10 L8 13.5 Z" fill="white" />
                 )}
+              </svg>
+            </button>
+          )}
+          {agent && (
+            <button
+              className={styles.agentPush}
+              onClick={togglePush}
+              title={
+                agent.push_enabled
+                  ? "Push-varsel på: du varsles når agenten finner noe verdt å vite"
+                  : "Send push når agenten finner noe verdt å vite"
+              }
+              aria-label={agent.push_enabled ? "Skru av push" : "Skru på push"}
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path
+                  d="M10 2.5c-2.5 0-4 1.8-4 4.2 0 3.4-1.3 4.6-1.8 5.1-.3.3-.1.9.4.9h10.8c.5 0 .7-.6.4-.9-.5-.5-1.8-1.7-1.8-5.1 0-2.4-1.5-4.2-4-4.2Z"
+                  fill={agent.push_enabled ? "#007EFF" : "none"}
+                  stroke={agent.push_enabled ? "#00CAFF" : "currentColor"}
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M8.5 16a1.5 1.5 0 0 0 3 0"
+                  stroke={agent.push_enabled ? "#00CAFF" : "currentColor"}
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
               </svg>
             </button>
           )}

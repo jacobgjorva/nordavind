@@ -67,7 +67,8 @@
   filter: brightness(1.08);
 }
 
-.agentDelete {
+.agentDelete,
+.agentPush {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -80,6 +81,11 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.agentPush:hover {
+  color: var(--text);
+  background: var(--bg-hover);
 }
 
 .agentDelete:hover {

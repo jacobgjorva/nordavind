@@ -41,6 +41,7 @@ export interface AgentInfo {
   run_time?: string;
   daily_token_limit?: number;
   write_access?: boolean;
+  push_enabled?: boolean;
 }
 
 // Oppdaterer en agents konfigurasjon (redigering i agent-chatten).
@@ -67,6 +68,11 @@ export async function setAgentEnabled(
   enabled: boolean
 ): Promise<void> {
   await apiFetch(`/agents/${id}`, { method: "PATCH", body: { enabled } });
+}
+
+// Slår push-varsel på/av for en agent.
+export async function setAgentPush(id: string, on: boolean): Promise<void> {
+  await apiFetch(`/agents/${id}`, { method: "PATCH", body: { push_enabled: on } });
 }
 
 // Deaktiverer (sletter) en agent.
