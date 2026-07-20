@@ -563,7 +563,7 @@
 /* Meldingskortet mens et lagre-forslag venter: kortets egen border blir
    stiplet (borderen er alltid reservert, så bare stil/farge endres). */
 .user .bubble.bubbleOffer {
-  border-color: var(--border-strong);
+  border-color: #ffffff;
   border-style: dashed;
 }
 
