@@ -557,10 +557,11 @@
   font-weight: 500;
 }
 
-/* Meldingsboksen mens et lagre-forslag venter: tydelig stiplet border. */
+/* Meldingsboksen mens et lagre-forslag venter: stiplet markering. Outline
+   endrer ikke boks-størrelsen (ingen reflow/blink) og rører ikke bakgrunnen. */
 .user .bubble.bubbleOffer {
-  border: 1.5px dashed var(--border-strong);
-  background: transparent;
+  outline: 1.5px dashed var(--border-strong);
+  outline-offset: 2px;
 }
 
 /* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
