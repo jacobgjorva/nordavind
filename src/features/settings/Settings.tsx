@@ -5,6 +5,7 @@ import { Quota } from "./Quota";
 import { Knowledge } from "./Knowledge";
 import { KnowledgeGraph } from "./KnowledgeGraph";
 import { Documents } from "./Documents";
+import { Employees } from "./Employees";
 import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
 import {
@@ -14,7 +15,7 @@ import {
 } from "../../lib/api";
 import styles from "./Settings.module.css";
 
-type Tab = "general" | "usage" | "connectors" | "knowledge" | "admin";
+type Tab = "general" | "usage" | "connectors" | "knowledge" | "employees" | "admin";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
@@ -29,6 +30,7 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
           ...TABS,
           { key: "connectors" as Tab, label: "Connectors" },
           { key: "knowledge" as Tab, label: "Kunnskap" },
+          { key: "employees" as Tab, label: "Ansatte" },
           { key: "admin" as Tab, label: "Admin" },
         ]
       : TABS;
@@ -177,6 +179,8 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
           ) : (
             <KnowledgeGraph />
           )
+        ) : tab === "employees" ? (
+          <Employees />
         ) : tab === "admin" ? (
           <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (

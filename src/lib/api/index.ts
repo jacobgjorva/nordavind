@@ -8,3 +8,4 @@ export * from "./knowledge";
 export * from "./connections";
 export * from "./mail";
 export * from "./documents";
+export * from "./employees";
