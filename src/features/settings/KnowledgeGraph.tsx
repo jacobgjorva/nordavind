@@ -288,17 +288,19 @@ export function KnowledgeGraph() {
             onChange={(e) => setSummary(e.target.value)}
             onBlur={saveNode}
           />
-          <button
-            type="button"
-            className={styles.tooltipDel}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              removeNode();
-            }}
-            aria-label="Slett"
-          >
-            <HugeiconsIcon icon={Delete01Icon} size={15} />
-          </button>
+          <div className={styles.tooltipFooter}>
+            <button
+              type="button"
+              className={styles.tooltipDel}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                removeNode();
+              }}
+            >
+              <HugeiconsIcon icon={Delete01Icon} size={14} />
+              Slett
+            </button>
+          </div>
         </div>
       )}
     </div>

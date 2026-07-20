@@ -42,50 +42,59 @@
 }
 
 /* Tooltip-tekstboks ved noden (redigeres, lagres ved klikk utenfor). */
+/* Kortet som holder redigering + handlinger for en valgt node. */
 .tooltipWrap {
   position: absolute;
   z-index: 5;
   width: 300px;
   transform: translate(16px, -50%);
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #17171a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
   animation: tipIn 0.12s var(--ease-out);
 }
 
 .tooltip {
   width: 100%;
-  min-height: 120px;
+  min-height: 110px;
   padding: 12px 14px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: #17171a;
+  border: none;
+  background: transparent;
   color: var(--text);
   font-family: inherit;
   font-size: 14px;
   line-height: 1.5;
   resize: none;
   outline: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  display: block;
   box-sizing: border-box;
 }
 
+.tooltipFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  border-top: 0.5px solid var(--border-strong);
+}
+
 .tooltipDel {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  opacity: 0.6;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .tooltipDel:hover {
-  opacity: 1;
   background: rgba(255, 80, 80, 0.14);
   color: #ff6a6a;
 }
