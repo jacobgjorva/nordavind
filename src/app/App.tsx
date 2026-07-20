@@ -91,6 +91,17 @@ export default function App() {
   }, []);
 
   const openSettings = useCallback(() => setView("settings"), []);
+  const closeSettings = useCallback(() => setView("chat"), []);
+
+  // Esc lukker settings-overlayet.
+  useEffect(() => {
+    if (view !== "settings") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setView("chat");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
 
   if (user === null) return null; // validerer sesjon
   if (user === false) return <Login onLogin={setUser} />;
@@ -107,24 +118,30 @@ export default function App() {
         onLogout={logout}
       />
       <div className={styles.main}>
-        {view === "settings" ? (
-          <Settings user={user} />
-        ) : (
-          <Chat
-            key={session.key}
-            chatId={session.chatId}
-            initialTitle={
-              session.chatId
-                ? chats.find((c) => c.id === session.chatId)?.title ?? null
-                : null
-            }
-            onChatCreated={onChatCreated}
-            onTitleGenerated={() => {
-              fetchChats().then(setChats).catch(swallow);
-            }}
-          />
-        )}
+        <Chat
+          key={session.key}
+          chatId={session.chatId}
+          initialTitle={
+            session.chatId
+              ? chats.find((c) => c.id === session.chatId)?.title ?? null
+              : null
+          }
+          onChatCreated={onChatCreated}
+          onTitleGenerated={() => {
+            fetchChats().then(setChats).catch(swallow);
+          }}
+        />
       </div>
+      {view === "settings" && (
+        <div className={styles.settingsOverlay} onClick={closeSettings}>
+          <div
+            className={styles.settingsModal}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Settings user={user} onClose={closeSettings} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

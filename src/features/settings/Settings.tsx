@@ -21,7 +21,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "usage", label: "Usage" },
 ];
 
-export function Settings({ user }: { user: AuthUser }) {
+export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => void }) {
   const [tab, setTab] = useState<Tab>("general");
   const tabs =
     user.role === "admin"
@@ -59,6 +59,11 @@ export function Settings({ user }: { user: AuthUser }) {
 
   return (
     <div className={styles.wrap}>
+      {onClose && (
+        <button className={styles.close} onClick={onClose} aria-label="Lukk">
+          ✕
+        </button>
+      )}
       <nav className={styles.nav}>
         <div className={styles.navHead}>Settings</div>
         {tabs.map((t) => (
