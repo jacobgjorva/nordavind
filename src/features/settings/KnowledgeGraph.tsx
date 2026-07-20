@@ -22,6 +22,7 @@ const TYPE_COLOR: Record<string, string> = {
   prosess: "#6ef16a",
   regel: "#C2D7EF",
   entitet: "#c9a8ff",
+  dokument: "#f4c15a",
 };
 
 const W = 640;
@@ -217,12 +218,32 @@ export function KnowledgeGraph() {
             onMouseLeave={() => setHover(null)}
             className={styles.node}
           >
-            <circle
-              r={hover === n.id || selId === n.id ? 8 : 6}
-              fill={TYPE_COLOR[n.type] ?? "#8a8a90"}
-              stroke={selId === n.id ? "#fff" : "none"}
-              strokeWidth={1.5}
-            />
+            {n.type === "dokument" ? (
+              // Dokumenter tegnes som en rundet firkant så de skiller seg fra
+              // de sirkulære graf-nodene (de er kilder, ikke fakta).
+              (() => {
+                const s = hover === n.id || selId === n.id ? 8 : 6;
+                return (
+                  <rect
+                    x={-s}
+                    y={-s}
+                    width={s * 2}
+                    height={s * 2}
+                    rx={2}
+                    fill={TYPE_COLOR.dokument}
+                    stroke={selId === n.id ? "#fff" : "none"}
+                    strokeWidth={1.5}
+                  />
+                );
+              })()
+            ) : (
+              <circle
+                r={hover === n.id || selId === n.id ? 8 : 6}
+                fill={TYPE_COLOR[n.type] ?? "#8a8a90"}
+                stroke={selId === n.id ? "#fff" : "none"}
+                strokeWidth={1.5}
+              />
+            )}
             <text x={11} y={4} className={styles.nodeLabel}>
               {n.title}
             </text>
