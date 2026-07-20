@@ -557,9 +557,10 @@
   font-weight: 500;
 }
 
-/* Meldingsbobla mens et lagre-forslag venter: stiplet border. */
-.bubbleOffer {
-  border: 1px dashed var(--text-muted);
+/* Meldingsboksen mens et lagre-forslag venter: tydelig stiplet border. */
+.user .bubble.bubbleOffer {
+  border: 1.5px dashed var(--border-strong);
+  background: transparent;
 }
 
 /* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
