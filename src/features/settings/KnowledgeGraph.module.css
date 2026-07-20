@@ -42,12 +42,17 @@
 }
 
 /* Tooltip-tekstboks ved noden (redigeres, lagres ved klikk utenfor). */
-.tooltip {
+.tooltipWrap {
   position: absolute;
   z-index: 5;
   width: 300px;
-  min-height: 120px;
   transform: translate(16px, -50%);
+  animation: tipIn 0.12s var(--ease-out);
+}
+
+.tooltip {
+  width: 100%;
+  min-height: 120px;
   padding: 12px 14px;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -59,7 +64,30 @@
   resize: none;
   outline: none;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  animation: tipIn 0.12s var(--ease-out);
+  display: block;
+  box-sizing: border-box;
+}
+
+.tooltipDel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.tooltipDel:hover {
+  opacity: 1;
+  background: rgba(255, 80, 80, 0.14);
+  color: #ff6a6a;
 }
 
 @keyframes tipIn {

@@ -46,6 +46,11 @@ export async function acceptNode(
   });
 }
 
+// Sletter en akseptert node fra grafen.
+export async function deleteNode(id: string): Promise<void> {
+  await apiFetch(`/knowledge/${id}`, { method: "DELETE" });
+}
+
 // Avviser en node.
 export async function rejectNode(id: string): Promise<void> {
   await apiFetch(`/knowledge/${id}/reject`, { method: "POST" });

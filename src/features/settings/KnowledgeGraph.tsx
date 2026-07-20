@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { swallow } from "../../lib/log";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Delete01Icon } from "@hugeicons/core-free-icons";
 import {
   fetchKnowledgeGraph,
   updateNode,
+  deleteNode,
   type GraphData,
 } from "../../lib/api";
 import styles from "./KnowledgeGraph.module.css";
@@ -67,6 +70,24 @@ export function KnowledgeGraph() {
         : d
     );
     updateNode(id, t, s).catch(swallow);
+  }
+
+  // Sletter valgt node. onMouseDown (ikke onClick) så textarea ikke rekker å
+  // blurre og lagre først.
+  function removeNode() {
+    const id = selId;
+    if (!id) return;
+    setSelId(null);
+    setData((d) =>
+      d
+        ? {
+            nodes: d.nodes.filter((n) => n.id !== id),
+            edges: d.edges.filter((e) => e.from_id !== id && e.to_id !== id),
+          }
+        : d
+    );
+    setNodes((ns) => ns.filter((n) => n.id !== id));
+    deleteNode(id).catch(swallow);
   }
 
   useEffect(() => {
@@ -252,18 +273,33 @@ export function KnowledgeGraph() {
       </svg>
 
       {selected && selPos && (
-        <textarea
-          className={styles.tooltip}
+        <div
+          className={styles.tooltipWrap}
           style={{
             left: `${(selPos.x / W) * 100}%`,
             top: `${(selPos.y / H) * 100}%`,
           }}
-          value={summary}
-          autoFocus
-          rows={3}
-          onChange={(e) => setSummary(e.target.value)}
-          onBlur={saveNode}
-        />
+        >
+          <textarea
+            className={styles.tooltip}
+            value={summary}
+            autoFocus
+            rows={3}
+            onChange={(e) => setSummary(e.target.value)}
+            onBlur={saveNode}
+          />
+          <button
+            type="button"
+            className={styles.tooltipDel}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              removeNode();
+            }}
+            aria-label="Slett"
+          >
+            <HugeiconsIcon icon={Delete01Icon} size={15} />
+          </button>
+        </div>
       )}
     </div>
   );
