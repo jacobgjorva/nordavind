@@ -262,9 +262,6 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
         </div>
         )}
       </div>
-      {/* Speil av nav-kolonnen: holder innholdet sentrert og gir plass til
-          wizard-stegmenyen på høyre side. */}
-      <div className={styles.railSlot} />
     </div>
   );
 }

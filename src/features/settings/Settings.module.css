@@ -1,11 +1,8 @@
 .wrap {
   position: relative;
-  flex: 1;
   height: 100%;
   min-height: 0;
   display: flex;
-  justify-content: center;
-  gap: 24px;
   overflow: hidden;
 }
 
@@ -35,8 +32,10 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: 200px;
-  padding-top: 40px;
+  width: 210px;
+  padding: 24px 12px;
+  border-right: 0.5px solid var(--border-strong);
+  overflow-y: auto;
 }
 
 .navHead {
@@ -74,10 +73,9 @@
 }
 
 .panel {
-  width: 1000px;
-  max-width: calc(100% - 448px);
-  flex-shrink: 0;
-  padding: 40px 24px;
+  flex: 1;
+  min-width: 0;
+  padding: 32px 36px;
   overflow-y: auto;
 }
 
@@ -175,25 +173,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-}
-
-@media (max-width: 1480px) {
-  .nav {
-    position: static;
-    width: 1000px;
-    max-width: 100%;
-    padding: 24px 24px 0;
-  }
-
-  .wrap {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-
-.railSlot {
-  flex-shrink: 0;
-  width: 200px;
 }
 
 /* Undersider (tilkoblinger) under Connectors */
