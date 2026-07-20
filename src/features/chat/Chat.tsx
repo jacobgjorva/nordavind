@@ -7,7 +7,6 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   Delete01Icon,
-  Mail01Icon,
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
@@ -19,10 +18,6 @@ import {
   createWidget,
   listWidgets,
   type Widget,
-  fetchInbox,
-  analyzeThread,
-  threadPreview,
-  type MailThreadSummary,
   deleteAgent,
   extractKnowledge,
   fetchChatAgent,
@@ -51,7 +46,7 @@ import {
   thinkingLabel,
 } from "./messageParts";
 import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
-import { emit, on } from "../../lib/events";
+import { emit } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
 import { useAnchoredScroll } from "./useAnchoredScroll";
@@ -103,12 +98,6 @@ const SLASH_ACTIONS: {
     desc: "Bygg en widget med AI",
     icon: BorderNone02Icon,
   },
-  {
-    cmd: "mail",
-    label: "Mail",
-    desc: "Les og svar på e-post med AI",
-    icon: Mail01Icon,
-  },
 ];
 
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
@@ -147,24 +136,6 @@ export function Chat({
   useEffect(() => {
     reloadWidgets();
   }, []);
-
-  // Innboks-tråder til /mail-komboboksen (deklareres etter input-state under).
-  const [mailThreads, setMailThreads] = useState<MailThreadSummary[]>([]);
-  const mailLoadedRef = useRef(false);
-  // Hover-forhåndsvisning av en tråd (rått utdrag, ingen AI).
-  const [mailPreview, setMailPreview] = useState<{ subject: string; snippet: string } | null>(null);
-  const hoverTimerRef = useRef<number | null>(null);
-
-  function previewOnHover(key: string) {
-    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = window.setTimeout(() => {
-      threadPreview(key).then(setMailPreview).catch(swallow);
-    }, 220);
-  }
-  function clearPreview() {
-    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
-    setMailPreview(null);
-  }
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -265,16 +236,6 @@ export function Chat({
 
   const [input, setInput] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
-  // Last innboks når brukeren begynner på /mail.
-  useEffect(() => {
-    if (/^\/mail\b/i.test(input) && !mailLoadedRef.current) {
-      mailLoadedRef.current = true;
-      fetchInbox().then(setMailThreads).catch(swallow);
-    }
-  }, [input]);
-
-  // Sendt e-post: avslutt justerings-modus.
-  useEffect(() => on("mail-sent", () => { activeMailReplyRef.current = null; }), []);
   // Bris er standard til backend melder hvilken modell som faktisk svarte.
   const [activeModel, setActiveModel] = useState<string | null>(
     "qwen3-235b-a22b-instruct-2507"
@@ -299,10 +260,6 @@ export function Chat({
   // /agent slår på agent-oppsettmodus for resten av denne samtalen, så
   // modellen beholder verktøyene gjennom hele den flerstegs-samtalen.
   const agentModeRef = useRef(false);
-  // Tråd-nøkkel som venter på «ja» for å launche svarforslag.
-  const pendingMailReplyRef = useRef<string | null>(null);
-  // Tråd-nøkkel for et åpent svarforslag: chat-meldinger blir justering.
-  const activeMailReplyRef = useRef<string | null>(null);
   const hasMessages = messages.length > 0;
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -461,59 +418,6 @@ export function Chat({
     }
   }
 
-  // Åpner en e-posttråd inline i chatten (ingen LLM her — MailThread henter
-  // selv sammendrag/svarforslag).
-  async function renderMailInline(key: string) {
-    setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-    const t = mailThreads.find((x) => x.key === key);
-    const block = "```mailthread\n" + key + "\n```";
-    if (!chatIdRef.current) {
-      try {
-        const chat = await createChat(t?.subject?.slice(0, 60) || "E-post");
-        chatIdRef.current = chat.id;
-        onChatCreated?.(chat);
-      } catch {
-        // persistens ikke kritisk
-      }
-    }
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: nextId(),
-        role: "user",
-        content: `📧 ${t?.subject ?? "E-post"}`,
-        display: `📧 ${t?.subject ?? "E-post"}`,
-        revealed: true,
-      },
-      { id: nextId(), role: "assistant", content: block, revealed: true },
-    ]);
-    const cid = chatIdRef.current;
-    if (cid) {
-      appendChatMessage(cid, { role: "user", content: `📧 ${t?.subject ?? "E-post"}` })
-        .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
-        .catch(swallow);
-    }
-
-    // AI tolker tråden og foreslår å svare. Ved «ja» launcher vi svarforslaget.
-    const proposalId = nextId();
-    setMessages((prev) => [
-      ...prev,
-      { id: proposalId, role: "assistant", content: "", loading: true },
-    ]);
-    try {
-      const a = await analyzeThread(key);
-      const proposal = a.proposal || "Skal jeg skrive et svar på denne?";
-      pendingMailReplyRef.current = key;
-      update(proposalId, { loading: false, content: proposal, revealed: true });
-      if (cid)
-        appendChatMessage(cid, { role: "assistant", content: proposal }).catch(swallow);
-    } catch {
-      update(proposalId, { loading: false, content: "Skal jeg skrive et svar?", revealed: true });
-      pendingMailReplyRef.current = key;
-    }
-  }
-
   async function send(overrideText?: string) {
     const raw = (overrideText ?? input).trim();
     if ((!raw && attachments.length === 0) || busy) return;
@@ -524,53 +428,6 @@ export function Chat({
       await saveDocsInline(raw, docs);
       return;
     }
-
-    // Venter på svar på et mail-forslag: «ja» launcher svarforslaget.
-    if (pendingMailReplyRef.current) {
-      const key = pendingMailReplyRef.current;
-      pendingMailReplyRef.current = null;
-      const yes = /^(ja|jepp|jada|ja takk|gjør det|yes|ok|greit)\b/i.test(raw);
-      if (yes) {
-        setInput("");
-        const block = "```mailreply\n" + key + "\n```";
-        activeMailReplyRef.current = key;
-        setMessages((prev) => [
-          ...prev,
-          { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
-          { id: nextId(), role: "assistant", content: block, revealed: true },
-        ]);
-        const cid = chatIdRef.current;
-        if (cid) {
-          appendChatMessage(cid, { role: "user", content: raw })
-            .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
-            .catch(swallow);
-        }
-        return;
-      }
-      // Ikke «ja» → fall gjennom til vanlig chat.
-    }
-
-    // Åpent svarforslag: en vanlig melding blir justering av utkastet, og
-    // svar-widgeten flyttes ned under iterasjons-meldingen (samme id →
-    // beholder tilstand/utkast, oppdateres via refine-eventet).
-    if (activeMailReplyRef.current && !raw.startsWith("/")) {
-      const key = activeMailReplyRef.current;
-      setInput("");
-      if (textareaRef.current) textareaRef.current.style.height = "auto";
-      const userMsg = { id: nextId(), role: "user" as const, content: raw, display: raw, revealed: true };
-      setMessages((prev) => {
-        const reply = prev.find(
-          (m) => m.role === "assistant" && m.content.startsWith("```mailreply")
-        );
-        const rest = prev.filter((m) => m !== reply);
-        return reply ? [...rest, userMsg, reply] : [...rest, userMsg];
-      });
-      emit("mail-refine", { key, feedback: raw });
-      const cid = chatIdRef.current;
-      if (cid) appendChatMessage(cid, { role: "user", content: raw }).catch(swallow);
-      return;
-    }
-    if (raw.startsWith("/")) activeMailReplyRef.current = null;
 
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
@@ -853,71 +710,23 @@ export function Chat({
   // Innebygde handlinger (agent, ny widget) + brukerens widgets som /<slug>.
   const slashMatch = /^\/([a-z0-9-]*)$/i.exec(input);
   const slashPrefix = slashMatch?.[1].toLowerCase() ?? "";
-  // /mail-modus: komboboksen viser innboks-tråder som menyelementer.
-  const mailActive = /^\/mail(\s|$)/i.test(input);
-  const mailQuery = input.replace(/^\/mail\s*/i, "").toLowerCase();
-  const slashItems = mailActive
-    ? mailThreads
-        .filter(
-          (t) =>
-            !mailQuery ||
-            t.subject.toLowerCase().includes(mailQuery) ||
-            (t.from.name || t.from.address).toLowerCase().includes(mailQuery)
-        )
-        .map((t) => ({
-          cmd: "mailthread:" + t.key,
-          label: t.subject || "(uten emne)",
-          desc: `${t.from.name || t.from.address} · ${new Date(t.date).toLocaleDateString("no-NO", { day: "2-digit", month: "short" })}${t.unread ? " · ulest" : ""}`,
-          icon: Mail01Icon,
-        }))
-    : slashMatch
-      ? [
-          ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
-          ...widgets
-            .filter((w) => w.slug.startsWith(slashPrefix))
-            .map((w) => ({
-              cmd: w.slug,
-              label: w.title || w.slug,
-              desc: "Widget",
-              icon: BorderNone02Icon,
-            })),
-        ]
-      : [];
+  const slashItems = slashMatch
+    ? [
+        ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
+        ...widgets
+          .filter((w) => w.slug.startsWith(slashPrefix))
+          .map((w) => ({
+            cmd: w.slug,
+            label: w.title || w.slug,
+            desc: "Widget",
+            icon: BorderNone02Icon,
+          })),
+      ]
+    : [];
   const slashOpen = slashItems.length > 0;
-  // Aktivt (markert) element — driver forhåndsvisningen (pil + hover).
-  const activeSlashCmd = slashOpen
-    ? slashItems[slashIndex]?.cmd ?? slashItems[0]?.cmd
-    : undefined;
-  useEffect(() => {
-    if (activeSlashCmd?.startsWith("mailthread:")) {
-      previewOnHover(activeSlashCmd.slice("mailthread:".length));
-    } else {
-      clearPreview();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSlashCmd]);
-
-  const mailGhostEl =
-    slashOpen && mailPreview ? (
-      <div className={styles.mailGhost}>
-        <div className={styles.mailGhostSubject}>
-          {mailPreview.subject || "(uten emne)"}
-        </div>
-        <div className={styles.mailGhostBody}>{mailPreview.snippet}</div>
-      </div>
-    ) : null;
 
   function pickSlash(cmd: string) {
     setSlashIndex(0);
-    if (cmd.startsWith("mailthread:")) {
-      renderMailInline(cmd.slice("mailthread:".length));
-      return;
-    }
-    if (cmd === "mail") {
-      // Åpne innboks-lista i komboboksen.
-      setInput("/mail ");
-      return;
-    }
     if (cmd === "widget") {
       // La brukeren skrive navnet: "/widget <navn>".
       setInput("/widget ");
@@ -1317,12 +1126,12 @@ export function Chat({
             </div>
           </div>
           <div className={styles.composerDocked}>
-            <div className={styles.composerWrap}>{mailGhostEl}{composer}</div>
+            <div className={styles.composerWrap}>{composer}</div>
           </div>
         </div>
       ) : (
         <div className={styles.empty}>
-          <div className={styles.composerWrap}>{mailGhostEl}{composer}</div>
+          <div className={styles.composerWrap}>{composer}</div>
         </div>
       )}
     </div>
