@@ -33,6 +33,7 @@ import {
   setAgentEnabled,
   type AgentInfo,
   streamChat,
+  saveDocument,
   type ApiMessage,
   type Attachment,
   type ContentPart,
@@ -50,7 +51,7 @@ import {
 import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
-import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit } from "./chatHelpers";
+import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
 
@@ -325,6 +326,60 @@ export function Chat({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // Lagrer vedlagte dokumenter som bedriftskunnskap. Ingen LLM-tur: teksten er
+  // alt uttrukket, backend chunker/embedder og indekserer.
+  async function saveDocsInline(raw: string, docs: Attachment[]) {
+    setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    setAttachments([]);
+    const names = docs.map((d) => d.name).join(", ");
+    const replyId = nextId();
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: nextId(),
+        role: "user",
+        content: raw,
+        display: raw,
+        attachmentNames: docs.map((d) => d.name),
+        revealed: true,
+      },
+      { id: replyId, role: "assistant", content: "", loading: true },
+    ]);
+    // Sørg for en chat å knytte dokumentet til.
+    if (!chatIdRef.current) {
+      try {
+        const chat = await createChat(raw.slice(0, 60) || names);
+        chatIdRef.current = chat.id;
+        onChatCreated?.(chat);
+      } catch {
+        // persistens ikke kritisk
+      }
+    }
+    try {
+      const saved = await Promise.all(
+        docs.map((d) =>
+          saveDocument({ filename: d.name, text: d.text, chat_id: chatIdRef.current ?? undefined })
+        )
+      );
+      const titles = saved.map((s) => `«${s.title}»`).join(", ");
+      const content = `Lagret ${titles} som bedriftskunnskap. Jeg bruker det automatisk når det er relevant.`;
+      update(replyId, { loading: false, content, revealed: true });
+      const cid = chatIdRef.current;
+      if (cid) {
+        appendChatMessage(cid, { role: "user", content: `${raw} [${names}]` })
+          .then(() => appendChatMessage(cid, { role: "assistant", content }))
+          .catch(swallow);
+      }
+    } catch (e) {
+      update(replyId, {
+        loading: false,
+        error: true,
+        content: "Kunne ikke lagre dokumentet: " + (e instanceof Error ? e.message : "ukjent feil"),
+      });
+    }
+  }
+
   // Kaller en widget inline i chatten: ingen LLM, bare en ```widget <slug>```-
   // blokk som renderer visualiseringen der og da.
   async function renderWidgetInline(raw: string, slug: string) {
@@ -411,6 +466,13 @@ export function Chat({
   async function send(overrideText?: string) {
     const raw = (overrideText ?? input).trim();
     if ((!raw && attachments.length === 0) || busy) return;
+
+    // Vedlagt dokument + lagre-intensjon: lagre som bedriftskunnskap, ingen LLM-tur.
+    const docs = attachments.filter((a) => !a.image && a.text.trim());
+    if (docs.length > 0 && wantsSaveDocument(raw)) {
+      await saveDocsInline(raw, docs);
+      return;
+    }
 
     // Venter på svar på et mail-forslag: «ja» launcher svarforslaget.
     if (pendingMailReplyRef.current) {

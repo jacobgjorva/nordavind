@@ -49,6 +49,12 @@ const AGENT_EDIT_RE =
 
 export const wantsAgentEdit = (text: string) => AGENT_EDIT_RE.test(text);
 
+// Tegn på at brukeren vil lagre et vedlagt dokument som bedriftskunnskap.
+const SAVE_DOC_RE =
+  /\b(lagre|lagr|ta vare på|husk (dette|denne|dokumentet)|legg til|lær(e)? deg|behold)\b/i;
+
+export const wantsSaveDocument = (text: string) => SAVE_DOC_RE.test(text);
+
 // Speiler backendens slugify: brukes når /widget-navnet allerede finnes.
 export const slugify = (s: string) =>
   s
