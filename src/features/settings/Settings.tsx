@@ -4,6 +4,7 @@ import { Usage } from "./Usage";
 import { Quota } from "./Quota";
 import { Knowledge } from "./Knowledge";
 import { KnowledgeGraph } from "./KnowledgeGraph";
+import { Documents } from "./Documents";
 import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
 import {
@@ -43,8 +44,8 @@ export function Settings({ user }: { user: AuthUser }) {
 
   // Usage har to undersider: Kvote og Stats.
   const [usageSub, setUsageSub] = useState<"kvote" | "stats">("stats");
-  // Kunnskap har to undersider: Graf (default) og Forslag.
-  const [knowSub, setKnowSub] = useState<"graf" | "forslag">("graf");
+  // Kunnskap har tre undersider: Graf (default), Dokumenter og Forslag.
+  const [knowSub, setKnowSub] = useState<"graf" | "dokumenter" | "forslag">("graf");
 
   function reloadConns() {
     fetchConnections().then(setConns).catch(swallow);
@@ -111,6 +112,15 @@ export function Settings({ user }: { user: AuthUser }) {
                 <button
                   type="button"
                   className={`${styles.navSubItem} ${
+                    knowSub === "dokumenter" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setKnowSub("dokumenter")}
+                >
+                  Dokumenter
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
                     knowSub === "forslag" ? styles.navSubItemActive : ""
                   }`}
                   onClick={() => setKnowSub("forslag")}
@@ -155,7 +165,13 @@ export function Settings({ user }: { user: AuthUser }) {
         {tab === "usage" ? (
           usageSub === "kvote" ? <Quota /> : <Usage />
         ) : tab === "knowledge" ? (
-          knowSub === "forslag" ? <Knowledge /> : <KnowledgeGraph />
+          knowSub === "forslag" ? (
+            <Knowledge />
+          ) : knowSub === "dokumenter" ? (
+            <Documents />
+          ) : (
+            <KnowledgeGraph />
+          )
         ) : tab === "admin" ? (
           <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (

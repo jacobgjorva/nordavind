@@ -18,3 +18,20 @@ export async function saveDocument(payload: {
 }): Promise<SavedDocument> {
   return apiFetch("/documents", { method: "POST", body: payload });
 }
+
+export interface LibraryDocument {
+  id: string;
+  title: string;
+  filename: string;
+  notes: number;
+  created_at: string;
+}
+
+export async function listDocuments(): Promise<LibraryDocument[]> {
+  const data = await apiFetch<{ documents?: LibraryDocument[] }>("/documents");
+  return data.documents ?? [];
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  await apiFetch(`/documents/${id}`, { method: "DELETE" });
+}
