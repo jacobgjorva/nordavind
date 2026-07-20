@@ -39,9 +39,9 @@
 .settingsModal {
   position: relative;
   width: 100%;
-  max-width: 900px;
+  max-width: 1120px;
   height: 100%;
-  max-height: 680px;
+  max-height: 860px;
   border-radius: 16px;
   overflow: hidden;
   background: var(--bg, #0e0e10);
