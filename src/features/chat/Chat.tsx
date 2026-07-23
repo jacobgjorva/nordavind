@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
+import { TableQueryContext } from "./blocks/core";
 import { Logo } from "../../ui/Logo";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -33,6 +34,7 @@ import {
   saveDocument,
   classifyDocument,
   type ApiMessage,
+  type TableQuery,
   type Attachment,
   type ContentPart,
   type ChatSummary,
@@ -78,6 +80,8 @@ interface ChatMessage extends Omit<ApiMessage, "content"> {
   attachmentNames?: string[];
   /** data:-URL-er for vedlagte bilder (forhåndsvisning i bobla) */
   images?: string[];
+  /** Databasespørringen bak svaret (gir live Excel-eksport på tabeller) */
+  query?: TableQuery;
 }
 
 // Slash-kommandoer i composeren. Flere kommer; Agent er den eneste nå.
@@ -652,6 +656,7 @@ export function Chat({
       let acc = "";
       let think = "";
       let resolved: string | undefined;
+      let tableQuery: TableQuery | undefined;
       const sources: SourceRef[] = [];
       const steps: string[] = [];
       const pushStep = (label: string) => {
@@ -665,6 +670,7 @@ export function Chat({
         (delta) => {
           if (delta.reasoning) think += delta.reasoning;
           if (delta.step) pushStep(delta.step);
+          if (delta.query) tableQuery = delta.query;
           if (delta.content) acc += delta.content;
           if (delta.model) {
             resolved = delta.model;
@@ -685,6 +691,7 @@ export function Chat({
             resolvedModel: resolved,
             sources: [...sources],
             steps: [...steps],
+            query: tableQuery,
           });
         },
         abortRef.current.signal,
@@ -1066,6 +1073,7 @@ export function Chat({
                       trainOffer?.id === m.id ? styles.bubbleOffer : ""
                     }`}
                   >
+                  <TableQueryContext.Provider value={m.query ?? null}>
                     {/* Arbeids-indikator: står HELE tiden streamen er åpen, også
                         når litt innhold alt har kommet — så den aldri «forsvinner». */}
                     {m.role === "assistant" &&
@@ -1167,6 +1175,7 @@ export function Chat({
                         </>
                       )
                     ) : null}
+                  </TableQueryContext.Provider>
                   </div>
                   {trainOffer?.id === m.id && (
                     <div className={styles.trainOffer}>

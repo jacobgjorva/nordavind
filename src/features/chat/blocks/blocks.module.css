@@ -223,3 +223,12 @@
 .actionBtn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* Live-eksport-valget i tabell-baren. */
+.exportAsk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}

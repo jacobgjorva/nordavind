@@ -29,3 +29,58 @@
   justify-content: center;
   height: calc(100vh - 56px - 120px);
 }
+
+/* ── Microsoft 365-connector ── */
+.m365 {
+  max-width: 520px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.m365Head {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.m365Desc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.m365Note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.m365Row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.m365Ok {
+  font-size: 13.5px;
+  color: #4ec06a;
+  font-weight: 600;
+}
+
+.danger {
+  padding: 8px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: #e66767;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.danger:hover {
+  background: rgba(230, 103, 103, 0.1);
+}
