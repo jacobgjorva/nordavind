@@ -9,6 +9,41 @@ export interface ChatSummary {
   agent_id?: string;
   agent_enabled?: boolean;
   kind?: string;
+  folder_id?: string;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export async function fetchFolders(): Promise<Folder[]> {
+  const data = await apiFetch<{ folders?: Folder[] }>("/folders");
+  return data.folders ?? [];
+}
+
+export async function createFolder(name: string): Promise<Folder> {
+  return apiFetch("/folders", { method: "POST", body: { name } });
+}
+
+export async function renameFolder(id: string, name: string): Promise<void> {
+  await apiFetch(`/folders/${id}`, { method: "PATCH", body: { name } });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  await apiFetch(`/folders/${id}`, { method: "DELETE" });
+}
+
+// Flytter en chat inn i en mappe (tom folderId = ut av mappe).
+export async function setChatFolder(
+  chatId: string,
+  folderId: string
+): Promise<void> {
+  await apiFetch(`/chats/${chatId}/folder`, {
+    method: "PUT",
+    body: { folder_id: folderId },
+  });
 }
 
 export interface StoredMessage {
