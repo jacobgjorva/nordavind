@@ -12,6 +12,11 @@ export interface WidgetSpec {
   sql?: string;
   x?: string;
   y?: string;
+  // Interaktive kontroller (agent-tolket, virker klient-side på hentede rader).
+  search?: string[];
+  filters?: { column: string; label?: string }[];
+  sort?: { column: string; label?: string; dir?: "asc" | "desc" }[];
+  group?: string;
 }
 
 // Widget slik den ligger i registeret; spec finnes kun ved henting av én.

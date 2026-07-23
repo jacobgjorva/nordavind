@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AgentChatContext } from "../../tools/agent/MissionPlan";
 import { Logo } from "../../ui/Logo";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -105,21 +106,29 @@ const SLASH_ACTIONS: {
 // markdown tar over når svaret er ferdig.
 export function Chat({
   chatId,
+  onStartAgent,
   initialTitle,
   onChatCreated,
   onTitleGenerated,
 }: {
   chatId: string | null;
+  onStartAgent?: () => void;
   initialTitle?: string | null;
   onChatCreated?: (chat: ChatSummary) => void;
   onTitleGenerated?: () => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [title, setTitle] = useState<string | null>(initialTitle ?? null);
-  // Scroll-ankring + topbar-fade eies av hooken; den gir ref til meldingslista.
-  const { messagesRef, scrolledPast } = useAnchoredScroll(messages);
   // Agent bak denne chatten (for pause-knappen), null for vanlige chatter.
   const [agent, setAgent] = useState<AgentInfo | null>(null);
+  // Live-aktivitet fra et kjørende oppdrag teller som en «rad» i ankringen, så
+  // scroll-hooken behandler den som siste melding (ikke strekker konklusjonen).
+  const activityPresent =
+    agent?.mission_status === "running" && !!agent?.mission_activity;
+  // Scroll-ankring + topbar-fade eies av hooken; den gir ref til meldingslista.
+  const { messagesRef, scrolledPast } = useAnchoredScroll(
+    activityPresent ? [...messages, 0] : messages
+  );
   // Inline-redigering av tittel (dobbeltklikk).
   const [editingTitle, setEditingTitle] = useState(false);
   const chatIdRef = useRef<string | null>(chatId);
@@ -195,9 +204,56 @@ export function Chat({
           })
         )
         .catch(swallow);
-    }, 15000);
+    }, agent.mission ? 3000 : 15000);
     return () => window.clearInterval(id);
   }, [chatId, agent]);
+
+  // Oppdrags-agent: poll agenten raskt så live-aktiviteten («hva jeg gjør»)
+  // fanges opp med en gang den starter og holdes fersk til oppdraget er ferdig.
+  // Poller også mens den er draft (ennå ikke «done»), for å fange overgangen til
+  // «running» straks brukeren trykker Start.
+  useEffect(() => {
+    if (!chatId || !agent || agent.mission_status === "done") return;
+    const id = window.setInterval(async () => {
+      if (busyRef.current) return;
+      // Hent agent OG meldinger i samme tikk: da dukker konklusjonen opp i
+      // nøyaktig samme render som aktiviteten forsvinner — ingen dødt mellomrom.
+      const [a, stored] = await Promise.all([
+        fetchChatAgent(chatId).catch(() => null),
+        fetchChatMessages(chatId).catch(() => null),
+      ]);
+      if (stored) {
+        setMessages((prev) => {
+          if (busyRef.current || stored.length <= prev.length) return prev;
+          const tail = stored.slice(prev.length).map((m) => ({
+            id: nextId(),
+            role: m.role,
+            content: m.content,
+            sources: m.sources ? JSON.parse(m.sources) : undefined,
+            revealed: true,
+          }));
+          return [...prev, ...tail];
+        });
+      }
+      if (a) setAgent(a);
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [chatId, !!agent, agent?.mission_status]);
+
+  // Live-aktivitet fra en kjørende oppdrags-agent (tanke + verktøysteg).
+  const activity =
+    agent?.mission_status === "running" && agent.mission_activity
+      ? (() => {
+          try {
+            return JSON.parse(agent.mission_activity) as {
+              thought?: string;
+              steps?: string[];
+            };
+          } catch {
+            return null;
+          }
+        })()
+      : null;
 
   async function toggleAgentPause() {
     if (!agent) return;
@@ -439,10 +495,14 @@ export function Chat({
       }
     }
 
-    // /agent starter (eller fortsetter) agent-oppsett. Kommandoen fjernes
-    // fra selve meldingen; en tom kommando får en frø-melding.
-    const isAgentCmd = /^\/agent\b/i.test(raw);
-    if (isAgentCmd) agentModeRef.current = true;
+    // /agent spawner en fersk agent-chat (ekte agent-tråd i sidebar) og lander
+    // brukeren der. Ingen AI, ingen tolkning her.
+    if (/^\/agent\b/i.test(raw)) {
+      setInput("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      onStartAgent?.();
+      return;
+    }
 
     // /widget [beskrivelse]: gå i widget-editor. Uten beskrivelse venter vi
     // på neste melding. Editoren holdes åpen resten av samtalen (som /agent),
@@ -484,12 +544,7 @@ export function Chat({
       reloadWidgets();
     }
 
-    const stripped = isAgentCmd ? raw.replace(/^\/agent\s*/i, "").trim() : raw;
-    const text = isAgentCmd
-      ? stripped || "Jeg vil sette opp en agent."
-      : buildingWidget
-        ? widgetDesc
-        : stripped;
+    const text = buildingWidget ? widgetDesc : raw;
 
     // Armert korrigering: logg denne meldingen som feedback på svaret.
     const correcting = text ? correctionTarget : null;
@@ -635,8 +690,12 @@ export function Chat({
         abortRef.current.signal,
         {
           agentSetup: agentModeRef.current,
-          // Kun send agent-edit-stien når meldingen faktisk ber om en endring.
-          agentEdit: agent?.id && wantsAgentEdit(text) ? agent.id : undefined,
+          // Draft-agent (ikke godkjent ennå): kjør alltid oppdrags-planlegging.
+          // Ferdig agent: kun når meldingen faktisk ber om en endring.
+          agentEdit:
+            agent?.id && (!agent.criteria_approved || wantsAgentEdit(text))
+              ? agent.id
+              : undefined,
           widget: widgetEditRef.current ?? undefined,
         }
       );
@@ -864,6 +923,9 @@ export function Chat({
           {modelAlias(activeModel)}
           {modelDesc(activeModel) && ` - ${modelDesc(activeModel)}`}
         </span>
+        <span className={styles.cmdHint}>
+          Kommandoer <span className={styles.kbd}>/</span>
+        </span>
         <span className={styles.sendHint}>
           Send <span className={styles.kbd}>↵</span>
         </span>
@@ -872,6 +934,7 @@ export function Chat({
   );
 
   return (
+    <AgentChatContext.Provider value={agent?.id ?? null}>
     <div className={styles.chatRoot}>
       {title && (hasMessages || agent) && (
         <div
@@ -1003,6 +1066,37 @@ export function Chat({
                       trainOffer?.id === m.id ? styles.bubbleOffer : ""
                     }`}
                   >
+                    {/* Arbeids-indikator: står HELE tiden streamen er åpen, også
+                        når litt innhold alt har kommet — så den aldri «forsvinner». */}
+                    {m.role === "assistant" &&
+                      !m.error &&
+                      (m.streaming || m.loading) && (
+                        <div className={styles.timeline}>
+                          <div className={styles.step}>
+                            <span className={styles.thinkingLogo}>
+                              <Logo
+                                size={10}
+                                flutter
+                                glow={modelGlow(m.resolvedModel ?? null)}
+                              />
+                            </span>
+                            <span className={styles.stepActive}>
+                              {thinkingLabel(m.reasoning)} …
+                            </span>
+                          </div>
+                          {(m.steps ?? []).map((step, i) => (
+                            <div key={i}>
+                              <span className={styles.stepLine} />
+                              <div className={styles.step}>
+                                <span className={styles.stepIcon}>
+                                  <SearchIcon size={14} />
+                                </span>
+                                <span className={styles.reasoning}>{step}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     {m.content ? (
                       m.role === "assistant" && !m.error && !m.revealed ? (
                         <StreamingText
@@ -1072,32 +1166,6 @@ export function Chat({
                             )}
                         </>
                       )
-                    ) : m.role === "assistant" && !m.error ? (
-                      <div className={styles.timeline}>
-                        <div className={styles.step}>
-                          <span className={styles.thinkingLogo}>
-                            <Logo
-                              size={10}
-                              flutter
-                              glow={modelGlow(m.resolvedModel ?? null)}
-                            />
-                          </span>
-                          <span className={styles.stepActive}>
-                            {thinkingLabel(m.reasoning)} …
-                          </span>
-                        </div>
-                        {(m.steps ?? []).map((step, i) => (
-                          <div key={i}>
-                            <span className={styles.stepLine} />
-                            <div className={styles.step}>
-                              <span className={styles.stepIcon}>
-                                <SearchIcon size={14} />
-                              </span>
-                              <span className={styles.reasoning}>{step}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
                     ) : null}
                   </div>
                   {trainOffer?.id === m.id && (
@@ -1123,6 +1191,37 @@ export function Chat({
                   )}
                 </div>
               ))}
+              {activity && (
+                <div
+                  className={styles.activityRow}
+                  data-role="assistant"
+                  data-mid="activity"
+                >
+                  <div className={styles.timeline}>
+                    <div className={styles.step}>
+                      <span className={styles.thinkingLogo}>
+                        <Logo size={10} flutter />
+                      </span>
+                      <span className={`${styles.stepActive} ${styles.activityThought}`}>
+                        {activity.thought?.trim() || "Tenker"} …
+                      </span>
+                    </div>
+                    {activity.steps && activity.steps.length > 0 && (
+                      <div>
+                        <span className={styles.stepLine} />
+                        <div className={styles.step}>
+                          <span className={styles.stepIcon}>
+                            <SearchIcon size={14} />
+                          </span>
+                          <span className={`${styles.reasoning} ${styles.activityStep}`}>
+                            {activity.steps[activity.steps.length - 1]}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className={styles.composerDocked}>
@@ -1135,5 +1234,6 @@ export function Chat({
         </div>
       )}
     </div>
+    </AgentChatContext.Provider>
   );
 }

@@ -4,3 +4,4 @@ import "../features/chat/blocks/core";
 import "./widget";
 import "./mail";
 import "./agent/AgentWidgets";
+import "./agent/MissionPlan";

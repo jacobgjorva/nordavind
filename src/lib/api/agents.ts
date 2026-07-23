@@ -21,6 +21,8 @@ export interface NewAgent {
   run_time: string;
   daily_token_limit: number;
   write_access: boolean;
+  mission?: boolean;
+  send_mail?: boolean;
 }
 
 // Oppretter en agent fra config-widgeten; returnerer den lagrede agenten.
@@ -28,6 +30,15 @@ export async function createAgent(
   payload: NewAgent
 ): Promise<{ id: string; chat_id: string }> {
   return apiFetch("/agents", { method: "POST", body: payload });
+}
+
+// Oppretter en tom, deaktivert agent-chat brukeren lander i via /agent.
+export async function createDraftAgent(): Promise<{
+  id: string;
+  chat_id: string;
+  name: string;
+}> {
+  return apiFetch("/agents/draft", { method: "POST" });
 }
 
 export interface AgentInfo {
@@ -42,6 +53,25 @@ export interface AgentInfo {
   daily_token_limit?: number;
   write_access?: boolean;
   push_enabled?: boolean;
+  mission?: boolean;
+  mission_status?: string;
+  criteria_approved?: boolean;
+  mission_criteria?: string;
+  mission_budget?: number;
+  mission_activity?: string;
+}
+
+// Lagrer mål, fullført-kriterier og token-tak for et oppdrag.
+export async function setMissionPlan(
+  id: string,
+  plan: { goal: string; criteria: string; budget: number }
+): Promise<void> {
+  await apiFetch(`/agents/${id}/mission`, { method: "POST", body: plan });
+}
+
+// Godkjenner kriteriene og starter den kontinuerlige oppdrags-løkka.
+export async function approveMission(id: string): Promise<void> {
+  await apiFetch(`/agents/${id}/mission/approve`, { method: "POST" });
 }
 
 // Oppdaterer en agents konfigurasjon (redigering i agent-chatten).

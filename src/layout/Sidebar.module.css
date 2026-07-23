@@ -134,6 +134,42 @@
   color: var(--text-faint);
 }
 
+/* Rad-container: gjør plass til en slett-knapp som dukker opp ved hover. */
+.chatRow {
+  position: relative;
+}
+
+.chatDelete {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.chatRow:hover .chatDelete {
+  opacity: 1;
+}
+
+.chatDelete:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
 .chat {
   display: block;
   width: 100%;

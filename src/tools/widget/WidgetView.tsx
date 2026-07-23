@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -7,6 +7,8 @@ import {
   type QueryResult,
   type WidgetSpec,
 } from "../../lib/api";
+import { WidgetControls } from "./WidgetControls";
+import { applyControls, hasControls, initialState } from "./controlsLogic";
 import styles from "./WidgetView.module.css";
 
 // Validert mørk kategori-palett (fra dataviz-skillen). Rekkefølgen er
@@ -323,6 +325,25 @@ function WidgetCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
   return null;
 }
 
+// InteractiveCard legger søk/filter/sort/gruppe over kortet når specen har
+// kontroller. Kontrollene virker klient-side på de hentede radene — WidgetCard
+// (visualen) er urørt og får bare de avledede radene.
+function InteractiveCard({ c, data }: { c: WidgetSpec; data: QueryResult | null }) {
+  const [state, setState] = useState(() => initialState(c));
+  const enabled = !!data && data.rows.length > 0 && hasControls(c);
+  const view = useMemo(
+    () => (enabled && data ? applyControls(data, c, state) : data),
+    [enabled, data, c, state]
+  );
+  if (!enabled || !data) return <WidgetCard c={c} data={data} />;
+  return (
+    <div className={styles.interactive}>
+      <WidgetControls spec={c} data={data} state={state} onChange={setState} />
+      <WidgetCard c={c} data={view} />
+    </div>
+  );
+}
+
 // Laste-skeleton: tomt kort med et glans-sveip.
 function WidgetSkeleton() {
   return <div className={styles.skeleton} />;
@@ -452,7 +473,7 @@ export function WidgetView({ slug }: { slug: string }) {
           <WidgetSkeleton />
         ) : (
           <div className={wasRevealed ? "" : styles.reveal}>
-            <WidgetCard c={ready.spec} data={ready.data} />
+            <InteractiveCard c={ready.spec} data={ready.data} />
           </div>
         )}
       </div>

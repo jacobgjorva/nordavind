@@ -148,6 +148,8 @@ function AgentSetup({
         run_time: has("time") ? runTime : "",
         daily_token_limit: EFFORTS[effort].tokens,
         write_access: Boolean(initial("write")),
+        mission: Boolean(initial("mission")),
+        send_mail: Boolean(initial("send_mail")),
       });
       setDone(true);
       emit("agents-changed");

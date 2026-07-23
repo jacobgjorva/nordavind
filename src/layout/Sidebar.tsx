@@ -13,6 +13,7 @@ type SidebarProps = {
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenChat: (id: string) => void;
+  onDeleteChat: (id: string) => void;
   onLogout: () => void;
 };
 
@@ -46,9 +47,15 @@ export function Sidebar({
   onNewChat,
   onOpenSettings,
   onOpenChat,
+  onDeleteChat,
   onLogout,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
+
+  function del(e: React.MouseEvent, c: ChatSummary) {
+    e.stopPropagation();
+    if (confirm(`Slette «${c.title}»?`)) onDeleteChat(c.id);
+  }
 
   // Agent-chatter pinnes i egen «Agenter»-seksjon; resten grupperes på dato.
   const agentChats = chats.filter((c) => c.agent_id);
@@ -142,19 +149,28 @@ export function Sidebar({
           <div className={styles.group}>
             <div className={styles.groupLabel}>AGENTER</div>
             {agentChats.map((c) => (
-              <button
-                key={c.id}
-                className={`${styles.chat} ${styles.chatAgent} ${
-                  c.id === activeChatId ? styles.chatActive : ""
-                }`}
-                onClick={() => onOpenChat(c.id)}
-              >
-                <HugeiconsIcon icon={AnonymousIcon} size={14} className={styles.chatIcon} />
-                <span className={styles.chatTitleText}>{c.title}</span>
-                {c.agent_enabled && (
-                  <span className={styles.agentLive} aria-label="Aktiv" />
-                )}
-              </button>
+              <div key={c.id} className={styles.chatRow}>
+                <button
+                  className={`${styles.chat} ${styles.chatAgent} ${
+                    c.id === activeChatId ? styles.chatActive : ""
+                  }`}
+                  onClick={() => onOpenChat(c.id)}
+                >
+                  <HugeiconsIcon icon={AnonymousIcon} size={14} className={styles.chatIcon} />
+                  <span className={styles.chatTitleText}>{c.title}</span>
+                  {c.agent_enabled && (
+                    <span className={styles.agentLive} aria-label="Aktiv" />
+                  )}
+                </button>
+                <button
+                  className={styles.chatDelete}
+                  onClick={(e) => del(e, c)}
+                  aria-label="Slett"
+                  title="Slett"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -162,15 +178,24 @@ export function Sidebar({
           <div key={g.label} className={styles.group}>
             <div className={styles.groupLabel}>{g.label}</div>
             {g.chats.map((c) => (
-              <button
-                key={c.id}
-                className={`${styles.chat} ${
-                  c.id === activeChatId ? styles.chatActive : ""
-                }`}
-                onClick={() => onOpenChat(c.id)}
-              >
-                {c.title}
-              </button>
+              <div key={c.id} className={styles.chatRow}>
+                <button
+                  className={`${styles.chat} ${
+                    c.id === activeChatId ? styles.chatActive : ""
+                  }`}
+                  onClick={() => onOpenChat(c.id)}
+                >
+                  {c.title}
+                </button>
+                <button
+                  className={styles.chatDelete}
+                  onClick={(e) => del(e, c)}
+                  aria-label="Slett"
+                  title="Slett"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         ))}

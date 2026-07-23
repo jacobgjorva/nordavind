@@ -5,6 +5,8 @@ import { Settings } from "../features/settings/Settings";
 import { Sidebar } from "../layout/Sidebar";
 import {
   clearToken,
+  createDraftAgent,
+  deleteChat,
   fetchChats,
   fetchMe,
   getToken,
@@ -85,6 +87,35 @@ export default function App() {
     fetchChats().then(setChats).catch(swallow);
   }, []);
 
+  // /agent oppretter en fersk, deaktivert agent-chat og lander brukeren i den.
+  // Ingen AI: bare en ekte agent-tråd (vises i «Agenter»-gruppa) å konfigurere.
+  const startAgent = useCallback(async () => {
+    try {
+      const agent = await createDraftAgent();
+      const list = await fetchChats();
+      setChats(list);
+      setActiveChatId(agent.chat_id);
+      setSession((s) => ({ key: s.key + 1, chatId: agent.chat_id }));
+      setView("chat");
+    } catch {
+      // Ikke kritisk; brukeren kan prøve igjen.
+    }
+  }, []);
+
+  const onDeleteChat = useCallback(
+    async (id: string) => {
+      try {
+        await deleteChat(id);
+      } catch {
+        // Ikke kritisk
+      }
+      const list = await fetchChats().catch(() => null);
+      if (list) setChats(list);
+      if (id === activeChatId) newChat();
+    },
+    [activeChatId, newChat]
+  );
+
   const logout = useCallback(() => {
     clearToken();
     setUser(false);
@@ -115,12 +146,14 @@ export default function App() {
         onNewChat={newChat}
         onOpenSettings={openSettings}
         onOpenChat={openChat}
+        onDeleteChat={onDeleteChat}
         onLogout={logout}
       />
       <div className={styles.main}>
         <Chat
           key={session.key}
           chatId={session.chatId}
+          onStartAgent={startAgent}
           initialTitle={
             session.chatId
               ? chats.find((c) => c.id === session.chatId)?.title ?? null

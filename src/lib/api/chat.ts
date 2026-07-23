@@ -81,6 +81,11 @@ export async function renameChat(id: string, title: string): Promise<string> {
   return data.title;
 }
 
+// Sletter en samtale (og agenten dersom det er en agent-chat).
+export async function deleteChat(id: string): Promise<void> {
+  await apiFetch(`/chats/${id}`, { method: "DELETE" });
+}
+
 export interface Attachment {
   name: string;
   /** Uttrukket tekst (PDF/tekstfil). Tom for bilder. */
