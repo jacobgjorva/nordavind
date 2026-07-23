@@ -215,7 +215,8 @@ export default function App() {
         onMoveChatToFolder={onMoveChatToFolder}
         onLogout={logout}
       />
-      <div className={styles.main}>
+      {/* Chat holdes montert (skjult) mens settings vises, så samtalen overlever. */}
+      <div className={styles.main} style={view === "settings" ? { display: "none" } : undefined}>
         <Chat
           key={session.key}
           chatId={session.chatId}
@@ -232,13 +233,8 @@ export default function App() {
         />
       </div>
       {view === "settings" && (
-        <div className={styles.settingsOverlay} onClick={closeSettings}>
-          <div
-            className={styles.settingsModal}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Settings user={user} onClose={closeSettings} />
-          </div>
+        <div className={styles.settingsPage}>
+          <Settings user={user} onClose={closeSettings} />
         </div>
       )}
     </div>

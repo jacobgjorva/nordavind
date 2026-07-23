@@ -49,7 +49,7 @@ import {
   thinkingLabel,
 } from "./messageParts";
 import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
-import { emit } from "../../lib/events";
+import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
 import { useAnchoredScroll } from "./useAnchoredScroll";
@@ -149,6 +149,8 @@ export function Chat({
   useEffect(() => {
     reloadWidgets();
   }, []);
+  // Lagret widget-utkast → /-menyen oppdateres med en gang.
+  useEffect(() => on("widgets-changed", reloadWidgets), []);
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -535,8 +537,11 @@ export function Chat({
       widgetDesc = raw;
     }
 
-    // Opprett widgeten første gang vi har en beskrivelse i denne samtalen.
+    // Opprett widget når vi har en beskrivelse. Et nytt eksplisitt /widget
+    // starter ALLTID en fersk widget — ellers skrev agenten den nye specen
+    // inn i forrige widget og ignorerte brukeren.
     const buildingWidget = (isWidgetCmd || widgetPendingRef.current) && !!widgetDesc;
+    if (buildingWidget && isWidgetCmd) widgetEditRef.current = null;
     if (buildingWidget && !widgetEditRef.current) {
       try {
         const wg = await createWidget(widgetDesc.slice(0, 60));
@@ -604,12 +609,15 @@ export function Chat({
 
     const history = buildHistory(messages, { role: "user", content: apiContent });
 
-    // Widget-tur: svaret ER widgeten. Sett blokka med én gang så vind-
-    // animasjonen starter umiddelbart — ingen loading-prikker, ingen «Ok».
+    // Widget-tur: svaret ER widgeten. På skapelsesturen settes blokka med én
+    // gang så vind-animasjonen starter umiddelbart. Senere turer kan være ren
+    // prat («Takk») — da venter vi og viser widgeten kun hvis specen faktisk
+    // ble endret (nordavind_widget_updated fra backend).
     const widgetTurnSlug = widgetEditRef.current;
     const widgetBlock = widgetTurnSlug
       ? "```widget\n" + widgetTurnSlug + "\n```"
       : "";
+    const presetWidget = !!widgetTurnSlug && buildingWidget;
 
     const userMsgId = nextId();
     const replyId = nextId();
@@ -624,7 +632,7 @@ export function Chat({
         attachmentNames: files.filter((a) => !a.image).map((a) => a.name),
         images: images.map((a) => a.image!),
       },
-      widgetTurnSlug
+      presetWidget
         ? { id: replyId, role: "assistant", content: widgetBlock, revealed: true }
         : { id: replyId, role: "assistant", content: "", loading: true },
     ]);
@@ -655,6 +663,7 @@ export function Chat({
     try {
       let acc = "";
       let think = "";
+      let widgetTouched = false;
       let resolved: string | undefined;
       let tableQuery: TableQuery | undefined;
       const sources: SourceRef[] = [];
@@ -681,8 +690,11 @@ export function Chat({
               if (!sources.some((x) => x.url === s.url)) sources.push(s);
             }
           }
-          // Widget-tur: ikke rør svaret — blokka + animasjonen står til data er klar.
-          if (widgetTurnSlug) return;
+          if (delta.widgetUpdated) widgetTouched = true;
+          // Forhåndssatt widget-blokk: ikke rør svaret — animasjonen står til
+          // data er klar. Senere widget-turer streamer som vanlig og avgjøres
+          // ved slutt (widget vs. tekstsvar).
+          if (presetWidget) return;
           update(replyId, {
             loading: !acc && !think && steps.length === 0,
             content: acc,
@@ -706,10 +718,16 @@ export function Chat({
           widget: widgetEditRef.current ?? undefined,
         }
       );
-      // Widget-tur: blokka står allerede, WidgetView poller til data er klar.
-      // Bare oppdater slash-registeret så /<slug> blir tilgjengelig.
+      // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
+      // Ren prat («Takk») får modellens tekstsvar i stedet for en ny widget.
       if (widgetTurnSlug) {
-        acc = widgetBlock;
+        if (presetWidget || widgetTouched) {
+          acc = widgetBlock;
+          update(replyId, { loading: false, streaming: false, content: widgetBlock, revealed: true });
+        } else {
+          acc = acc || "Ok.";
+          update(replyId, { loading: false, streaming: false, content: acc });
+        }
         reloadWidgets();
       } else {
         update(replyId, { streaming: false });
