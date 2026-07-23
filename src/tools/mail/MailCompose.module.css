@@ -1,0 +1,166 @@
+.replyCard {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  margin: 8px 0;
+  padding: 16px 18px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--card-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recipRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.recipLabel {
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+}
+
+.chipAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.chipName {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chipX {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.chipX:hover {
+  color: #e8888d;
+}
+
+.recipInput {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  padding: 4px 0;
+  min-width: 100px;
+}
+
+.subject {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  outline: none;
+  padding: 0;
+}
+
+.draft {
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.6;
+  padding: 0;
+  outline: none;
+  /* Vokser med innholdet i stedet for fast høyde. */
+  field-sizing: content;
+  min-height: 2lh;
+  max-height: 60vh;
+  resize: vertical;
+}
+
+.sendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sigNote {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.error {
+  font-size: 12.5px;
+  color: #ff6a6a;
+}
+
+.sentBox {
+  margin-top: 24px;
+  padding: 16px;
+  text-align: center;
+  color: #6ef16a;
+  font-size: 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.sendBtn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid #00caff;
+  border-radius: 50%;
+  background: #007eff;
+  color: #fff;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease);
+}
+
+.sendBtn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.sendBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

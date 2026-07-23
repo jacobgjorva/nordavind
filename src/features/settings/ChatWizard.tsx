@@ -1,0 +1,632 @@
+import { useEffect, useState } from "react";
+import chatStyles from "../chat/Chat.module.css";
+import { Logo } from "../../ui/Logo";
+import {
+  completeChat,
+  createConnection,
+  deleteConnection,
+  fetchAdminUsers,
+  fetchConnectionSchema,
+  fetchMe,
+  saveConnectionConfig,
+  type AdminUser,
+  type Connection,
+  type ConnectionSchema,
+} from "../../lib/api";
+import styles from "./ChatWizard.module.css";
+import {
+  SOURCE_OPTIONS,
+  DRIVER_MAP,
+  DB_FLOW,
+  INSTRUCTION_RE,
+  FREE_FIELDS,
+  matchDriver,
+  type FlowStep,
+  type LogMsg,
+} from "./connectorFlow";
+import { TableManager } from "./TableManager";
+import { swallow } from "../../lib/log";
+
+// Ord-for-ord fade-in, samme animasjon som hovedchatten.
+function FadeText({ text }: { text: string }) {
+  const words = text.match(/\S+\s*/g) ?? [];
+  const [visible, setVisible] = useState(0);
+
+  useEffect(() => {
+    if (visible >= words.length) return;
+    const t = setTimeout(() => setVisible((v) => v + 1), 120);
+    return () => clearTimeout(t);
+  }, [visible, words.length]);
+
+  return (
+    <span className={chatStyles.streamingText}>
+      {words.slice(0, visible).map((w, i) => (
+        <span key={i} className={chatStyles.fadeSeg}>
+          {w}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+let logId = 0;
+
+export function ChatWizard(_props: {
+  initialConn: Connection | null;
+  onClose: () => void;
+}) {
+  const [input, setInput] = useState("");
+  const [hilite, setHilite] = useState(0);
+  const [log, setLog] = useState<LogMsg[]>([]);
+  const [sourceChosen, setSourceChosen] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Felt under korrigering — overstyrer den lineære rekkefølgen.
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [savedConn, setSavedConn] = useState<Connection | null>(null);
+  const [schema, setSchema] = useState<ConnectionSchema | null>(null);
+  const [selTables, setSelTables] = useState<Set<string>>(new Set());
+  const [tablesDone, setTablesDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Pågående handling: vises med logo-animasjon som i hovedchatten.
+  const [status, setStatus] = useState<string | null>(null);
+
+  // Etter bordvalg: AI sparrer om beskrivelser, så settes tilganger.
+  // stage2: "" | "describe" | "access" | "done"
+  const [stage2, setStage2] = useState("");
+  const [descQueue, setDescQueue] = useState<string[]>([]);
+  const [descs, setDescs] = useState<Record<string, string>>({});
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [meId, setMeId] = useState("");
+  const [selUsers, setSelUsers] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetchAdminUsers().then(setUsers).catch(swallow);
+    fetchMe().then((r) => setMeId(r.user.id)).catch(swallow);
+  }, []);
+
+  // Redigering av eksisterende kobling: hopp rett til rutenettet.
+  useEffect(() => {
+    if (!_props.initialConn) return;
+    setSavedConn(_props.initialConn);
+    fetchConnectionSchema(_props.initialConn.id).then(setSchema).catch(swallow);
+  }, []);
+
+  // Aktivt felt utledes av svarene: eksplisitt korrigering vinner, ellers
+  // første ubesvarte felt. Alt besvart -> null (klar/tilkoblet).
+  const activeStep: FlowStep | null = !sourceChosen
+    ? null
+    : (editKey && DB_FLOW.find((f) => f.key === editKey)) ||
+      DB_FLOW.find((f) => !(f.key in answers)) ||
+      null;
+
+  const tablesPhase = Boolean(savedConn && schema && !tablesDone && !activeStep);
+  const describePhase = stage2 === "describe";
+  const accessPhase = stage2 === "access";
+  const curDescTable = describePhase ? descQueue[0] : undefined;
+
+  const DONE_ITEM = "__done__";
+  const ALL_ITEM = "__all__";
+  const ME_ITEM = "__me__";
+
+  const question = !sourceChosen
+    ? "Hva skal vi koble til?"
+    : activeStep?.question ??
+      (tablesPhase
+        ? "Hvilke bord skal AI-en få bruke?"
+        : accessPhase
+          ? "Hvem skal ha tilgang til dataene?"
+          : null);
+
+  const rawOptions = !sourceChosen
+    ? SOURCE_OPTIONS
+    : activeStep
+      ? activeStep.options(answers)
+      : tablesPhase && schema
+        ? schema.tables.map((t) => t.name)
+        : accessPhase
+          ? users.map((u) => u.email)
+          : [];
+  const filtered = rawOptions.filter((o) =>
+    o.toLowerCase().includes(input.trim().toLowerCase())
+  );
+  const options = tablesPhase
+    ? [...(selTables.size > 0 ? [DONE_ITEM] : []), ...filtered.slice(0, 5)]
+    : accessPhase
+      ? [
+          ...(selUsers.size > 0 ? [DONE_ITEM] : [ALL_ITEM, ME_ITEM]),
+          ...filtered.slice(0, 5),
+        ]
+      : filtered;
+
+  function say(role: "bot" | "user", text: string) {
+    setLog((prev) => [...prev, { id: ++logId, role, text }]);
+  }
+
+  async function connect(a: Record<string, string>) {
+    if (busy) return;
+    setBusy(true);
+    setStatus("Tester tilkoblingen");
+    try {
+      const conn = await createConnection({
+        name: a.name,
+        driver: DRIVER_MAP[a.driver]?.key ?? "postgres",
+        host: a.host,
+        port: Number(a.port) || 5432,
+        database: a.database,
+        user: a.user,
+        password: a.password ?? "",
+      });
+      // Korrigering etter vellykket oppkobling: den nye erstatter den gamle.
+      if (savedConn) await deleteConnection(savedConn.id).catch(swallow);
+      setSavedConn(conn);
+      setStatus("Henter skjemaet");
+      const sch = await fetchConnectionSchema(conn.id);
+      setSchema(sch);
+      setStatus(null);
+      say("bot", `Tilkoblet! Jeg fant ${sch.tables.length} bord i databasen.`);
+    } catch (err) {
+      setStatus(null);
+      say("bot", (err instanceof Error ? err.message : "Kunne ikke koble til.") + " Prøv passordet igjen.");
+      setAnswers((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function acceptAnswer(step: FlowStep, value: string) {
+    const next = { ...answers, [step.key]: value };
+    setAnswers(next);
+    setEditKey(null);
+    // Alt besvart? Da (re)kobler vi.
+    if (DB_FLOW.every((f) => f.key in next)) {
+      connect(next);
+    }
+  }
+
+  // Fritekst som ikke matcher et forslag: agenten tolker svaret i kontekst
+  // og bestemmer om det er et gyldig feltsvar eller trenger oppfølging.
+  async function askAgent(step: FlowStep | null, value: string) {
+    setStatus("Tenker");
+    try {
+      const strictNote =
+        step?.key === "driver"
+          ? ` Feltet har FASTE gyldige verdier: ${Object.keys(DRIVER_MAP).join(", ")}. accept=true KUN hvis svaret entydig er en av disse (value = eksakt verdi fra listen). Andre databasetyper støttes ikke.`
+          : "";
+      const context =
+        step === null
+          ? `Brukeren velger datakilde. Gyldige valg: ${SOURCE_OPTIONS.join(", ")}. Kun Database er støttet foreløpig.`
+          : `Spørsmålet til brukeren var: "${step.question}" (felt: ${step.key} i en databasetilkobling).` + strictNote;
+      const fields = DB_FLOW.map((f) => f.key).join(", ");
+      const answered = Object.entries(answers)
+        .filter(([k]) => k !== "password")
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ");
+      const raw = await completeChat("bris", [
+        {
+          role: "system",
+          content:
+            "Du hjelper en bruker å sette opp en databasetilkobling, felt for felt. " +
+            context +
+            (answered ? ` Allerede besvart: ${answered}.` : "") +
+            ' Vurder brukerens svar. Svar KUN med JSON: {"accept": true/false, "value": "<feltverdien>", "goto": "<feltnavn eller null>", "reply": "<kort norsk melding>"}. ' +
+            "accept=true hvis svaret kan brukes som verdi for feltet (value = normalisert verdi). " +
+            "For frie felter (name, host, database, user) er ethvert rimelig ord eller navn gyldig — aksepter det som det er. " +
+            "accept=false KUN hvis svaret åpenbart er tastetull, et spørsmål, eller en instruks om noe annet. " +
+            'Eksempler (felt name): "Flyttest" -> {"accept":true,"value":"Flyttest","goto":null,"reply":""}. ' +
+            '"Regnskapsbasen vår" -> {"accept":true,"value":"Regnskapsbasen","goto":null,"reply":""}. ' +
+            '"asdkjhasd" -> {"accept":false,"goto":null,"reply":"Det ser ut som tastetull - gi tilkoblingen et beskrivende navn."}. ' +
+            '"vent, jeg vil bytte databasetype" -> {"accept":false,"goto":"driver","reply":"Ok, vi tar databasetypen på nytt."}. ' +
+            `Hvis brukeren vil endre et TIDLIGERE felt (${fields}), sett goto til det feltet. ` +
+            'Hvis brukeren vil endre selve datakilden (angrer på valget Database/CSV osv., eller sier han svarte feil uten at noe felt er besvart ennå), sett goto til "source". ' +
+            "reply skal ALDRI gjenta eller stille selve feltspørsmålet — det stilles automatisk etterpå. Hold reply til én kort setning, eller tom streng.",
+        },
+        { role: "user", content: value },
+      ]);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      setStatus(null);
+      if (parsed.goto === "source") {
+        if (parsed.reply) say("bot", parsed.reply);
+        setSourceChosen(false);
+        setAnswers({});
+        setEditKey(null);
+        return;
+      }
+      const gotoStep = parsed.goto ? DB_FLOW.find((f) => f.key === parsed.goto) : null;
+      if (gotoStep) {
+        if (parsed.reply) say("bot", parsed.reply);
+        // Feltet nullstilles slik at flowen naturlig spør om det igjen.
+        setAnswers((prev) => {
+          const next = { ...prev };
+          delete next[gotoStep.key];
+          return next;
+        });
+        setEditKey(gotoStep.key);
+      } else if (step && parsed.accept && parsed.value) {
+        if (step.key === "driver" && !Object.keys(DRIVER_MAP).includes(String(parsed.value))) {
+          say("bot", "Vi støtter PostgreSQL, MySQL og SQL Server foreløpig.");
+        } else {
+          acceptAnswer(step, String(parsed.value));
+        }
+      } else {
+        say("bot", parsed.reply || "Det forsto jeg ikke — prøv igjen.");
+      }
+    } catch {
+      setStatus(null);
+      say("bot", "Det forsto jeg ikke helt — prøv igjen.");
+    }
+  }
+
+  // Limt inn en hel connection-string? Parse den lokalt og fyll alle felt.
+  function tryConnectionString(text: string): boolean {
+    const m = text.match(
+      /\b(postgres(?:ql)?|mysql|sqlserver|mssql):\/\/(?:([^:@\s]+)(?::([^@\s]+))?@)?([^:/@\s]+)(?::(\d+))?(?:\/([^?\s]+))?/i
+    );
+    if (!m) return false;
+    const [, proto, user, pass, host, port, db] = m;
+    const driver = /^postgres/i.test(proto)
+      ? "PostgreSQL"
+      : /^mysql/i.test(proto)
+        ? "MySQL"
+        : "SQL Server";
+    say("user", text.replace(pass ?? "", pass ? "••••" : ""));
+    const next: Record<string, string> = { ...answers, driver };
+    if (host) next.host = host;
+    next.port = port || String(DRIVER_MAP[driver].port);
+    if (db) next.database = db;
+    if (user) next.user = user;
+    if (pass) next.password = decodeURIComponent(pass);
+    if (!answers.name && !next.name) {
+      // Navn mangler ofte i strengen — behold det som eneste spørsmål.
+    }
+    setAnswers(next);
+    setEditKey(null);
+    setInput("");
+    setHilite(0);
+    say("bot", "Fant tilkoblingsdetaljene i strengen.");
+    if (DB_FLOW.every((f) => f.key in next)) connect(next);
+    return true;
+  }
+
+  function answer(text: string) {
+    if (!text.trim()) return;
+    const value = text.trim();
+
+    if (!sourceChosen) {
+      say("user", value);
+      setInput("");
+      setHilite(0);
+      if (value === "Database") {
+        setSourceChosen(true);
+        return;
+      }
+      if (SOURCE_OPTIONS.includes(value)) {
+        say("bot", `${value} kommer snart — foreløpig støtter vi Database.`);
+        return;
+      }
+      // Kun ekte endre-intensjon trenger AI; ellers en kode-basert påminnelse.
+      if (INSTRUCTION_RE.test(value)) askAgent(null, value);
+      else say("bot", "Velg Database for å fortsette — det er den vi støtter nå.");
+      return;
+    }
+
+    if (tryConnectionString(value)) return;
+
+    const step = activeStep;
+    say("user", step?.secret ? "••••••••" : value);
+    setInput("");
+    setHilite(0);
+    if (!step) {
+      // Alt er besvart: fritekst her er korrigering eller spørsmål — agenten
+      // ruter til riktig felt via goto.
+      askAgent(null, value);
+      return;
+    }
+    // Menyvalg og passord går rett gjennom. Ellers prøver vi å tolke svaret i
+    // kode (frie felt godtas direkte, driver/port valideres), og bruker KUN AI
+    // når teksten uttrykker en endre-/angre-intensjon.
+    const isSuggestion = step.options(answers).includes(value);
+    if (isSuggestion || step.secret) {
+      acceptAnswer(step, value);
+    } else if (INSTRUCTION_RE.test(value)) {
+      askAgent(step, value);
+    } else if (step.key === "driver") {
+      const d = matchDriver(value);
+      if (d) acceptAnswer(step, d);
+      else say("bot", "Vi støtter PostgreSQL, MySQL og SQL Server foreløpig.");
+    } else if (step.key === "port") {
+      if (/^\d+$/.test(value)) acceptAnswer(step, value);
+      else askAgent(step, value);
+    } else if (FREE_FIELDS.has(step.key)) {
+      acceptAnswer(step, value);
+    } else {
+      askAgent(step, value);
+    }
+  }
+
+  function toggleTable(name: string) {
+    setSelTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+    setInput("");
+    setHilite(0);
+  }
+
+  // Etter bordvalg: AI vurderer skjemaene, foreslår beskrivelser og flagger
+  // det den mener er unødvendig. Ett samlekall = token-effektivt.
+  async function finishTables() {
+    if (!savedConn || !schema) return;
+    say("user", `Valgte bord: ${[...selTables].join(", ")}`);
+    setTablesDone(true);
+    setStatus("Vurderer skjemaene");
+    const picked = [...selTables];
+    const schemaText = picked
+      .map((name) => {
+        const cols = schema.tables.find((t) => t.name === name)?.columns ?? [];
+        return `${name}(${cols.map((c) => `${c.name} ${c.type}`).join(", ")})`;
+      })
+      .join("\n");
+    try {
+      const raw = await completeChat("bris", [
+        {
+          role: "system",
+          content:
+            "Du hjelper en admin å sette opp en database for et AI-verktøy. " +
+            "For hvert bord: skriv en kort norsk beskrivelse (én setning) og flagg " +
+            "bord eller kolonner som virker unødvendige/sensitive for en AI-assistent " +
+            "(f.eks. passord-hasher, interne id-er, tekniske logger). " +
+            'Svar KUN med JSON: {"tables":[{"name":"...","description":"...","note":"kort råd eller tom"}]}.',
+        },
+        { role: "user", content: schemaText },
+      ]);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      const byName: Record<string, { description: string; note: string }> = {};
+      for (const t of parsed.tables ?? []) {
+        byName[t.name] = { description: t.description ?? "", note: t.note ?? "" };
+      }
+      const suggestions: Record<string, string> = {};
+      for (const name of picked) suggestions[name] = byName[name]?.description ?? "";
+      setDescs(suggestions);
+      setStatus(null);
+      const flagged = picked.filter((n) => byName[n]?.note);
+      if (flagged.length > 0) {
+        say(
+          "bot",
+          "Noen ting jeg vil peke på: " +
+            flagged.map((n) => `${n} — ${byName[n].note}`).join(" · ")
+        );
+      }
+      setDescQueue(picked);
+      setStage2("describe");
+      say(
+        "bot",
+        `Forslag til beskrivelse for ${picked[0]}: «${suggestions[picked[0]]}». Trykk Enter for å godta, eller skriv din egen.`
+      );
+    } catch {
+      // AI feilet: hopp rett til tilgang uten forslag.
+      setDescs(Object.fromEntries(picked.map((n) => [n, ""])));
+      setStatus(null);
+      setStage2("access");
+      say("bot", "Hvem skal ha tilgang til dataene?");
+    }
+  }
+
+  function answerDescribe(text: string) {
+    const [current, ...rest] = descQueue;
+    const value = text.trim() || descs[current] || "";
+    setDescs((d) => ({ ...d, [current]: value }));
+    say("user", value || "(ingen beskrivelse)");
+    setInput("");
+    if (rest.length > 0) {
+      setDescQueue(rest);
+      say(
+        "bot",
+        `Forslag for ${rest[0]}: «${descs[rest[0]] ?? ""}». Enter for å godta, eller skriv din egen.`
+      );
+    } else {
+      setDescQueue([]);
+      setStage2("access");
+      say("bot", "Hvem skal ha tilgang til dataene?");
+    }
+  }
+
+  async function finishAccess(ids: string[], label: string) {
+    if (!savedConn) return;
+    say("user", label);
+    setStatus("Lagrer");
+    try {
+      await saveConnectionConfig(
+        savedConn.id,
+        [...selTables].map((name) => ({
+          name,
+          description: descs[name] ?? "",
+          columns: {},
+          user_ids: ids,
+        })),
+        [],
+        []
+      );
+      setStatus(null);
+      setStage2("done");
+      say("bot", `Ferdig! ${savedConn.name} er klar til bruk i chatten.`);
+    } catch {
+      setStatus(null);
+      say("bot", "Kunne ikke lagre. Prøv igjen.");
+    }
+  }
+
+  function toggleUser(email: string) {
+    const u = users.find((x) => x.email === email);
+    if (!u) return;
+    setSelUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(u.id)) next.delete(u.id);
+      else next.add(u.id);
+      return next;
+    });
+    setInput("");
+    setHilite(0);
+  }
+
+  function pick(option: string) {
+    if (tablesPhase) {
+      if (option === DONE_ITEM) finishTables();
+      else toggleTable(option);
+      return;
+    }
+    if (accessPhase) {
+      if (option === ALL_ITEM) finishAccess([], "Alle brukere");
+      else if (option === ME_ITEM) finishAccess(meId ? [meId] : [], "Kun meg");
+      else if (option === DONE_ITEM)
+        finishAccess(
+          [...selUsers],
+          `Tilgang: ${users.filter((u) => selUsers.has(u.id)).map((u) => u.email).join(", ")}`
+        );
+      else toggleUser(option);
+      return;
+    }
+    answer(option);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHilite((h) => Math.min(h + 1, options.length - 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHilite((h) => Math.max(h - 1, 0));
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (describePhase) {
+        answerDescribe(input);
+        return;
+      }
+      if (tablesPhase || accessPhase) {
+        if (options.length > 0) pick(options[hilite]);
+        return;
+      }
+      if (input.trim()) answer(input);
+      else if (options.length > 0) answer(options[hilite]);
+    }
+  }
+
+  // Så snart kilden er tilkoblet: chat er ferdig, rutenettet tar over.
+  if (savedConn && schema) {
+    return <TableManager conn={savedConn} schema={schema} onClose={_props.onClose} />;
+  }
+
+  return (
+    <div className={styles.createPage}>
+      <div className={styles.canvasCenter}>
+        {log.map((m) => (
+          <div
+            key={m.id}
+            className={m.role === "bot" ? styles.canvasQuestion : styles.canvasChoice}
+          >
+            {m.text}
+          </div>
+        ))}
+        {question && (
+          <div className={styles.canvasQuestion} key={`q-${activeStep?.key ?? "source"}`}>
+            <FadeText text={question} />
+          </div>
+        )}
+        {status && (
+          <div className={chatStyles.step}>
+            <span className={chatStyles.thinkingLogo}>
+              <Logo size={10} flutter glow="#ffffff" />
+            </span>
+            <span className={chatStyles.stepActive}>{status} …</span>
+          </div>
+        )}
+      </div>
+      <div className={chatStyles.composerDocked}>
+        <div className={chatStyles.composerWrap}>
+          <div className={chatStyles.composer}>
+            <div className={chatStyles.inputRow}>
+              <textarea
+                className={chatStyles.input}
+                rows={1}
+                placeholder={
+                  status
+                    ? "Vent litt …"
+                    : describePhase && curDescTable
+                      ? `Beskrivelse for ${curDescTable} …`
+                      : "Spør om hva som helst …"
+                }
+                value={input}
+                disabled={status !== null || busy}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoFocus
+              />
+            </div>
+            {options.length > 0 && !describePhase && (
+              <div className={styles.comboBody}>
+                <div className={styles.comboLabel}>
+                  {!sourceChosen
+                    ? "Kilder"
+                    : tablesPhase
+                      ? "Bord"
+                      : accessPhase
+                        ? "Tilgang"
+                        : "Forslag"}
+                </div>
+                {options.map((o, i) => (
+                  <button
+                    key={o}
+                    type="button"
+                    className={`${styles.comboItem} ${i === hilite ? styles.comboItemActive : ""}`}
+                    onMouseEnter={() => setHilite(i)}
+                    onClick={() => pick(o)}
+                  >
+                    <span
+                      className={`${styles.comboDot} ${
+                        (tablesPhase && (o === DONE_ITEM || selTables.has(o))) ||
+                        (accessPhase &&
+                          (o === DONE_ITEM ||
+                            selUsers.has(users.find((u) => u.email === o)?.id ?? "")))
+                          ? styles.comboDotOn
+                          : ""
+                      }`}
+                    />
+                    <span className={styles.comboItemLabel}>
+                      {o === DONE_ITEM
+                        ? `Ferdig (${(tablesPhase ? selTables.size : selUsers.size)} valgt)`
+                        : o === ALL_ITEM
+                          ? "Alle brukere"
+                          : o === ME_ITEM
+                            ? "Kun meg"
+                            : o}
+                    </span>
+                    {tablesPhase && o !== DONE_ITEM && (
+                      <span className={styles.comboHint}>
+                        {schema?.tables.find((t) => t.name === o)?.columns.length} felt
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className={chatStyles.footer}>
+              <span className={chatStyles.modelInfo}>Modell: Bris</span>
+              <span className={chatStyles.sendHint}>
+                Send <span className={chatStyles.kbd}>↵</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

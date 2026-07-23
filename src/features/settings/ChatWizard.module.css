@@ -1,0 +1,106 @@
+.createPage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: calc(100vh - 56px - 80px);
+}
+
+.canvasCenter {
+  flex: 1;
+  min-height: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 24px;
+  
+  padding: 72px 20px 12px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.canvasCenter::-webkit-scrollbar {
+  display: none;
+}
+
+.canvasQuestion {
+  
+  align-self: flex-start;
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.6;
+}
+
+.comboBody {
+  padding: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.comboLabel {
+  padding: 6px 8px 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+.comboItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 14px;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.comboItemActive {
+  background: var(--bg-hover);
+}
+
+.comboDot {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid #006be9;
+  background: transparent;
+}
+
+.comboItemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvasChoice {
+  
+  align-self: flex-end;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.6;
+}
+
+.comboDotOn {
+  background: #006be9;
+}
+
+.comboHint {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}

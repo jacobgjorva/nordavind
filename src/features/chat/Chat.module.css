@@ -1,4 +1,5 @@
 .chatRoot {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -6,6 +7,126 @@
   width: 100%;
   overflow: hidden;
 }
+
+/* Sticky topbar: venstrejustert tittel + modell-badge, fader inn ved scroll. */
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 58px;
+  padding: 0 24px;
+  background: linear-gradient(
+    to bottom,
+    var(--bg) 55%,
+    color-mix(in srgb, var(--bg) 0%, transparent)
+  );
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+
+.topbarVisible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.titleText {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: text;
+}
+
+/* Pause/gjenoppta-knapp for agent-chatter (custom SVG). */
+.agentPause {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease);
+}
+
+.agentPause:hover {
+  filter: brightness(1.08);
+}
+
+.agentDelete,
+.agentPush {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.agentPush:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.agentDelete:hover {
+  background: var(--bg-hover);
+  color: #e8888d;
+}
+
+/* Tidsplan + estimert forbruk, høyrestilt i agent-topbaren. */
+/* Subtilt tidsstempel over agent-kjøringens output. */
+.agentStamp {
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.agentStats {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.titleInput {
+  min-width: 0;
+  flex: 0 1 auto;
+  padding: 2px 6px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+}
+
 
 .empty {
   flex: 1;
@@ -28,7 +149,18 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 32px 20px 12px;
+  /* Kun vår egen scroll-logikk styrer posisjonen */
+  overflow-anchor: none;
+  /* Skjult scrollbar — chatten ligger alltid helt nede */
+  scrollbar-width: none;
+  padding: 72px 20px 12px;
+  /* Innhold fader ut mot toppen i stedet for å kollidere med tittelen */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 64px, black 96px);
+  mask-image: linear-gradient(to bottom, transparent 64px, black 96px);
+}
+
+.messages::-webkit-scrollbar {
+  display: none;
 }
 
 .messagesInner {
@@ -36,8 +168,6 @@
   flex-direction: column;
   gap: 24px;
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
 }
 
 .composerDocked {
@@ -56,7 +186,21 @@
 .row {
   display: flex;
   width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
   animation: msgIn 0.4s var(--ease-out) backwards;
+}
+
+/* Widget-melding: full chat-bredde, uten boble. */
+.widgetRow {
+  max-width: 720px;
+}
+
+.widgetBubble {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  background: none;
 }
 
 @keyframes msgIn {
@@ -72,6 +216,8 @@
 
 .user {
   justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 16px;
 }
 
 .assistant {
@@ -93,11 +239,15 @@
   background: var(--bg-hover);
   color: var(--text);
   border-bottom-right-radius: var(--radius-sm);
+  /* Alltid reservert (usynlig) border så lagre-forslaget kan gjøre den
+     stiplet uten reflow eller blink. */
+  border: 1.5px solid transparent;
 }
 
 .assistant .bubble {
   background: transparent;
   color: var(--text);
+  width: 100%;
   max-width: 100%;
   padding-left: 0;
   padding-right: 0;
@@ -161,6 +311,27 @@
   font-size: 13.5px;
 }
 
+/* Streaming: hvert mottatt segment fades inn */
+
+.streamingText {
+  white-space: pre-wrap;
+}
+
+.fadeSeg {
+  animation: segIn 0.9s var(--ease-out) backwards;
+}
+
+@keyframes segIn {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 /* Markdown i assistentsvar */
 
 .markdown {
@@ -205,10 +376,12 @@
 }
 
 .markdown pre {
-  padding: 14px 16px;
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  background: transparent;
   overflow-x: auto;
 }
 
@@ -259,6 +432,32 @@
   font-size: 0.85em;
 }
 
+/* Hevet numerisk kildehenvisning ([1]-referanser fra modellen) */
+
+.citation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  margin: 0 1px;
+  vertical-align: super;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.citation:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--text);
+}
+
 /* Handlingsrad under assistentsvar */
 
 .actions {
@@ -284,6 +483,12 @@
 
 .actionBtn:hover {
   background: var(--bg-hover);
+  color: var(--text);
+}
+
+.actionBtnActive,
+.actionBtnActive:hover {
+  background: var(--accent, var(--bg-hover));
   color: var(--text);
 }
 
@@ -361,6 +566,58 @@
   font-weight: 500;
 }
 
+/* Meldingskortet mens et lagre-forslag venter: kortets egen border blir
+   stiplet (borderen er alltid reservert, så bare stil/farge endres). */
+.user .bubble.bubbleOffer {
+  border-color: rgba(255, 255, 255, 0.55);
+  border-style: dashed;
+}
+
+/* «Tren modellen?»-forslaget, under selve meldingskonteineren (høyrejustert). */
+.trainOffer {
+  flex-basis: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.trainOfferText {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.trainYes,
+.trainNo {
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 0.5px solid var(--border-strong);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.trainYes {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  border-color: transparent;
+}
+
+.trainYes:hover {
+  background: #fff;
+}
+
+.trainNo:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
 .attachRemove {
   display: inline-flex;
   align-items: center;
@@ -386,9 +643,51 @@
   font-size: 12.5px;
 }
 
+/* Bilde-vedlegg: miniatyr i chip med fjern-knapp oppå. */
+.attachImageChip {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+.attachThumb {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong);
+  display: block;
+}
+
+.attachImageChip .attachRemove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: #232326;
+  border: 0.5px solid var(--border-strong);
+  color: var(--text);
+}
+
+/* Bilde vist i en sendt melding. */
+.bubbleImage {
+  max-width: 260px;
+  max-height: 260px;
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-strong);
+  display: block;
+  margin-bottom: 8px;
+}
+
 /* Composer */
 
 .composer {
+  position: relative;
   width: 100%;
   background: rgba(38, 38, 42, 0.38);
   backdrop-filter: blur(48px) saturate(160%);
@@ -397,6 +696,60 @@
   border-radius: var(--radius-lg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   animation: paletteIn 0.22s var(--ease-out);
+}
+
+/* Slash-meny: inne i composeren under input, som handlingsliste. */
+.slashBody {
+  padding: 8px;
+  border-top: 0.5px solid var(--border);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.slashList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.slashItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.slashItemActive {
+  background: var(--bg-hover);
+}
+
+.slashIcon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.slashLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slashHint {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-faint);
 }
 
 @keyframes paletteIn {
@@ -458,17 +811,39 @@
 
 .modelInfo {
   padding: 0 6px;
-  color: var(--text-muted);
+  color: #ffffff;
   font-size: 13.5px;
   font-weight: 500;
+}
+
+/* Vedlegg-ikonet i footeren er hvitt. */
+.attachBtn {
+  color: #ffffff;
+}
+
+.modelLabel {
+  color: var(--text-muted);
+}
+
+
+
+.cmdHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .sendHint {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
+  margin-left: 14px;
   font-size: 13.5px;
+  font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -484,4 +859,63 @@
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-muted);
   font-size: 11px;
+}
+
+/* Live-aktivitet fra en kjørende oppdrags-agent: samme plassering/flyt som en
+   vanlig assistent-melding (venstrejustert, i meldingsflyten). */
+.activityRow {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/* Live-aktivitet: hold tanken og steget kompakt (maks ~2 linjer hver). */
+.activityThought,
+.activityStep {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sammenslått «Tenkte …» over svaret — reasoning/steg forsvinner ikke lenger. */
+.thoughtBox {
+  margin-bottom: 8px;
+}
+
+.thoughtToggle {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.thoughtToggle:hover {
+  color: var(--text-muted);
+}
+
+.thoughtBody {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 1.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thoughtStep {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.thoughtText {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-faint);
+  white-space: pre-wrap;
 }

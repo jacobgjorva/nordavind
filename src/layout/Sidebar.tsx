@@ -1,28 +1,65 @@
 import { useEffect, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AnonymousIcon } from "@hugeicons/core-free-icons";
 import { PlusIcon, SearchIcon, SettingsIcon, SidebarIcon } from "../ui/Icons";
 import { Logo } from "../ui/Logo";
+import type { ChatSummary } from "../lib/api";
 import styles from "./Sidebar.module.css";
 
 type SidebarProps = {
-  chatTitle: string | null;
+  chats: ChatSummary[];
+  activeChatId: string | null;
   userEmail: string;
   onNewChat: () => void;
   onOpenSettings: () => void;
-  onOpenChat: () => void;
+  onOpenChat: (id: string) => void;
+  onDeleteChat: (id: string) => void;
   onLogout: () => void;
-  inSettings: boolean;
 };
 
+// Grupperer samtaler på dato: i dag / siste 7 dager / eldre.
+function groupChats(chats: ChatSummary[]) {
+  const today: ChatSummary[] = [];
+  const week: ChatSummary[] = [];
+  const older: ChatSummary[] = [];
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(startOfDay);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  for (const c of chats) {
+    const t = new Date(c.updated_at);
+    if (t >= startOfDay) today.push(c);
+    else if (t >= weekAgo) week.push(c);
+    else older.push(c);
+  }
+  return [
+    { label: "I DAG", chats: today },
+    { label: "SISTE 7 DAGER", chats: week },
+    { label: "ELDRE", chats: older },
+  ].filter((g) => g.chats.length > 0);
+}
+
 export function Sidebar({
-  chatTitle,
+  chats,
+  activeChatId,
   userEmail,
   onNewChat,
   onOpenSettings,
   onOpenChat,
+  onDeleteChat,
   onLogout,
-  inSettings,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
+
+  function del(e: React.MouseEvent, c: ChatSummary) {
+    e.stopPropagation();
+    if (confirm(`Slette «${c.title}»?`)) onDeleteChat(c.id);
+  }
+
+  // Agent-chatter pinnes i egen «Agenter»-seksjon; resten grupperes på dato.
+  const agentChats = chats.filter((c) => c.agent_id);
+  const regularChats = chats.filter((c) => !c.agent_id);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -105,19 +142,63 @@ export function Sidebar({
       </button>
 
       <nav className={styles.list}>
-        <div className={styles.group}>
-          <div className={styles.groupLabel}>I DAG</div>
-          {chatTitle ? (
-            <button
-              className={`${styles.chat} ${!inSettings ? styles.chatActive : ""}`}
-              onClick={onOpenChat}
-            >
-              {chatTitle}
-            </button>
-          ) : (
-            <div className={styles.emptyList}>Ingen chatter ennå</div>
-          )}
-        </div>
+        {chats.length === 0 && (
+          <div className={styles.emptyList}>Ingen chatter ennå</div>
+        )}
+        {agentChats.length > 0 && (
+          <div className={styles.group}>
+            <div className={styles.groupLabel}>AGENTER</div>
+            {agentChats.map((c) => (
+              <div key={c.id} className={styles.chatRow}>
+                <button
+                  className={`${styles.chat} ${styles.chatAgent} ${
+                    c.id === activeChatId ? styles.chatActive : ""
+                  }`}
+                  onClick={() => onOpenChat(c.id)}
+                >
+                  <HugeiconsIcon icon={AnonymousIcon} size={14} className={styles.chatIcon} />
+                  <span className={styles.chatTitleText}>{c.title}</span>
+                  {c.agent_enabled && (
+                    <span className={styles.agentLive} aria-label="Aktiv" />
+                  )}
+                </button>
+                <button
+                  className={styles.chatDelete}
+                  onClick={(e) => del(e, c)}
+                  aria-label="Slett"
+                  title="Slett"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {groupChats(regularChats).map((g) => (
+          <div key={g.label} className={styles.group}>
+            <div className={styles.groupLabel}>{g.label}</div>
+            {g.chats.map((c) => (
+              <div key={c.id} className={styles.chatRow}>
+                <button
+                  className={`${styles.chat} ${
+                    c.id === activeChatId ? styles.chatActive : ""
+                  }`}
+                  onClick={() => onOpenChat(c.id)}
+                >
+                  {c.title}
+                </button>
+                <button
+                  className={styles.chatDelete}
+                  onClick={(e) => del(e, c)}
+                  aria-label="Slett"
+                  title="Slett"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
       </nav>
 
       <div className={styles.footer}>

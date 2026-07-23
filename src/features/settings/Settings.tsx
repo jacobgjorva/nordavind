@@ -1,44 +1,196 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { swallow } from "../../lib/log";
 import { Usage } from "./Usage";
+import { Quota } from "./Quota";
+import { Knowledge } from "./Knowledge";
+import { KnowledgeGraph } from "./KnowledgeGraph";
+import { Documents } from "./Documents";
+import { Employees } from "./Employees";
+import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
+import {
+  fetchConnections,
+  type AuthUser,
+  type Connection,
+} from "../../lib/api";
 import styles from "./Settings.module.css";
 
-type Tab = "general" | "usage" | "connectors";
+type Tab = "general" | "usage" | "connectors" | "knowledge" | "employees" | "admin";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
   { key: "usage", label: "Usage" },
-  { key: "connectors", label: "Connectors" },
 ];
 
-export function Settings() {
+export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => void }) {
   const [tab, setTab] = useState<Tab>("general");
+  const tabs =
+    user.role === "admin"
+      ? [
+          ...TABS,
+          { key: "connectors" as Tab, label: "Connectors" },
+          { key: "knowledge" as Tab, label: "Kunnskap" },
+          { key: "employees" as Tab, label: "Ansatte" },
+          { key: "admin" as Tab, label: "Admin" },
+        ]
+      : TABS;
   const [name, setName] = useState("Ola Nordmann");
   const [email, setEmail] = useState("ola@nordmann.no");
   const [language, setLanguage] = useState("nb");
   const [theme, setTheme] = useState("system");
 
+  // Tilkoblinger som undersider av «Connectors».
+  const [conns, setConns] = useState<Connection[]>([]);
+  const [connId, setConnId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  // Usage har to undersider: Kvote og Stats.
+  const [usageSub, setUsageSub] = useState<"kvote" | "stats">("stats");
+  // Kunnskap har tre undersider: Graf (default), Dokumenter og Forslag.
+  const [knowSub, setKnowSub] = useState<"graf" | "dokumenter" | "forslag">("graf");
+
+  function reloadConns() {
+    fetchConnections().then(setConns).catch(swallow);
+  }
+
+  useEffect(() => {
+    if (user.role === "admin") reloadConns();
+  }, []);
+
+  const activeConn = conns.find((c) => c.id === connId) ?? null;
+
   return (
     <div className={styles.wrap}>
+      {onClose && (
+        <button className={styles.close} onClick={onClose} aria-label="Lukk">
+          ✕
+        </button>
+      )}
       <nav className={styles.nav}>
         <div className={styles.navHead}>Settings</div>
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className={`${styles.navItem} ${tab === t.key ? styles.navItemActive : ""}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
+        {tabs.map((t) => (
+          <div key={t.key}>
+            <button
+              type="button"
+              className={`${styles.navItem} ${tab === t.key ? styles.navItemActive : ""}`}
+              onClick={() => {
+                setTab(t.key);
+                if (t.key === "connectors") {
+                  setConnId(null);
+                  setCreating(true);
+                }
+              }}
+            >
+              {t.label}
+            </button>
+            {t.key === "usage" && tab === "usage" && (
+              <div className={styles.navSub}>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    usageSub === "kvote" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setUsageSub("kvote")}
+                >
+                  Kvote
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    usageSub === "stats" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setUsageSub("stats")}
+                >
+                  Stats
+                </button>
+              </div>
+            )}
+            {t.key === "knowledge" && tab === "knowledge" && (
+              <div className={styles.navSub}>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    knowSub === "graf" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setKnowSub("graf")}
+                >
+                  Graf
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    knowSub === "dokumenter" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setKnowSub("dokumenter")}
+                >
+                  Dokumenter
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${
+                    knowSub === "forslag" ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setKnowSub("forslag")}
+                >
+                  Forslag
+                </button>
+              </div>
+            )}
+            {t.key === "connectors" && tab === "connectors" && (
+              <div className={styles.navSub}>
+                {conns.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`${styles.navSubItem} ${
+                      !creating && connId === c.id ? styles.navSubItemActive : ""
+                    }`}
+                    onClick={() => {
+                      setCreating(false);
+                      setConnId(c.id);
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.navSubItem} ${styles.navSubAdd} ${
+                    creating ? styles.navSubItemActive : ""
+                  }`}
+                  onClick={() => setCreating(true)}
+                >
+                  + Ny kobling
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </nav>
 
       <div className={styles.panel}>
         {tab === "usage" ? (
-          <Usage />
+          usageSub === "kvote" ? <Quota /> : <Usage />
+        ) : tab === "knowledge" ? (
+          knowSub === "forslag" ? (
+            <Knowledge />
+          ) : knowSub === "dokumenter" ? (
+            <Documents />
+          ) : (
+            <KnowledgeGraph />
+          )
+        ) : tab === "employees" ? (
+          <Employees />
+        ) : tab === "admin" ? (
+          <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (
-          <Connectors />
+          <Connectors
+            conn={activeConn}
+            creating={creating}
+            onReload={reloadConns}
+            onNew={() => setCreating(true)}
+            onDoneCreate={() => setCreating(false)}
+          />
         ) : (
         <div className={styles.content}>
           <div className={styles.section}>

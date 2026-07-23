@@ -1,0 +1,204 @@
+.wrap {
+  position: relative;
+  margin-top: 8px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.edge {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+}
+
+.node {
+  cursor: grab;
+}
+
+.node:active {
+  cursor: grabbing;
+}
+
+.nodeLabel {
+  fill: var(--text-muted);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.empty {
+  margin-top: 8px;
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* Tooltip-tekstboks ved noden (redigeres, lagres ved klikk utenfor). */
+/* Kortet som holder redigering + handlinger for en valgt node. */
+.tooltipWrap {
+  position: absolute;
+  z-index: 5;
+  width: 300px;
+  transform: translate(16px, -50%);
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #17171a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  animation: tipIn 0.12s var(--ease-out);
+}
+
+.tooltip {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.tooltipFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  border-top: 0.5px solid var(--border-strong);
+}
+
+.tooltipDel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tooltipDel:hover {
+  background: rgba(255, 80, 80, 0.14);
+  color: #ff6a6a;
+}
+
+@keyframes tipIn {
+  from {
+    opacity: 0;
+    transform: translate(10px, -50%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(14px, -50%);
+  }
+}
+
+.panelTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.panelType {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.panelClose {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panelClose:hover {
+  color: var(--text);
+}
+
+.panelInput,
+.panelTextarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #0a0a0a;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+}
+
+.panelInput {
+  font-weight: 600;
+}
+
+.panelInput:focus,
+.panelTextarea:focus {
+  border-color: #047aff;
+}
+
+.panelActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.panelDelete,
+.panelSave {
+  height: 30px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panelDelete {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.panelDelete:hover:not(:disabled) {
+  color: #e8888d;
+}
+
+.panelSave {
+  background: #047aff;
+  color: #fff;
+}
+
+.panelDelete:disabled,
+.panelSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -1,0 +1,92 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.intro {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.addRow,
+.row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.6fr 1.4fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.input,
+.cell {
+  width: 100%;
+  padding: 8px 11px;
+  border-radius: 8px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface, #151517);
+  color: inherit;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.cell {
+  border-color: transparent;
+  background: transparent;
+}
+
+.cell:hover,
+.cell:focus {
+  border-color: var(--border-strong);
+  background: var(--surface, #151517);
+  outline: none;
+}
+
+.addBtn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty {
+  padding: 32px 0;
+  text-align: center;
+  opacity: 0.6;
+  font-size: 14px;
+}
+
+.del {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.del:hover {
+  opacity: 1;
+  background: rgba(255, 80, 80, 0.12);
+  color: #ff6a6a;
+}

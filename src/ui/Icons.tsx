@@ -52,16 +52,6 @@ export function CopyIcon(props: IconProps) {
   );
 }
 
-export function ShareIcon(props: IconProps) {
-  return (
-    <svg {...svgProps(props)}>
-      <path d="M12 16V4" />
-      <path d="m7 8 5-4 5 4" />
-      <path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
-    </svg>
-  );
-}
-
 export function AttachIcon(props: IconProps) {
   return (
     <svg {...svgProps(props)}>
