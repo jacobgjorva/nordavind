@@ -13,8 +13,10 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   NeuralNetworkIcon,
+  BadgePlusIcon,
   Files01Icon,
   FlashIcon,
+  LayoutAlignLeftIcon,
   UserGroupIcon,
   UserSettings01Icon,
   Delete01Icon,
@@ -29,7 +31,7 @@ import {
   Upload05Icon,
   Zip01Icon,
 } from "@hugeicons/core-free-icons";
-import { AttachIcon, PlusIcon, SearchIcon, SidebarIcon } from "../../ui/Icons";
+import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
   connectM365,
   fetchM365Status,
@@ -1350,7 +1352,7 @@ export function Chat({
           aria-label="Vis/skjul sidemeny"
           title="Vis/skjul sidemeny (⌘B)"
         >
-          <SidebarIcon size={17} />
+          <HugeiconsIcon icon={LayoutAlignLeftIcon} size={17} strokeWidth={2} />
         </button>
         <button
           className={styles.headerBtn}
@@ -1358,7 +1360,7 @@ export function Chat({
           aria-label="Ny chat"
           title="Ny chat (⌘N)"
         >
-          <PlusIcon size={17} />
+          <HugeiconsIcon icon={BadgePlusIcon} size={17} strokeWidth={2} />
         </button>
         {title && (hasMessages || agent) && (
           <>
