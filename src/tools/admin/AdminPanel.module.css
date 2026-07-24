@@ -3,3 +3,26 @@
 .panelCard {
   width: 100%;
 }
+
+/* Tilkoblingsvelger som horisontal rad (var settings-undernavigasjon). */
+.connRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.connTab {
+  padding: 4px 12px;
+  border-radius: 7px;
+  border: 0.5px solid var(--border-strong, #2a2a2e);
+  background: transparent;
+  color: var(--text-muted, #a0a0a8);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.connTabActive {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text, #eee);
+}

@@ -1,70 +1,15 @@
-import { useEffect, useState } from "react";
-import { swallow } from "../../lib/log";
-import { Usage } from "./Usage";
-import { Quota } from "./Quota";
-import { Knowledge } from "./Knowledge";
-import { KnowledgeGraph } from "./KnowledgeGraph";
-import { Documents } from "./Documents";
-import { Employees } from "./Employees";
-import { Admin } from "./Admin";
-import { Connectors } from "./Connectors";
-import { M365Panel } from "./M365Panel";
-import { fetchM365Status } from "../../lib/api";
-import {
-  fetchConnections,
-  type AuthUser,
-  type Connection,
-} from "../../lib/api";
+import { useState } from "react";
+import type { AuthUser } from "../../lib/api";
 import styles from "./Settings.module.css";
 
-type Tab = "general" | "usage" | "connectors" | "knowledge" | "employees" | "admin";
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: "general", label: "General" },
-  { key: "usage", label: "Usage" },
-];
-
+// Settings er redusert til kun General (profil/preferanser) — all styring
+// (forbruk, kunnskap, dokumenter, ansatte, tilganger, tilkoblinger, graf,
+// kvote) skjer nå som kommandoer i chatten sammen med agenten.
 export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => void }) {
-  const [tab, setTab] = useState<Tab>("general");
-  const tabs =
-    user.role === "admin"
-      ? [
-          ...TABS,
-          { key: "connectors" as Tab, label: "Connectors" },
-          { key: "knowledge" as Tab, label: "Kunnskap" },
-          { key: "employees" as Tab, label: "Ansatte" },
-          { key: "admin" as Tab, label: "Admin" },
-        ]
-      : TABS;
   const [name, setName] = useState("Ola Nordmann");
-  const [email, setEmail] = useState("ola@nordmann.no");
+  const [email, setEmail] = useState(user.email);
   const [language, setLanguage] = useState("nb");
   const [theme, setTheme] = useState("system");
-
-  // Tilkoblinger som undersider av «Connectors». M365 vises når den er koblet.
-  const [conns, setConns] = useState<Connection[]>([]);
-  const [connId, setConnId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [m365Connected, setM365Connected] = useState(false);
-  const [showM365, setShowM365] = useState(false);
-
-  // Usage har to undersider: Kvote og Stats.
-  const [usageSub, setUsageSub] = useState<"kvote" | "stats">("stats");
-  // Kunnskap har tre undersider: Graf (default), Dokumenter og Forslag.
-  const [knowSub, setKnowSub] = useState<"graf" | "dokumenter" | "forslag">("graf");
-
-  function reloadConns() {
-    fetchConnections().then(setConns).catch(swallow);
-    fetchM365Status()
-      .then((s) => setM365Connected(s.connected))
-      .catch(swallow);
-  }
-
-  useEffect(() => {
-    if (user.role === "admin") reloadConns();
-  }, []);
-
-  const activeConn = conns.find((c) => c.id === connId) ?? null;
 
   return (
     <div className={styles.wrap}>
@@ -75,157 +20,12 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
       )}
       <nav className={styles.nav}>
         <div className={styles.navHead}>Settings</div>
-        {tabs.map((t) => (
-          <div key={t.key}>
-            <button
-              type="button"
-              className={`${styles.navItem} ${tab === t.key ? styles.navItemActive : ""}`}
-              onClick={() => {
-                setTab(t.key);
-                if (t.key === "connectors") {
-                  setConnId(null);
-                  setCreating(true);
-                }
-              }}
-            >
-              {t.label}
-            </button>
-            {t.key === "usage" && tab === "usage" && (
-              <div className={styles.navSub}>
-                <button
-                  type="button"
-                  className={`${styles.navSubItem} ${
-                    usageSub === "kvote" ? styles.navSubItemActive : ""
-                  }`}
-                  onClick={() => setUsageSub("kvote")}
-                >
-                  Kvote
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.navSubItem} ${
-                    usageSub === "stats" ? styles.navSubItemActive : ""
-                  }`}
-                  onClick={() => setUsageSub("stats")}
-                >
-                  Stats
-                </button>
-              </div>
-            )}
-            {t.key === "knowledge" && tab === "knowledge" && (
-              <div className={styles.navSub}>
-                <button
-                  type="button"
-                  className={`${styles.navSubItem} ${
-                    knowSub === "graf" ? styles.navSubItemActive : ""
-                  }`}
-                  onClick={() => setKnowSub("graf")}
-                >
-                  Graf
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.navSubItem} ${
-                    knowSub === "dokumenter" ? styles.navSubItemActive : ""
-                  }`}
-                  onClick={() => setKnowSub("dokumenter")}
-                >
-                  Dokumenter
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.navSubItem} ${
-                    knowSub === "forslag" ? styles.navSubItemActive : ""
-                  }`}
-                  onClick={() => setKnowSub("forslag")}
-                >
-                  Forslag
-                </button>
-              </div>
-            )}
-            {t.key === "connectors" && tab === "connectors" && (
-              <div className={styles.navSub}>
-                {m365Connected && (
-                  <button
-                    type="button"
-                    className={`${styles.navSubItem} ${
-                      showM365 ? styles.navSubItemActive : ""
-                    }`}
-                    onClick={() => {
-                      setShowM365(true);
-                      setCreating(false);
-                      setConnId(null);
-                    }}
-                  >
-                    Microsoft 365
-                  </button>
-                )}
-                {conns.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`${styles.navSubItem} ${
-                      !creating && connId === c.id ? styles.navSubItemActive : ""
-                    }`}
-                    onClick={() => {
-                      setShowM365(false);
-                      setCreating(false);
-                      setConnId(c.id);
-                    }}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className={`${styles.navSubItem} ${styles.navSubAdd} ${
-                    creating ? styles.navSubItemActive : ""
-                  }`}
-                  onClick={() => {
-                    setShowM365(false);
-                    setCreating(true);
-                  }}
-                >
-                  + Ny kobling
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+        <button type="button" className={`${styles.navItem} ${styles.navItemActive}`}>
+          General
+        </button>
       </nav>
 
       <div className={styles.panel}>
-        {tab === "usage" ? (
-          usageSub === "kvote" ? <Quota /> : <Usage />
-        ) : tab === "knowledge" ? (
-          knowSub === "forslag" ? (
-            <Knowledge />
-          ) : knowSub === "dokumenter" ? (
-            <Documents />
-          ) : (
-            <KnowledgeGraph />
-          )
-        ) : tab === "employees" ? (
-          <Employees />
-        ) : tab === "admin" ? (
-          <Admin currentUserId={user.id} />
-        ) : tab === "connectors" ? (
-          showM365 ? (
-            <M365Panel
-              onChanged={() => {
-                setShowM365(false);
-                reloadConns();
-              }}
-            />
-          ) : (
-            <Connectors
-              conn={activeConn}
-              creating={creating}
-              onReload={reloadConns}
-              onNew={() => setCreating(true)}
-            />
-          )
-        ) : (
         <div className={styles.content}>
           <div className={styles.section}>
             <div className={styles.sectionMeta}>
@@ -245,12 +45,10 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
                     onChange={(e) => setName(e.target.value)}
                   />
                 </label>
-
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>E-post</span>
                   <input
                     className={styles.input}
-                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -262,9 +60,7 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
           <div className={styles.section}>
             <div className={styles.sectionMeta}>
               <div className={styles.sectionTitle}>Preferanser</div>
-              <div className={styles.sectionDesc}>
-                Språk og utseende for grensesnittet.
-              </div>
+              <div className={styles.sectionDesc}>Språk og utseende.</div>
             </div>
 
             <div className={styles.fields}>
@@ -272,20 +68,18 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>Språk</span>
                   <select
-                    className={styles.select}
+                    className={styles.input}
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
                   >
                     <option value="nb">Norsk (bokmål)</option>
-                    <option value="nn">Norsk (nynorsk)</option>
                     <option value="en">English</option>
                   </select>
                 </label>
-
                 <label className={styles.field}>
                   <span className={styles.fieldLabel}>Tema</span>
                   <select
-                    className={styles.select}
+                    className={styles.input}
                     value={theme}
                     onChange={(e) => setTheme(e.target.value)}
                   >
@@ -298,7 +92,6 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
             </div>
           </div>
         </div>
-        )}
       </div>
     </div>
   );

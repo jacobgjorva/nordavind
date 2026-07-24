@@ -7,6 +7,9 @@ import { Logo } from "../../ui/Logo";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Analytics01Icon,
+  ChartRelationshipIcon,
+  DashboardSpeed01Icon,
+  Database01Icon,
   AnonymousIcon,
   BorderNone02Icon,
   NeuralNetworkIcon,
@@ -220,6 +223,9 @@ const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; icon: typeof An
   { cmd: "dokumenter", label: "Dokumenter", desc: "Dokumentbiblioteket", icon: Files01Icon },
   { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret", icon: UserGroupIcon },
   { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", icon: UserSettings01Icon },
+  { cmd: "tilkoblinger", label: "Tilkoblinger", desc: "Databaser og Microsoft 365", icon: Database01Icon },
+  { cmd: "graf", label: "Kunnskapsgraf", desc: "Grafen over bedriftskunnskapen", icon: ChartRelationshipIcon },
+  { cmd: "kvote", label: "Kvote", desc: "Token-kvoter per bruker", icon: DashboardSpeed01Icon },
 ];
 
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra

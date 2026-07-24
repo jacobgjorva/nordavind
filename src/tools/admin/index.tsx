@@ -4,7 +4,10 @@ import { Admin } from "../../features/settings/Admin";
 import { Documents } from "../../features/settings/Documents";
 import { Employees } from "../../features/settings/Employees";
 import { Knowledge } from "../../features/settings/Knowledge";
+import { KnowledgeGraph } from "../../features/settings/KnowledgeGraph";
+import { Quota } from "../../features/settings/Quota";
 import { Usage } from "../../features/settings/Usage";
+import { ConnectorsInline } from "./ConnectorsInline";
 import styles from "./AdminPanel.module.css";
 
 // Admin-styring i chatten: settings-komponentene kalles inn som blokker via
@@ -27,6 +30,12 @@ function AdminPanel({ panel }: { panel: string }) {
       <Documents />
     ) : panel === "ansatte" ? (
       <Employees />
+    ) : panel === "graf" ? (
+      <KnowledgeGraph />
+    ) : panel === "kvote" ? (
+      <Quota />
+    ) : panel === "tilkoblinger" ? (
+      <ConnectorsInline />
     ) : null;
   if (!inner) return null;
   return <div className={styles.panelCard}>{inner}</div>;
