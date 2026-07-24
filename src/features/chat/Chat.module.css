@@ -974,3 +974,26 @@
   border-radius: 6px;
   flex-shrink: 0;
 }
+
+/* Drag & drop-overlegg: vises så lenge en fil dras over vinduet. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.dropBox {
+  border: 1.5px dashed rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  padding: 36px 72px;
+  font-size: 17px;
+  font-weight: 550;
+  color: var(--text, #eee);
+  background: rgba(38, 38, 42, 0.5);
+}

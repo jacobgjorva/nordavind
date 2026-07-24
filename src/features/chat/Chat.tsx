@@ -387,6 +387,49 @@ export function Chat({
     );
   }
 
+  // Drag & drop fra filsystemet: overlegg med «Slipp …» så lenge en fil
+  // dras over vinduet; slipp legger den på som vedlegg.
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const enter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (++dragDepth.current === 1) setDragging(true);
+    };
+    const over = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const leave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      if (--dragDepth.current <= 0) {
+        dragDepth.current = 0;
+        setDragging(false);
+      }
+    };
+    const drop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      handleFiles(e.dataTransfer?.files ?? null);
+    };
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragover", over);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("drop", drop);
+    };
+    // handleFiles leser attachments-lengden — re-registrer når den endres.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachments.length]);
+
   // Cmd/Ctrl+V med bilde i utklippstavlen: legg det rett på som vedlegg.
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const items = e.clipboardData?.items;
@@ -1019,6 +1062,11 @@ export function Chat({
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
     <div className={styles.chatRoot}>
+      {dragging && (
+        <div className={styles.dropOverlay}>
+          <div className={styles.dropBox}>Slipp for å legge ved</div>
+        </div>
+      )}
       {title && (hasMessages || agent) && (
         <div
           className={`${styles.topbar} ${
