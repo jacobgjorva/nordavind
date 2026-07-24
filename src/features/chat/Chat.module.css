@@ -919,3 +919,87 @@
   color: var(--text-faint);
   white-space: pre-wrap;
 }
+
+/* Vedlegg som tags over composeren. */
+.attachTagRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 10px;
+}
+
+.attachTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 8px;
+  background: rgba(38, 38, 42, 0.6);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Bildevedlegg: bittelite bilde som ikon + filnavn ved siden av. */
+.attachTagIcon {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.attachTag svg {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.attachTagName {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Fargelagt ikon-boks i vedleggs-taggen (epost-avatar-paletten). */
+.attachTagIconBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* Drag & drop-overlegg: mørk tint over hele skjermen, hvit tekst + ikon. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 12, 0.45);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+  animation: overlayFade 0.12s ease;
+}
+
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dropHint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 550;
+}

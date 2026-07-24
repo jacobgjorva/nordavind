@@ -8,6 +8,16 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   Delete01Icon,
+  Csv01Icon,
+  Doc01Icon,
+  HtmlFile01Icon,
+  LottiefilesIcon,
+  Pdf01Icon,
+  Svg01Icon,
+  Txt01Icon,
+  Xls01Icon,
+  Upload05Icon,
+  Zip01Icon,
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
@@ -78,6 +88,46 @@ interface ChatMessage extends Omit<ApiMessage, "content"> {
   attachmentNames?: string[];
   /** data:-URL-er for vedlagte bilder (forhåndsvisning i bobla) */
   images?: string[];
+}
+
+// Filtype → ikon for vedleggs-tags.
+const FILE_ICONS: Record<string, typeof AnonymousIcon> = {
+  pdf: Pdf01Icon,
+  txt: Txt01Icon,
+  md: Txt01Icon,
+  svg: Svg01Icon,
+  csv: Csv01Icon,
+  xls: Xls01Icon,
+  xlsx: Xls01Icon,
+  html: HtmlFile01Icon,
+  htm: HtmlFile01Icon,
+  doc: Doc01Icon,
+  docx: Doc01Icon,
+  zip: Zip01Icon,
+};
+
+function fileIcon(name: string): typeof AnonymousIcon {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return FILE_ICONS[ext] ?? LottiefilesIcon;
+}
+
+// Samme palett som epost-avatarene: svak bakgrunn + sterkere farge på ikonet.
+const FILE_TAG_COLORS: [string, string][] = [
+  ["#E6F2FF", "#2e6bad"],
+  ["#CDFBFB", "#1f8a8a"],
+  ["#D8FDE4", "#2f8a54"],
+  ["#E8FDCA", "#5f7d1e"],
+  ["#FDF2B2", "#94711a"],
+  ["#FFE6E8", "#b0505a"],
+  ["#EEEAFF", "#6152b3"],
+];
+
+// Stabil farge per filtype (hash av endelsen).
+function fileTagColor(name: string): [string, string] {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  let h = 0;
+  for (let i = 0; i < ext.length; i++) h = (h * 31 + ext.charCodeAt(i)) >>> 0;
+  return FILE_TAG_COLORS[h % FILE_TAG_COLORS.length];
 }
 
 // Slash-kommandoer i composeren. Flere kommer; Agent er den eneste nå.
@@ -336,6 +386,75 @@ export function Chat({
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
     );
+  }
+
+  // Drag & drop fra filsystemet: overlegg med «Slipp …» så lenge en fil
+  // dras over vinduet; slipp legger den på som vedlegg.
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const enter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (++dragDepth.current === 1) setDragging(true);
+    };
+    const over = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const leave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      if (--dragDepth.current <= 0) {
+        dragDepth.current = 0;
+        setDragging(false);
+      }
+    };
+    const drop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      handleFiles(e.dataTransfer?.files ?? null);
+    };
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragover", over);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("drop", drop);
+    };
+    // handleFiles leser attachments-lengden — re-registrer når den endres.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachments.length]);
+
+  // Cmd/Ctrl+V med bilde i utklippstavlen: legg det rett på som vedlegg.
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imgs: File[] = [];
+    for (const it of items) {
+      if (it.kind === "file" && it.type.startsWith("image/")) {
+        const f = it.getAsFile();
+        if (f) imgs.push(f);
+      }
+    }
+    if (imgs.length === 0) return; // vanlig tekst-lim: la browseren gjøre sitt
+    e.preventDefault();
+    const dt = new DataTransfer();
+    const stamp = new Date().toTimeString().slice(0, 8).replaceAll(":", "");
+    imgs.forEach((f, i) => {
+      const ext = f.type.split("/")[1] || "png";
+      const name =
+        f.name && f.name !== "image.png"
+          ? f.name
+          : `skjermbilde-${stamp}${i ? `-${i + 1}` : ""}.${ext}`;
+      dt.items.add(new File([f], name, { type: f.type }));
+    });
+    handleFiles(dt.files);
   }
 
   async function handleFiles(files: FileList | null) {
@@ -832,21 +951,26 @@ export function Chat({
   }
 
   const composer = (
-    <div className={styles.composer}>
+    <>
+      {/* Vedlegg som tags OVER composeren — fil-ikon + navn + fjern. */}
       {(attachments.length > 0 || uploadError) && (
-        <div className={styles.attachRow}>
+        <div className={styles.attachTagRow}>
           {attachments.map((a) => (
-            <span
-              key={a.name}
-              className={`${styles.attachChip} ${
-                a.image ? styles.attachImageChip : ""
-              }`}
-            >
+            <span key={a.name} className={styles.attachTag}>
               {a.image ? (
-                <img src={a.image} alt={a.name} className={styles.attachThumb} />
+                <img src={a.image} alt="" className={styles.attachTagIcon} />
               ) : (
-                a.name
+                <span
+                  className={styles.attachTagIconBox}
+                  style={{
+                    background: fileTagColor(a.name)[0],
+                    color: fileTagColor(a.name)[1],
+                  }}
+                >
+                  <HugeiconsIcon icon={fileIcon(a.name)} size={14} strokeWidth={2} />
+                </span>
               )}
+              <span className={styles.attachTagName}>{a.name}</span>
               <button
                 className={styles.attachRemove}
                 onClick={() =>
@@ -863,6 +987,7 @@ export function Chat({
           )}
         </div>
       )}
+    <div className={styles.composer}>
       <div className={styles.inputRow}>
         <textarea
           ref={textareaRef}
@@ -872,6 +997,7 @@ export function Chat({
           value={input}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           autoFocus
         />
       </div>
@@ -931,11 +1057,20 @@ export function Chat({
         </span>
       </div>
     </div>
+    </>
   );
 
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
     <div className={styles.chatRoot}>
+      {dragging && (
+        <div className={styles.dropOverlay}>
+          <div className={styles.dropHint}>
+            <HugeiconsIcon icon={Upload05Icon} size={40} strokeWidth={1.5} />
+            <span>Slipp for å legge ved</span>
+          </div>
+        </div>
+      )}
       {title && (hasMessages || agent) && (
         <div
           className={`${styles.topbar} ${
@@ -1158,8 +1293,17 @@ export function Chat({
                             m.attachmentNames.length > 0 && (
                               <span className={styles.attachRow}>
                                 {m.attachmentNames.map((name) => (
-                                  <span key={name} className={styles.attachChip}>
-                                    {name}
+                                  <span key={name} className={styles.attachTag}>
+                                    <span
+                                      className={styles.attachTagIconBox}
+                                      style={{
+                                        background: fileTagColor(name)[0],
+                                        color: fileTagColor(name)[1],
+                                      }}
+                                    >
+                                      <HugeiconsIcon icon={fileIcon(name)} size={14} strokeWidth={2} />
+                                    </span>
+                                    <span className={styles.attachTagName}>{name}</span>
                                   </span>
                                 ))}
                               </span>
