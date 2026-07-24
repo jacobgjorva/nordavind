@@ -6,12 +6,18 @@ import { Sidebar } from "../layout/Sidebar";
 import {
   clearToken,
   createDraftAgent,
+  createFolder,
   deleteChat,
+  deleteFolder,
   fetchChats,
+  fetchFolders,
   fetchMe,
   getToken,
+  renameFolder,
+  setChatFolder,
   type AuthUser,
   type ChatSummary,
+  type Folder,
 } from "../lib/api";
 import { on } from "../lib/events";
 import { swallow } from "../lib/log";
@@ -28,6 +34,7 @@ export default function App() {
     kind?: string;
   }>({ key: 0, chatId: null });
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   // null = ukjent (validerer token), false = ikke innlogget
   const [user, setUser] = useState<AuthUser | null | false>(
@@ -47,8 +54,62 @@ export default function App() {
   useEffect(() => {
     if (user && user !== null) {
       fetchChats().then(setChats).catch(swallow);
+      fetchFolders().then(setFolders).catch(swallow);
     }
   }, [user]);
+
+  const refreshFolders = useCallback(
+    () => fetchFolders().then(setFolders).catch(swallow),
+    []
+  );
+
+  const newFolder = useCallback(async () => {
+    try {
+      await createFolder("Ny mappe");
+      await refreshFolders();
+    } catch {
+      /* ikke kritisk */
+    }
+  }, [refreshFolders]);
+
+  const onRenameFolder = useCallback(
+    async (id: string, name: string) => {
+      setFolders((fs) => fs.map((f) => (f.id === id ? { ...f, name } : f)));
+      try {
+        await renameFolder(id, name);
+      } catch {
+        refreshFolders();
+      }
+    },
+    [refreshFolders]
+  );
+
+  const onDeleteFolder = useCallback(
+    async (id: string) => {
+      try {
+        await deleteFolder(id);
+      } catch {
+        /* ikke kritisk */
+      }
+      await refreshFolders();
+      fetchChats().then(setChats).catch(swallow);
+    },
+    [refreshFolders]
+  );
+
+  const onMoveChatToFolder = useCallback(
+    async (chatId: string, folderId: string) => {
+      setChats((cs) =>
+        cs.map((c) => (c.id === chatId ? { ...c, folder_id: folderId } : c))
+      );
+      try {
+        await setChatFolder(chatId, folderId);
+      } catch {
+        fetchChats().then(setChats).catch(swallow);
+      }
+    },
+    []
+  );
 
   // Agent-widgeten varsler når en agent opprettes/slettes → oppdater listen.
   useEffect(() => on("agents-changed", () => fetchChats().then(setChats).catch(swallow)), []);
@@ -147,9 +208,15 @@ export default function App() {
         onOpenSettings={openSettings}
         onOpenChat={openChat}
         onDeleteChat={onDeleteChat}
+        folders={folders}
+        onNewFolder={newFolder}
+        onRenameFolder={onRenameFolder}
+        onDeleteFolder={onDeleteFolder}
+        onMoveChatToFolder={onMoveChatToFolder}
         onLogout={logout}
       />
-      <div className={styles.main}>
+      {/* Chat holdes montert (skjult) mens settings vises, så samtalen overlever. */}
+      <div className={styles.main} style={view === "settings" ? { display: "none" } : undefined}>
         <Chat
           key={session.key}
           chatId={session.chatId}
@@ -166,13 +233,8 @@ export default function App() {
         />
       </div>
       {view === "settings" && (
-        <div className={styles.settingsOverlay} onClick={closeSettings}>
-          <div
-            className={styles.settingsModal}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Settings user={user} onClose={closeSettings} />
-          </div>
+        <div className={styles.settingsPage}>
+          <Settings user={user} onClose={closeSettings} />
         </div>
       )}
     </div>

@@ -6,7 +6,7 @@ import {
   type ConnectionSchema,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
-import { ChatWizard } from "./ChatWizard";
+import { ConnectorAgentChat } from "./ConnectorAgentChat";
 import { TableManager } from "./TableManager";
 import { swallow } from "../../lib/log";
 
@@ -16,13 +16,11 @@ export function Connectors({
   creating,
   onReload,
   onNew,
-  onDoneCreate,
 }: {
   conn: Connection | null;
   creating: boolean;
   onReload: () => void;
   onNew: () => void;
-  onDoneCreate: () => void;
 }) {
   const [schema, setSchema] = useState<ConnectionSchema | null>(null);
 
@@ -40,15 +38,7 @@ export function Connectors({
   }
 
   if (creating) {
-    return (
-      <ChatWizard
-        initialConn={null}
-        onClose={() => {
-          onDoneCreate();
-          onReload();
-        }}
-      />
-    );
+    return <ConnectorAgentChat onCreated={onReload} />;
   }
 
   if (!conn) {

@@ -9,6 +9,41 @@ export interface ChatSummary {
   agent_id?: string;
   agent_enabled?: boolean;
   kind?: string;
+  folder_id?: string;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export async function fetchFolders(): Promise<Folder[]> {
+  const data = await apiFetch<{ folders?: Folder[] }>("/folders");
+  return data.folders ?? [];
+}
+
+export async function createFolder(name: string): Promise<Folder> {
+  return apiFetch("/folders", { method: "POST", body: { name } });
+}
+
+export async function renameFolder(id: string, name: string): Promise<void> {
+  await apiFetch(`/folders/${id}`, { method: "PATCH", body: { name } });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  await apiFetch(`/folders/${id}`, { method: "DELETE" });
+}
+
+// Flytter en chat inn i en mappe (tom folderId = ut av mappe).
+export async function setChatFolder(
+  chatId: string,
+  folderId: string
+): Promise<void> {
+  await apiFetch(`/chats/${chatId}/folder`, {
+    method: "PUT",
+    body: { folder_id: folderId },
+  });
 }
 
 export interface StoredMessage {
@@ -86,6 +121,33 @@ export async function deleteChat(id: string): Promise<void> {
   await apiFetch(`/chats/${id}`, { method: "DELETE" });
 }
 
+// Eksporterer en tabell som ren .xlsx og starter nedlasting i nettleseren.
+export async function exportTableXLSX(
+  title: string,
+  columns: string[],
+  rows: string[][]
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/export/xlsx`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ title, columns, rows }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const el = document.createElement("a");
+  el.href = url;
+  el.download =
+    res.headers.get("Content-Disposition")?.match(/filename="(.+?)"/)?.[1] ??
+    "tabell.xlsx";
+  el.click();
+  URL.revokeObjectURL(url);
+}
+
 export interface Attachment {
   name: string;
   /** Uttrukket tekst (PDF/tekstfil). Tom for bilder. */
@@ -137,6 +199,63 @@ export interface StreamDelta {
   step?: string;
   /** Widget-specen ble endret av et verktøykall */
   widgetUpdated?: boolean;
+  /** Databasespørringen bak svaret (til live Excel-eksport) */
+  query?: TableQuery;
+  /** Connector-agenten ber om at Microsoft-innloggingen åpnes */
+  m365Auth?: string;
+  /** Connector-agenten opprettet en tilkobling (id) */
+  connectionCreated?: string;
+}
+
+export interface TableQuery {
+  connection_id: string;
+  sql: string;
+}
+
+// Oppretter en live arbeidsbok i brukerens OneDrive (vi pusher ferske tall).
+// Returnerer url til boka. 501 = Microsoft-integrasjonen er ikke konfigurert.
+export async function exportToOneDrive(
+  title: string,
+  query: TableQuery
+): Promise<{ url?: string }> {
+  return apiFetch("/export/onedrive", {
+    method: "POST",
+    body: { title, connection_id: query.connection_id, sql: query.sql },
+  });
+}
+
+// Lager en live Excel-eksport: laster ned .xlsx med data + Live-ark, og
+// returnerer live-lenken (for kopiering). Tokenet i lenken kan kun kjøre
+// akkurat denne spørringen.
+export async function exportTableLiveXLSX(
+  title: string,
+  query: TableQuery
+): Promise<string | null> {
+  const res = await fetch(`${BASE_URL}/export/live`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      title,
+      connection_id: query.connection_id,
+      sql: query.sql,
+    }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const liveURL = res.headers.get("X-Live-Url");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const el = document.createElement("a");
+  el.href = url;
+  el.download =
+    res.headers.get("Content-Disposition")?.match(/filename="(.+?)"/)?.[1] ??
+    "tabell.xlsx";
+  el.click();
+  URL.revokeObjectURL(url);
+  return liveURL;
 }
 
 // Ett enkelt ikke-streamet chatkall (brukes av connector-agenten).
@@ -166,7 +285,12 @@ export async function streamChat(
   messages: ApiMessage[],
   onDelta: (delta: StreamDelta) => void,
   signal?: AbortSignal,
-  opts?: { agentSetup?: boolean; agentEdit?: string; widget?: string }
+  opts?: {
+    agentSetup?: boolean;
+    agentEdit?: string;
+    widget?: string;
+    connector?: boolean;
+  }
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",
@@ -188,6 +312,8 @@ export async function streamChat(
       ...(opts?.agentEdit ? { nordavind_agent_edit: opts.agentEdit } : {}),
       // Widget-editor: modellen bygger én widget via verktøy.
       ...(opts?.widget ? { nordavind_widget: opts.widget } : {}),
+      // Connector-agent: hjelper brukeren koble til eksterne kilder.
+      ...(opts?.connector ? { nordavind_connector: true } : {}),
     }),
   });
 
@@ -217,6 +343,11 @@ export async function streamChat(
         const json = JSON.parse(data);
         const sources = json.nordavind_sources as SourceRef[] | undefined;
         const step = json.nordavind_step as string | undefined;
+        const query = json.nordavind_query as TableQuery | undefined;
+        const m365Auth = json.nordavind_m365_auth as string | undefined;
+        const connectionCreated = json.nordavind_connection_created as
+          | string
+          | undefined;
         const widgetUpdated = json.nordavind_widget_updated as
           | boolean
           | undefined;
@@ -225,8 +356,14 @@ export async function streamChat(
         const reasoning = delta?.reasoning ?? delta?.reasoning_content;
         // Modellnavn kan ha leverandørprefiks ("lyceum/glm-5.2")
         const model = (json.model as string | undefined)?.split("/").pop();
-        if (content || reasoning || model || sources || step || widgetUpdated) {
-          onDelta({ content, reasoning, model, sources, step, widgetUpdated });
+        if (
+          content || reasoning || model || sources || step ||
+          widgetUpdated || query || m365Auth || connectionCreated
+        ) {
+          onDelta({
+            content, reasoning, model, sources, step,
+            widgetUpdated, query, m365Auth, connectionCreated,
+          });
         }
       } catch {
         // ufullstendig chunk — ignorer

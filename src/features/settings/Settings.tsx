@@ -8,6 +8,8 @@ import { Documents } from "./Documents";
 import { Employees } from "./Employees";
 import { Admin } from "./Admin";
 import { Connectors } from "./Connectors";
+import { M365Panel } from "./M365Panel";
+import { fetchM365Status } from "../../lib/api";
 import {
   fetchConnections,
   type AuthUser,
@@ -39,10 +41,12 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
   const [language, setLanguage] = useState("nb");
   const [theme, setTheme] = useState("system");
 
-  // Tilkoblinger som undersider av «Connectors».
+  // Tilkoblinger som undersider av «Connectors». M365 vises når den er koblet.
   const [conns, setConns] = useState<Connection[]>([]);
   const [connId, setConnId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [m365Connected, setM365Connected] = useState(false);
+  const [showM365, setShowM365] = useState(false);
 
   // Usage har to undersider: Kvote og Stats.
   const [usageSub, setUsageSub] = useState<"kvote" | "stats">("stats");
@@ -51,6 +55,9 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
 
   function reloadConns() {
     fetchConnections().then(setConns).catch(swallow);
+    fetchM365Status()
+      .then((s) => setM365Connected(s.connected))
+      .catch(swallow);
   }
 
   useEffect(() => {
@@ -138,6 +145,21 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
             )}
             {t.key === "connectors" && tab === "connectors" && (
               <div className={styles.navSub}>
+                {m365Connected && (
+                  <button
+                    type="button"
+                    className={`${styles.navSubItem} ${
+                      showM365 ? styles.navSubItemActive : ""
+                    }`}
+                    onClick={() => {
+                      setShowM365(true);
+                      setCreating(false);
+                      setConnId(null);
+                    }}
+                  >
+                    Microsoft 365
+                  </button>
+                )}
                 {conns.map((c) => (
                   <button
                     key={c.id}
@@ -146,6 +168,7 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
                       !creating && connId === c.id ? styles.navSubItemActive : ""
                     }`}
                     onClick={() => {
+                      setShowM365(false);
                       setCreating(false);
                       setConnId(c.id);
                     }}
@@ -158,7 +181,10 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
                   className={`${styles.navSubItem} ${styles.navSubAdd} ${
                     creating ? styles.navSubItemActive : ""
                   }`}
-                  onClick={() => setCreating(true)}
+                  onClick={() => {
+                    setShowM365(false);
+                    setCreating(true);
+                  }}
                 >
                   + Ny kobling
                 </button>
@@ -184,13 +210,21 @@ export function Settings({ user, onClose }: { user: AuthUser; onClose?: () => vo
         ) : tab === "admin" ? (
           <Admin currentUserId={user.id} />
         ) : tab === "connectors" ? (
-          <Connectors
-            conn={activeConn}
-            creating={creating}
-            onReload={reloadConns}
-            onNew={() => setCreating(true)}
-            onDoneCreate={() => setCreating(false)}
-          />
+          showM365 ? (
+            <M365Panel
+              onChanged={() => {
+                setShowM365(false);
+                reloadConns();
+              }}
+            />
+          ) : (
+            <Connectors
+              conn={activeConn}
+              creating={creating}
+              onReload={reloadConns}
+              onNew={() => setCreating(true)}
+            />
+          )
         ) : (
         <div className={styles.content}>
           <div className={styles.section}>

@@ -1,6 +1,13 @@
 import { useMemo } from "react";
 import type { QueryResult, WidgetSpec } from "../../lib/api";
-import { distinctValues, type ControlState } from "./controlsLogic";
+import { autoFilters, distinctValues, type ControlState } from "./controlsLogic";
+
+// prettyLabel gjør kolonnenavn til pen etikett: understrek → mellomrom, stor
+// forbokstav («order_status» → «Order status»).
+function prettyLabel(col: string): string {
+  const t = col.replace(/_/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 import styles from "./WidgetView.module.css";
 
 // WidgetControls rendrer søk/filter/sort/gruppe over kortet. Virker på de rå
@@ -16,16 +23,20 @@ export function WidgetControls({
   state: ControlState;
   onChange: (next: ControlState) => void;
 }) {
-  const filterOptions = useMemo(
-    () =>
-      (spec.filters ?? []).map((f) => ({
-        ...f,
-        values: distinctValues(data, f.column),
-      })),
-    [spec.filters, data]
-  );
+  const filterOptions = useMemo(() => {
+    // Agent-definerte filtre først; ellers utledes de automatisk fra dataene.
+    const defs = spec.filters?.length ? spec.filters : autoFilters(data, spec);
+    return defs.map((f) => ({
+      ...f,
+      values: distinctValues(data, f.column),
+    }));
+  }, [spec, data]);
 
-  const groupable = !!spec.group && data.columns.includes(spec.group);
+  const groupable =
+    !!spec.group &&
+    data.columns.includes(spec.group) &&
+    spec.type !== "line" &&
+    spec.type !== "sparkline";
 
   return (
     <div className={styles.controls}>
@@ -41,7 +52,7 @@ export function WidgetControls({
 
       {filterOptions.map((f) => (
         <label key={f.column} className={styles.ctrlField}>
-          <span className={styles.ctrlLabel}>{f.label ?? f.column}</span>
+          <span className={styles.ctrlLabel}>{f.label ?? prettyLabel(f.column)}</span>
           <select
             className={styles.ctrlSelect}
             value={state.filters[f.column] ?? ""}
@@ -88,7 +99,7 @@ export function WidgetControls({
             onChange={(e) => onChange({ ...state, group: e.target.value })}
           >
             <option value="">Nei</option>
-            <option value={spec.group}>{spec.group}</option>
+            <option value={spec.group}>{prettyLabel(spec.group ?? "")}</option>
           </select>
         </label>
       )}

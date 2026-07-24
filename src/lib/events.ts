@@ -5,6 +5,7 @@
 interface EventMap {
   "agents-changed": void;
   "chat-deleted": string;
+  "widgets-changed": void;
 }
 
 export function emit<K extends keyof EventMap>(type: K, detail?: EventMap[K]) {

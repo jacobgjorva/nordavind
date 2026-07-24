@@ -1,19 +1,28 @@
 import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { AnonymousIcon } from "@hugeicons/core-free-icons";
+import {
+  AnonymousIcon,
+  Folder01Icon,
+  Folder02Icon,
+} from "@hugeicons/core-free-icons";
 import { PlusIcon, SearchIcon, SettingsIcon, SidebarIcon } from "../ui/Icons";
 import { Logo } from "../ui/Logo";
-import type { ChatSummary } from "../lib/api";
+import type { ChatSummary, Folder } from "../lib/api";
 import styles from "./Sidebar.module.css";
 
 type SidebarProps = {
   chats: ChatSummary[];
+  folders: Folder[];
   activeChatId: string | null;
   userEmail: string;
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
+  onNewFolder: () => void;
+  onRenameFolder: (id: string, name: string) => void;
+  onDeleteFolder: (id: string) => void;
+  onMoveChatToFolder: (chatId: string, folderId: string) => void;
   onLogout: () => void;
 };
 
@@ -42,24 +51,64 @@ function groupChats(chats: ChatSummary[]) {
 
 export function Sidebar({
   chats,
+  folders,
   activeChatId,
   userEmail,
   onNewChat,
   onOpenSettings,
   onOpenChat,
   onDeleteChat,
+  onNewFolder,
+  onRenameFolder,
+  onDeleteFolder,
+  onMoveChatToFolder,
   onLogout,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
+  // Åpne/lukkede mapper + hvilken mappe man drar over (for hover-uthevingen).
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   function del(e: React.MouseEvent, c: ChatSummary) {
     e.stopPropagation();
     if (confirm(`Slette «${c.title}»?`)) onDeleteChat(c.id);
   }
 
-  // Agent-chatter pinnes i egen «Agenter»-seksjon; resten grupperes på dato.
+  // Én chat-rad: klikkbar, slettbar og drabar (drag inn i en mappe).
+  function chatRow(c: ChatSummary) {
+    return (
+      <div
+        key={c.id}
+        className={styles.chatRow}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/chat", c.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
+      >
+        <button
+          className={`${styles.chat} ${
+            c.id === activeChatId ? styles.chatActive : ""
+          }`}
+          onClick={() => onOpenChat(c.id)}
+        >
+          {c.title}
+        </button>
+        <button
+          className={styles.chatDelete}
+          onClick={(e) => del(e, c)}
+          aria-label="Slett"
+          title="Slett"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  // Agent-chatter pinnes øverst; mappe-chatter vises i mappa; resten i historikk.
   const agentChats = chats.filter((c) => c.agent_id);
-  const regularChats = chats.filter((c) => !c.agent_id);
+  const regularChats = chats.filter((c) => !c.agent_id && !c.folder_id);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -174,29 +223,98 @@ export function Sidebar({
             ))}
           </div>
         )}
+        {/* Mapper: mellom agenter og historikk. Dra chatter hit for å organisere. */}
+        <div className={styles.group}>
+          <div className={styles.folderHeader}>
+            <span className={styles.groupLabel}>MAPPER</span>
+            <button
+              className={styles.newFolderBtn}
+              onClick={onNewFolder}
+              title="Ny mappe"
+            >
+              <PlusIcon size={13} />
+              Ny mappe
+            </button>
+          </div>
+          {folders.map((f) => {
+            const inFolder = chats.filter((c) => c.folder_id === f.id);
+            const open = openFolders[f.id];
+            return (
+              <div
+                key={f.id}
+                className={`${styles.folder} ${
+                  dragOver === f.id ? styles.folderDragOver : ""
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(f.id);
+                }}
+                onDragLeave={() => setDragOver((d) => (d === f.id ? null : d))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(null);
+                  const id = e.dataTransfer.getData("text/chat");
+                  if (id) {
+                    onMoveChatToFolder(id, f.id);
+                    setOpenFolders((o) => ({ ...o, [f.id]: true }));
+                  }
+                }}
+              >
+                <div
+                  className={styles.folderHead}
+                  onClick={() =>
+                    setOpenFolders((o) => ({ ...o, [f.id]: !o[f.id] }))
+                  }
+                >
+                  <HugeiconsIcon
+                    icon={open ? Folder02Icon : Folder01Icon}
+                    size={15}
+                    className={styles.folderIcon}
+                  />
+                  <span
+                    className={styles.folderName}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      const name = prompt("Nytt mappenavn", f.name);
+                      if (name && name.trim()) onRenameFolder(f.id, name.trim());
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  {inFolder.length > 0 && (
+                    <span className={styles.folderCount}>{inFolder.length}</span>
+                  )}
+                  <button
+                    className={styles.chatDelete}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Slette mappa «${f.name}»? Chattene beholdes.`))
+                        onDeleteFolder(f.id);
+                    }}
+                    aria-label="Slett mappe"
+                    title="Slett mappe"
+                  >
+                    ×
+                  </button>
+                </div>
+                {open && (
+                  <div className={styles.folderBody}>
+                    {inFolder.length === 0 ? (
+                      <div className={styles.folderEmpty}>Dra chatter hit</div>
+                    ) : (
+                      inFolder.map((c) => chatRow(c))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         {groupChats(regularChats).map((g) => (
           <div key={g.label} className={styles.group}>
             <div className={styles.groupLabel}>{g.label}</div>
-            {g.chats.map((c) => (
-              <div key={c.id} className={styles.chatRow}>
-                <button
-                  className={`${styles.chat} ${
-                    c.id === activeChatId ? styles.chatActive : ""
-                  }`}
-                  onClick={() => onOpenChat(c.id)}
-                >
-                  {c.title}
-                </button>
-                <button
-                  className={styles.chatDelete}
-                  onClick={(e) => del(e, c)}
-                  aria-label="Slett"
-                  title="Slett"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+            {g.chats.map((c) => chatRow(c))}
           </div>
         ))}
       </nav>

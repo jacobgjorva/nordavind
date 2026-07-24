@@ -14,7 +14,12 @@ export function initialState(spec: WidgetSpec): ControlState {
     search: "",
     filters: {},
     sort: (spec.sort?.length ?? 0) > 0 ? 0 : -1,
-    group: spec.group ?? "",
+    // Gruppering kollapser radene til én per gruppeverdi — det gir mening som
+    // standard for bar/donut, men ødelegger tidsaksen på linje/sparkline.
+    group:
+      spec.group && (spec.type === "bar" || spec.type === "donut")
+        ? spec.group
+        : "",
   };
 }
 
@@ -29,6 +34,36 @@ export function hasControls(spec: WidgetSpec): boolean {
 
 function colIndex(data: QueryResult, name: string): number {
   return data.columns.indexOf(name);
+}
+
+// autoFilters utleder filtre fra dataene når specen ikke har noen: alle
+// kategoriske kolonner (ikke-numeriske, 2-25 distinkte verdier, ikke y-verdien)
+// får et nedtrekk. Gir filter-mulighet på samtlige widget-typer.
+export function autoFilters(
+  data: QueryResult,
+  spec: WidgetSpec
+): { column: string; label?: string }[] {
+  const out: { column: string; label?: string }[] = [];
+  for (let i = 0; i < data.columns.length; i++) {
+    const col = data.columns[i];
+    // y er verdien og x er selve aksen — filter på dem gir ikke mening.
+    if (col === spec.y || col === spec.x) continue;
+    const seen = new Set<string>();
+    let numeric = true;
+    let hasValue = false;
+    for (const r of data.rows) {
+      const v = r[i];
+      if (v === null || v === undefined || String(v) === "") continue;
+      hasValue = true;
+      seen.add(String(v));
+      if (typeof v !== "number" && isNaN(Number(String(v).replace(",", "."))))
+        numeric = false;
+      if (seen.size > 25) break;
+    }
+    if (!hasValue || numeric) continue;
+    if (seen.size >= 2 && seen.size <= 25) out.push({ column: col });
+  }
+  return out;
 }
 
 // Distinkte verdier i en kolonne, sortert — til filter-nedtrekkene.
@@ -92,7 +127,10 @@ export function applyControls(
 
   let out: QueryResult = { columns: data.columns, rows };
 
-  if (state.group) out = groupRows(out, spec, state.group);
+  // Linje/sparkline: gruppering kollapser tidsaksen — blokkeres uansett state.
+  if (state.group && spec.type !== "line" && spec.type !== "sparkline") {
+    out = groupRows(out, spec, state.group);
+  }
 
   const s = state.sort >= 0 ? spec.sort?.[state.sort] : undefined;
   if (s) {

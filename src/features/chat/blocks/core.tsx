@@ -1,7 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { CopyIcon } from "../../../ui/Icons";
+import { type TableQuery } from "../../../lib/api";
+import { ExportModal } from "../../../tools/export/ExportModal";
 import { registerBlock } from "./registry";
 import styles from "./blocks.module.css";
+
+// Spørringen bak meldingens tabeller (satt av Chat) — gir live Excel-eksport.
+export const TableQueryContext = createContext<TableQuery | null>(null);
 
 // Rekursivt ut med ren tekst fra react-markdown-noder (til kopiering).
 function textOf(node: ReactNode): string {
@@ -158,6 +163,40 @@ function StatCard({
   );
 }
 
+// ExportButton åpner eksport-modalen: OneDrive (live) eller lokal .xlsx.
+function ExportButton({
+  title,
+  columns,
+  rows,
+}: {
+  title: string;
+  columns: string[];
+  rows: string[][];
+}) {
+  const query = useContext(TableQueryContext);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        className={styles.copyBtn}
+        onClick={() => setOpen(true)}
+        title="Eksporter til Excel"
+      >
+        Eksporter
+      </button>
+      {open && (
+        <ExportModal
+          title={title}
+          columns={columns}
+          rows={rows}
+          query={query}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
 // Tabell for rader (fra databasen), med kopier-hele.
 function DataTable({
   columns,
@@ -171,6 +210,7 @@ function DataTable({
     <div className={styles.tableWrap}>
       <div className={styles.tableBar}>
         <span className={styles.tableMeta}>{rows.length} rader</span>
+        <ExportButton title="Tabell" columns={columns} rows={rows} />
         <CopyButton value={tsv} label="Kopier tabell" />
       </div>
       <div className={styles.tableScroll}>

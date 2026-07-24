@@ -2,29 +2,11 @@ import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { TelegramIcon } from "@hugeicons/core-free-icons";
 import { sendMail, type MailPerson } from "../../lib/api";
+import { avatarColor, initials as avatarInitials } from "../../ui/avatar";
 import styles from "./MailCompose.module.css";
 
-// Lys bakgrunn + mørk variant av samme farge til initialene.
-const AVATAR_COLORS: [string, string][] = [
-  ["#E6F2FF", "#2e6bad"],
-  ["#CDFBFB", "#1f8a8a"],
-  ["#D8FDE4", "#2f8a54"],
-  ["#E8FDCA", "#5f7d1e"],
-  ["#FDF2B2", "#94711a"],
-  ["#FFE6E8", "#b0505a"],
-  ["#EEEAFF", "#6152b3"],
-];
-
-function avatarColor(addr: string): [string, string] {
-  let h = 0;
-  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
 function initials(p: MailPerson): string {
-  const src = (p.name || p.address).trim();
-  const parts = src.split(/[\s@.]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+  return avatarInitials(p.name, p.address);
 }
 
 type Field = "to" | "cc";
