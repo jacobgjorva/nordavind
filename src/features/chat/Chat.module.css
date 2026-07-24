@@ -1160,14 +1160,14 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #4ec06a;
+  color: #7aa2f7;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .impTrigger:hover {
-  background: rgba(78, 192, 106, 0.1);
+  background: rgba(122, 162, 247, 0.1);
 }
 
 /* Aktiv simulering: kaldere blå så det er tydelig at du er en annen. */
