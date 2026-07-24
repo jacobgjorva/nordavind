@@ -1010,21 +1010,22 @@
   display: inline-flex;
 }
 
+/* Samme tag-språk som admin-taggen: lys pastell + mørk tekst, 5px radius. */
 .impPill {
-  padding: 3px 12px;
-  border-radius: 999px;
-  border: 0.5px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-muted);
+  padding: 2px 10px;
+  border-radius: 5px;
+  border: none;
+  background: #E6F2FF;
+  color: #2e6bad;
   font-size: 12px;
-  font-weight: 550;
+  font-weight: 600;
   cursor: pointer;
 }
 
+/* Aktiv simulering: rødlig variant så det er tydelig at du opptrer som en annen. */
 .impPillActive {
-  background: rgba(122, 162, 247, 0.18);
-  border-color: rgba(122, 162, 247, 0.55);
-  color: var(--text);
+  background: #FFE6E8;
+  color: #b0505a;
 }
 
 .impPop {
