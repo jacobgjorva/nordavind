@@ -837,20 +837,13 @@ export function Chat({
       {(attachments.length > 0 || uploadError) && (
         <div className={styles.attachTagRow}>
           {attachments.map((a) => (
-            <span
-              key={a.name}
-              className={`${styles.attachTag} ${
-                a.image ? styles.attachImageChip : ""
-              }`}
-            >
+            <span key={a.name} className={styles.attachTag}>
               {a.image ? (
-                <img src={a.image} alt={a.name} className={styles.attachThumb} />
+                <img src={a.image} alt="" className={styles.attachTagIcon} />
               ) : (
-                <>
-                  <AttachIcon size={13} />
-                  <span className={styles.attachTagName}>{a.name}</span>
-                </>
+                <AttachIcon size={13} />
               )}
+              <span className={styles.attachTagName}>{a.name}</span>
               <button
                 className={styles.attachRemove}
                 onClick={() =>

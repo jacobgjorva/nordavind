@@ -943,12 +943,13 @@
   line-height: 1.4;
 }
 
-/* Bildevedlegg: firkantet miniatyr med × oppå — ingen pilleform. */
-.attachTag.attachImageChip {
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
+/* Bildevedlegg: bittelite bilde som ikon + filnavn ved siden av. */
+.attachTagIcon {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .attachTag svg {
