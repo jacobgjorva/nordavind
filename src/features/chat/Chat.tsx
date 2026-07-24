@@ -1341,16 +1341,6 @@ export function Chat({
         >
           <HugeiconsIcon icon={Attachment01Icon} size={16} strokeWidth={2} />
         </button>
-        <button
-          className={styles.toolsBtn}
-          onClick={() => {
-            setInput("/");
-            textareaRef.current?.focus();
-          }}
-          title="Åpne verktøymenyen"
-        >
-          Tools <span className={styles.kbd}>/</span>
-        </button>
         <span className={styles.footerRight}>
           <ContextRing messages={messages} />
         </span>
