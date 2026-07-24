@@ -1,6 +1,5 @@
-/* Settings-komponent innfelt i chatten: ingen egen kort-ramme — chatten er
-   konteineren. Kun høydebegrensning med rull. */
+/* Settings-komponent innfelt i chatten: chatten er konteineren og står for
+   all scrolling — panelet får full høyde, aldri indre rull. */
 .panelCard {
-  max-height: 560px;
-  overflow-y: auto;
+  width: 100%;
 }
