@@ -328,10 +328,63 @@
   color: #f4a6a6;
 }
 
-.dangerRow {
+/* Kebab-meny øverst til høyre. */
+.menuWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.menuBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted, #a0a0a8);
+  cursor: pointer;
+}
+
+.menuBtn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text, #eee);
+}
+
+.menuPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
   display: flex;
-  justify-content: flex-start;
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 0.5px solid var(--border, #26262a);
+  flex-direction: column;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 0.5px solid var(--border-strong, #2a2a2e);
+  background: #1c1c1f;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text, #eee);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.menuItemDanger {
+  color: #e88;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Delete01Icon } from "@hugeicons/core-free-icons";
+import { Delete01Icon, MoreHorizontalIcon, PauseIcon } from "@hugeicons/core-free-icons";
 import {
   fetchAdminUsers,
   saveConnectionConfig,
@@ -66,6 +66,17 @@ export function TableManager({
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Deaktiver: fjern all tabelltilgang (AI-en mister koblingen) uten å slette den.
+  async function deactivate() {
+    setMenuOpen(false);
+    if (!confirm("Deaktivere koblingen? AI-en mister tilgang til alle bord til du slår dem på igjen.")) return;
+    dirtyRef.current = true;
+    setState((prev) =>
+      Object.fromEntries(Object.entries(prev).map(([n, v]) => [n, { ...v, on: false, open: false }]))
+    );
+  }
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const views = schema.config.views ?? [];
@@ -169,13 +180,39 @@ export function TableManager({
       <div className={styles.tmHead}>
         <div>
           <div className={styles.sectionTitle}>{conn.name}</div>
-          <div className={styles.sectionDesc}>
-            Velg bordene AI-en får bruke, beskriv dem og styr tilgang.
-          </div>
         </div>
         <div className={styles.headActions}>
           <span className={styles.autosave}>
             {saving ? "Lagrer …" : saved ? "Lagret ✓" : ""}
+          </span>
+          <span className={styles.menuWrap}>
+            <button
+              className={styles.menuBtn}
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Flere valg"
+            >
+              <HugeiconsIcon icon={MoreHorizontalIcon} size={18} />
+            </button>
+            {menuOpen && (
+              <span className={styles.menuPop}>
+                <button className={styles.menuItem} onClick={deactivate}>
+                  <HugeiconsIcon icon={PauseIcon} size={14} strokeWidth={2} />
+                  Deaktiver kobling
+                </button>
+                {onRemove && (
+                  <button
+                    className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onRemove();
+                    }}
+                  >
+                    <HugeiconsIcon icon={Delete01Icon} size={14} strokeWidth={2} />
+                    Slett kobling
+                  </button>
+                )}
+              </span>
+            )}
           </span>
         </div>
       </div>
@@ -277,14 +314,6 @@ export function TableManager({
             onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
           >
             →
-          </button>
-        </div>
-      )}
-      {onRemove && (
-        <div className={styles.dangerRow}>
-          <button className={styles.deleteBtn} onClick={onRemove} title="Fjern tilkoblingen">
-            <HugeiconsIcon icon={Delete01Icon} size={14} strokeWidth={2} />
-            Fjern tilkoblingen
           </button>
         </div>
       )}
