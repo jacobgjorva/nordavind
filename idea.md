@@ -13,7 +13,7 @@ En europeisk AI-plattform bygget på open-weight modeller (GLM-5.2, Kimi K2.7) m
 - **Regulatorisk medvind.** EU AI Act og GDPR skaper reell etterspørsel etter leverandører som garanterer at data blir i EU.
 
 ## Arkitektur (høynivå)
-1. **Modell-lag:** API-kall mot EU-hostede endepunkter (Scaleway, EUrouter) for GLM-5.2 og Kimi K2.7. Egen GPU-klynge først ved høyt, stabilt volum.
+1. **Modell-lag:** API-kall mot EU-hostede endepunkter (Scaleway) for GLM-5.2 og Kimi K2.7. Egen GPU-klynge først ved høyt, stabilt volum.
 2. **Orkestrering / API:** Eget backend som ruter forespørsler til riktig modell, håndterer function calling, caching og logging — OpenAI-API-kompatibelt for enkel migrering.
 3. **Grensesnitt:** Egenutviklet web-app (chat + integrasjoner) skreddersydd for norske/europeiske SMB-er. En base som kan brukes for alle veriasjoner. Customizable add-ons og design for hver enkelt kunde. 
 4. **Datalag:** All lagring og prosessering i EU.
@@ -56,7 +56,7 @@ Bedrifter som vil ta i bruk AI-verktøy, men nøler på pris eller datasikkerhet
 
 
 ## Neste steg
-2. Bygg MVP: OpenAI-kompatibelt API-lag + enkelt chat-UI mot GLM-5.2/Kimi via EUrouter.
+2. Bygg MVP: OpenAI-kompatibelt API-lag + enkelt chat-UI mot GLM-5.2/Kimi via Scaleway.
 2. Test modellene. Hvor gode er de? Er det brukbart? Hva bruker vi for trivielle spørsmål, hva bruker vi for tyngre analyser? Håndterer modellen tunge analyser?
 3. Test reell kostnad og ytelse på en konkret arbeidsbelastning.
 
