@@ -39,7 +39,7 @@ export const nextId = () => crypto.randomUUID();
 
 // En melding som kun er en widget- eller mailcompose-blokk vises i full bredde.
 export const isWidgetOnly = (content?: string) =>
-  !!content && /^```(widget|mailcompose)\n[\s\S]*?\n```$/.test(content.trim());
+  !!content && /^```(widget|mailcompose|admin)\n[\s\S]*?\n```$/.test(content.trim());
 
 // Tegn på at brukeren vil endre agentens oppsett. Kun da sendes agent-edit-
 // verktøystien til backend — vanlige spørsmål i en agent-chat slipper den
