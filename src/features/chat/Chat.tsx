@@ -173,6 +173,35 @@ const SLASH_ACTIONS: {
   },
 ];
 
+// Kontekst-ring: fylles etter hvor mye av samtalens kontekstvindu som er
+// brukt (estimat: ~3,5 tegn per token mot modellens vindu). Ren indikasjon.
+const CONTEXT_TOKENS = 120_000;
+
+function ContextRing({ messages }: { messages: { content: string }[] }) {
+  const chars = messages.reduce((n, m) => n + m.content.length, 0);
+  const frac = Math.min(1, chars / 3.5 / CONTEXT_TOKENS);
+  const R = 6;
+  const C = 2 * Math.PI * R;
+  const warn = frac > 0.8;
+  return (
+    <span
+      className={styles.ctxRing}
+      title={`~${Math.round(frac * 100)} % av kontekstvinduet brukt`}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r={R} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
+        <circle
+          cx="8" cy="8" r={R} fill="none"
+          stroke={warn ? "#e6a23c" : "rgba(255,255,255,0.65)"}
+          strokeWidth="2" strokeLinecap="round"
+          strokeDasharray={`${frac * C} ${C}`}
+          transform="rotate(-90 8 8)"
+        />
+      </svg>
+    </span>
+  );
+}
+
 // Admin-pille i composeren: viser hvem admin opptrer som, klikk åpner
 // brukerliste — valgt bruker simuleres i alle data-kall til den slås av.
 function ImpersonatePill() {
@@ -1312,6 +1341,9 @@ export function Chat({
         >
           <HugeiconsIcon icon={Attachment01Icon} size={16} strokeWidth={2} />
         </button>
+        <span className={styles.footerRight}>
+          <ContextRing messages={messages} />
+        </span>
         {/* Admin-pillen er midlertidig skjult — hentes frem igjen senere. */}
         {false && userRole === "admin" && <ImpersonatePill />}
         <span className={styles.modelInfo}>
