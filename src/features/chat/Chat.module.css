@@ -1117,6 +1117,7 @@
 /* Kontekst-ring nede til høyre i composeren. */
 .footerRight {
   margin-left: auto;
+  margin-right: 8px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
