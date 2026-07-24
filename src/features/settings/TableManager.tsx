@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Delete01Icon } from "@hugeicons/core-free-icons";
 import {
   fetchAdminUsers,
   saveConnectionConfig,
@@ -173,7 +175,8 @@ export function TableManager({
         </div>
         <div className={styles.headActions}>
           {onRemove && (
-            <button className={styles.cancel} onClick={onRemove}>
+            <button className={styles.deleteBtn} onClick={onRemove} title="Fjern tilkoblingen">
+              <HugeiconsIcon icon={Delete01Icon} size={14} strokeWidth={2} />
               Fjern
             </button>
           )}

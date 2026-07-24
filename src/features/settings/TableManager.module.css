@@ -306,3 +306,24 @@
   min-width: 70px;
   text-align: right;
 }
+
+/* Fjern-knapp: tydelig destruktiv, med ikon, ute til høyre i headeren. */
+.deleteBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 0.5px solid rgba(230, 103, 103, 0.5);
+  background: rgba(230, 103, 103, 0.12);
+  color: #e88;
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.deleteBtn:hover {
+  background: rgba(230, 103, 103, 0.22);
+  color: #f4a6a6;
+}
