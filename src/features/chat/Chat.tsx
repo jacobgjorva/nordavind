@@ -1023,7 +1023,7 @@ export function Chat({
         ...ADMIN_ACTIONS.filter(
           (a) =>
             a.cmd.startsWith(slashPrefix) && (!a.adminOnly || effectiveRole === "admin")
-        ).map((a) => ({ ...a, icon: AnonymousIcon })),
+        ).map((a) => ({ ...a, icon: AnonymousIcon, tag: "Admin" })),
         ...widgets
           .filter((w) => w.slug.startsWith(slashPrefix))
           .map((w) => ({
@@ -1153,6 +1153,9 @@ export function Chat({
                     className={styles.slashIcon}
                   />
                   <span className={styles.slashLabel}>{a.label}</span>
+                  {"tag" in a && a.tag && (
+                    <span className={styles.slashTag}>{a.tag}</span>
+                  )}
                   <span className={styles.slashHint}>{a.desc}</span>
                 </button>
               </li>
