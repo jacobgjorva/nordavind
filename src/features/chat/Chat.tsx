@@ -1214,8 +1214,17 @@ export function Chat({
                             m.attachmentNames.length > 0 && (
                               <span className={styles.attachRow}>
                                 {m.attachmentNames.map((name) => (
-                                  <span key={name} className={styles.attachChip}>
-                                    {name}
+                                  <span key={name} className={styles.attachTag}>
+                                    <span
+                                      className={styles.attachTagIconBox}
+                                      style={{
+                                        background: fileTagColor(name)[0],
+                                        color: fileTagColor(name)[1],
+                                      }}
+                                    >
+                                      <HugeiconsIcon icon={fileIcon(name)} size={14} strokeWidth={2} />
+                                    </span>
+                                    <span className={styles.attachTagName}>{name}</span>
                                   </span>
                                 ))}
                               </span>
