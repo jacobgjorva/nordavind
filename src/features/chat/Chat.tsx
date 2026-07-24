@@ -192,7 +192,7 @@ function ContextRing({ messages }: { messages: { content: string }[] }) {
         <circle cx="8" cy="8" r={R} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
         <circle
           cx="8" cy="8" r={R} fill="none"
-          stroke={warn ? "#e6a23c" : "rgba(255,255,255,0.65)"}
+          stroke={warn ? "#e6a23c" : "#949494"}
           strokeWidth="2" strokeLinecap="round"
           strokeDasharray={`${frac * C} ${C}`}
           transform="rotate(-90 8 8)"

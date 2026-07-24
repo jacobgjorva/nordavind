@@ -817,7 +817,7 @@
 
 /* Vedlegg-ikonet i footeren er hvitt. */
 .attachBtn {
-  color: #ffffff;
+  color: #949494;
 }
 
 .modelName {
@@ -827,7 +827,7 @@
 
 .modelHint {
   font-size: 12.5px;
-  color: var(--text-faint);
+  color: #949494;
 }
 
 
