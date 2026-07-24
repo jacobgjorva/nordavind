@@ -6,8 +6,13 @@ import { TableQueryContext } from "./blocks/core";
 import { Logo } from "../../ui/Logo";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  Analytics01Icon,
   AnonymousIcon,
   BorderNone02Icon,
+  Brain02Icon,
+  Files01Icon,
+  UserGroupIcon,
+  UserSettings01Icon,
   Delete01Icon,
   Csv01Icon,
   Doc01Icon,
@@ -209,12 +214,12 @@ function ImpersonatePill() {
 }
 
 // Admin-styring i chatten: settings-panelene kalles inn som blokker.
-const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; adminOnly?: boolean }[] = [
-  { cmd: "forbruk", label: "Forbruk", desc: "Token- og kostnadsoversikt" },
-  { cmd: "kunnskap", label: "Kunnskap", desc: "Bedriftskunnskapen AI-en husker" },
-  { cmd: "dokumenter", label: "Dokumenter", desc: "Dokumentbiblioteket" },
-  { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret" },
-  { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", adminOnly: true },
+const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; icon: typeof AnonymousIcon }[] = [
+  { cmd: "forbruk", label: "Forbruk", desc: "Token- og kostnadsoversikt", icon: Analytics01Icon },
+  { cmd: "kunnskap", label: "Kunnskap", desc: "Bedriftskunnskapen AI-en husker", icon: Brain02Icon },
+  { cmd: "dokumenter", label: "Dokumenter", desc: "Dokumentbiblioteket", icon: Files01Icon },
+  { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret", icon: UserGroupIcon },
+  { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", icon: UserSettings01Icon },
 ];
 
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
@@ -1024,7 +1029,7 @@ export function Chat({
         // Hele admin-styringen er kun for admin (og skjules under simulering).
         ...(effectiveRole === "admin"
           ? ADMIN_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)).map(
-              (a) => ({ ...a, icon: AnonymousIcon, tag: "Admin" })
+              (a) => ({ ...a, tag: "Admin" })
             )
           : []),
         ...widgets
