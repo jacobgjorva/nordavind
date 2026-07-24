@@ -1153,7 +1153,7 @@ export function Chat({
                     className={styles.slashIcon}
                   />
                   <span className={styles.slashLabel}>{a.label}</span>
-                  {"tag" in a && a.tag && (
+                  {"tag" in a && typeof a.tag === "string" && (
                     <span className={styles.slashTag}>{a.tag}</span>
                   )}
                   <span className={styles.slashHint}>{a.desc}</span>
