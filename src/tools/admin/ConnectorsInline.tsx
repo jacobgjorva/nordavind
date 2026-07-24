@@ -10,6 +10,13 @@ import { on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import styles from "./AdminPanel.module.css";
 
+// Lesbare navn per databasetype i velgeren.
+const DRIVER_LABELS: Record<string, string> = {
+  postgres: "PostgreSQL",
+  mysql: "MySQL",
+  mssql: "SQL Server",
+};
+
 // Frittstående tilkoblingspanel for chatten: velgeren som lå i settings-
 // navigasjonen er her en horisontal rad over selve panelet.
 export function ConnectorsInline() {
@@ -56,7 +63,7 @@ export function ConnectorsInline() {
         {m365Connected && <option value="__m365">Microsoft 365</option>}
         {conns.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.name}
+            {c.name} — {DRIVER_LABELS[c.driver] ?? c.driver}
           </option>
         ))}
       </select>
