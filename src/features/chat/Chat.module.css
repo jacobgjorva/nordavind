@@ -691,7 +691,7 @@
   width: 100%;
   background: #202020;
   border: none;
-  border-radius: var(--radius-lg);
+  border-radius: 22px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   animation: paletteIn 0.22s var(--ease-out);
 }
@@ -803,7 +803,7 @@
   height: 46px;
   padding: 0 12px;
   background: transparent;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-radius: 0 0 22px 22px;
 }
 
 .modelInfo {
