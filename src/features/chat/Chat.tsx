@@ -77,7 +77,7 @@ import {
   SourceLink,
   thinkingLabel,
 } from "./messageParts";
-import { modelAlias, modelDesc, modelGlow } from "../../lib/models";
+import { DEFAULT_MODEL, modelAlias, modelDesc, modelGlow } from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
@@ -492,9 +492,7 @@ export function Chat({
   const [input, setInput] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
   // Bris er standard til backend melder hvilken modell som faktisk svarte.
-  const [activeModel, setActiveModel] = useState<string | null>(
-    "qwen3-235b-a22b-instruct-2507"
-  );
+  const [activeModel, setActiveModel] = useState<string | null>(DEFAULT_MODEL);
   const [busy, setBusy] = useState(false);
   // Speiler busy til en ref så poll-intervallet kan lese ferskeste verdi.
   const busyRef = useRef(false);
