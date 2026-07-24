@@ -897,7 +897,7 @@ export function Chat({
                     color: fileTagColor(a.name)[1],
                   }}
                 >
-                  <HugeiconsIcon icon={fileIcon(a.name)} size={12} />
+                  <HugeiconsIcon icon={fileIcon(a.name)} size={14} strokeWidth={2} />
                 </span>
               )}
               <span className={styles.attachTagName}>{a.name}</span>
