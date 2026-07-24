@@ -1321,12 +1321,7 @@ export function Chat({
             <span className={styles.modelHint}>{modelDesc(activeModel)}</span>
           )}
         </span>
-        <span className={styles.cmdHint}>
-          Kommandoer <span className={styles.kbd}>/</span>
-        </span>
-        <span className={styles.sendHint}>
-          Send <span className={styles.kbd}>↵</span>
-        </span>
+
       </div>
     </div>
     </>
