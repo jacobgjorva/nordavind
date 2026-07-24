@@ -236,6 +236,9 @@ export function Chat({
   /** Rolle til innlogget bruker — styrer admin-kommandoene i slash-menyen. */
   userRole?: string;
 }) {
+  // Under simulering opptrer admin som en vanlig bruker også i UI-et —
+  // admin-kommandoene skjules (pillen styres separat av ekte rolle).
+  const effectiveRole = getImpersonation() ? "member" : userRole;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [title, setTitle] = useState<string | null>(initialTitle ?? null);
   // Agent bak denne chatten (for pause-knappen), null for vanlige chatter.
@@ -707,7 +710,7 @@ export function Chat({
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
     // Admin-panelene rendres inline på samme måte som widgets.
     const adminAct = ADMIN_ACTIONS.find(
-      (a) => a.cmd === firstTok && (!a.adminOnly || userRole === "admin")
+      (a) => a.cmd === firstTok && (!a.adminOnly || effectiveRole === "admin")
     );
     if (adminAct) {
       await renderAdminInline(raw, adminAct.cmd);
@@ -1019,7 +1022,7 @@ export function Chat({
         ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
         ...ADMIN_ACTIONS.filter(
           (a) =>
-            a.cmd.startsWith(slashPrefix) && (!a.adminOnly || userRole === "admin")
+            a.cmd.startsWith(slashPrefix) && (!a.adminOnly || effectiveRole === "admin")
         ).map((a) => ({ ...a, icon: AnonymousIcon })),
         ...widgets
           .filter((w) => w.slug.startsWith(slashPrefix))
