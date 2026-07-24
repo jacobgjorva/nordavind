@@ -327,3 +327,11 @@
   background: rgba(230, 103, 103, 0.22);
   color: #f4a6a6;
 }
+
+.dangerRow {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--border, #26262a);
+}

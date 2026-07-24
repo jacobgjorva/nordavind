@@ -174,12 +174,6 @@ export function TableManager({
           </div>
         </div>
         <div className={styles.headActions}>
-          {onRemove && (
-            <button className={styles.deleteBtn} onClick={onRemove} title="Fjern tilkoblingen">
-              <HugeiconsIcon icon={Delete01Icon} size={14} strokeWidth={2} />
-              Fjern
-            </button>
-          )}
           <span className={styles.autosave}>
             {saving ? "Lagrer …" : saved ? "Lagret ✓" : ""}
           </span>
@@ -283,6 +277,14 @@ export function TableManager({
             onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
           >
             →
+          </button>
+        </div>
+      )}
+      {onRemove && (
+        <div className={styles.dangerRow}>
+          <button className={styles.deleteBtn} onClick={onRemove} title="Fjern tilkoblingen">
+            <HugeiconsIcon icon={Delete01Icon} size={14} strokeWidth={2} />
+            Fjern tilkoblingen
           </button>
         </div>
       )}
