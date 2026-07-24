@@ -1,6 +1,6 @@
 // Nordavind-modellene samlet ett sted: vindskalaen navngir nivåene, med
 // beskrivelse og glød-farge. Å legge til en modell = én linje her.
-export const DEFAULT_MODEL = "qwen3-235b-a22b-instruct-2507";
+export const DEFAULT_MODEL = "mistral-medium-3.5-128b";
 
 interface ModelMeta {
   alias: string; // visningsnavn (vindskala)
@@ -9,7 +9,7 @@ interface ModelMeta {
 }
 
 export const MODELS: Record<string, ModelMeta> = {
-  "qwen3-235b-a22b-instruct-2507": { alias: "Bris", desc: "fikser det meste", glow: "#ffffff" },
+  "mistral-medium-3.5-128b": { alias: "Bris", desc: "fikser det meste", glow: "#ffffff" },
   "qwen3.5-397b-a17b": { alias: "Storm", desc: "god på avanserte oppgaver", glow: "#c9a8ff" },
   "glm-5.2": { alias: "Orkan", desc: "for de tyngste oppgavene", glow: "#ff9de0" },
   "qwen3.6-35b-a3b": { alias: "Kuling", desc: "god på bilder", glow: "#8fd0ff" },
