@@ -131,6 +131,9 @@ export default function App() {
     setView("chat");
   }, []);
 
+  // Chat-headeren ber om ny chat.
+  useEffect(() => on("new-chat", newChat), [newChat]);
+
   const openChat = useCallback(
     (id: string, kind?: string) => {
       setActiveChatId(id);

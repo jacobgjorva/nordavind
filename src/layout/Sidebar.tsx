@@ -5,7 +5,8 @@ import {
   Folder01Icon,
   Folder02Icon,
 } from "@hugeicons/core-free-icons";
-import { PlusIcon, SearchIcon, SettingsIcon, SidebarIcon } from "../ui/Icons";
+import { PlusIcon, SearchIcon, SettingsIcon } from "../ui/Icons";
+import { on } from "../lib/events";
 import { Logo } from "../ui/Logo";
 import type { ChatSummary, Folder } from "../lib/api";
 import styles from "./Sidebar.module.css";
@@ -65,6 +66,8 @@ export function Sidebar({
   onLogout,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
+  // Chat-headeren eier toggle-knappen nå.
+  useEffect(() => on("sidebar-toggle", () => setCollapsed((c) => !c)), []);
   // Åpne/lukkede mapper + hvilken mappe man drar over (for hover-uthevingen).
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -129,28 +132,7 @@ export function Sidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, [onNewChat, onOpenSettings]);
 
-  if (collapsed) {
-    return (
-      <div className={styles.railCollapsed}>
-        <button
-          className={styles.iconBtn}
-          onClick={() => setCollapsed(false)}
-          aria-label="Åpne sidemeny"
-          title="Åpne sidemeny (⌘B)"
-        >
-          <SidebarIcon size={18} />
-        </button>
-        <button
-          className={styles.iconBtn}
-          onClick={onNewChat}
-          aria-label="Ny chat"
-          title="Ny chat (⌘N)"
-        >
-          <PlusIcon size={18} />
-        </button>
-      </div>
-    );
-  }
+  if (collapsed) return null;
 
   return (
     <aside className={styles.sidebar}>
@@ -159,14 +141,6 @@ export function Sidebar({
           <Logo size={8} />
           Nordavind
         </span>
-        <button
-          className={styles.iconBtn}
-          onClick={() => setCollapsed(true)}
-          aria-label="Skjul sidemeny"
-          title="Skjul sidemeny (⌘B)"
-        >
-          <SidebarIcon size={18} />
-        </button>
       </div>
 
       <button className={styles.newChat} onClick={onNewChat}>

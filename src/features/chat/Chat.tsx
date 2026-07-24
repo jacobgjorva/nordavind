@@ -29,7 +29,7 @@ import {
   Upload05Icon,
   Zip01Icon,
 } from "@hugeicons/core-free-icons";
-import { AttachIcon, SearchIcon } from "../../ui/Icons";
+import { AttachIcon, PlusIcon, SearchIcon, SidebarIcon } from "../../ui/Icons";
 import {
   connectM365,
   fetchM365Status,
@@ -1339,12 +1339,29 @@ export function Chat({
           </div>
         </div>
       )}
-      {title && (hasMessages || agent) && (
-        <div
-          className={`${styles.topbar} ${
-            scrolledPast || agent ? styles.topbarVisible : ""
-          }`}
+      <div
+        className={`${styles.topbar} ${styles.topbarVisible} ${
+          scrolledPast ? styles.topbarScrolled : ""
+        }`}
+      >
+        <button
+          className={styles.headerBtn}
+          onClick={() => emit("sidebar-toggle")}
+          aria-label="Vis/skjul sidemeny"
+          title="Vis/skjul sidemeny (⌘B)"
         >
+          <SidebarIcon size={17} />
+        </button>
+        <button
+          className={styles.headerBtn}
+          onClick={() => emit("new-chat")}
+          aria-label="Ny chat"
+          title="Ny chat (⌘N)"
+        >
+          <PlusIcon size={17} />
+        </button>
+        {title && (hasMessages || agent) && (
+          <>
           {editingTitle ? (
             <input
               className={styles.titleInput}
@@ -1447,8 +1464,9 @@ export function Chat({
               ) : null}
             </span>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
       {hasMessages ? (
         <div className={styles.conversation}>
           <div className={styles.messages} ref={messagesRef}>

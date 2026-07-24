@@ -11,6 +11,10 @@ interface EventMap {
   // Send en melding i chatten på brukerens vegne. Med reply satt rendres
   // svaret deterministisk (ingen LLM) — robust for faste flyter.
   "compose-send": { text: string; reply?: string; intent?: "connect" };
+  // Slå sidebaren av/på (fra chat-headeren).
+  "sidebar-toggle": void;
+  // Start ny chat (fra chat-headeren).
+  "new-chat": void;
 }
 
 export function emit<K extends keyof EventMap>(type: K, detail?: EventMap[K]) {
