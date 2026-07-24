@@ -963,3 +963,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Fargelagt ikon-boks i vedleggs-taggen (epost-avatar-paletten). */
+.attachTagIconBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}

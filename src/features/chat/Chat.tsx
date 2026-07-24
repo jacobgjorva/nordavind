@@ -110,6 +110,25 @@ function fileIcon(name: string): typeof AnonymousIcon {
   return FILE_ICONS[ext] ?? LottiefilesIcon;
 }
 
+// Samme palett som epost-avatarene: svak bakgrunn + sterkere farge på ikonet.
+const FILE_TAG_COLORS: [string, string][] = [
+  ["#E6F2FF", "#2e6bad"],
+  ["#CDFBFB", "#1f8a8a"],
+  ["#D8FDE4", "#2f8a54"],
+  ["#E8FDCA", "#5f7d1e"],
+  ["#FDF2B2", "#94711a"],
+  ["#FFE6E8", "#b0505a"],
+  ["#EEEAFF", "#6152b3"],
+];
+
+// Stabil farge per filtype (hash av endelsen).
+function fileTagColor(name: string): [string, string] {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  let h = 0;
+  for (let i = 0; i < ext.length; i++) h = (h * 31 + ext.charCodeAt(i)) >>> 0;
+  return FILE_TAG_COLORS[h % FILE_TAG_COLORS.length];
+}
+
 // Slash-kommandoer i composeren. Flere kommer; Agent er den eneste nå.
 const SLASH_ACTIONS: {
   cmd: string;
@@ -871,7 +890,15 @@ export function Chat({
               {a.image ? (
                 <img src={a.image} alt="" className={styles.attachTagIcon} />
               ) : (
-                <HugeiconsIcon icon={fileIcon(a.name)} size={14} />
+                <span
+                  className={styles.attachTagIconBox}
+                  style={{
+                    background: fileTagColor(a.name)[0],
+                    color: fileTagColor(a.name)[1],
+                  }}
+                >
+                  <HugeiconsIcon icon={fileIcon(a.name)} size={12} />
+                </span>
               )}
               <span className={styles.attachTagName}>{a.name}</span>
               <button
