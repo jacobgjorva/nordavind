@@ -932,14 +932,23 @@
 .attachTag {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 4px 10px;
   border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: 8px;
   background: rgba(38, 38, 42, 0.6);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Bildevedlegg: firkantet miniatyr med × oppå — ingen pilleform. */
+.attachTag.attachImageChip {
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
 }
 
 .attachTag svg {
