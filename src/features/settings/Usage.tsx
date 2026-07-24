@@ -147,14 +147,6 @@ export function Usage() {
           />
         </div>
 
-        <div className={styles.card}>
-          <div className={styles.cardTitle}>Websøk</div>
-          <UsageChart
-            xLabels={data.labels}
-            inactive={data.inactive}
-            series={[{ label: "Søk", color: "#34D499", values: data.searches }]}
-          />
-        </div>
       </div>
     </div>
   );
