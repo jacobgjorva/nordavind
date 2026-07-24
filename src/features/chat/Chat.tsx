@@ -1311,7 +1311,8 @@ export function Chat({
         >
           <AttachIcon size={15} />
         </button>
-        {userRole === "admin" && <ImpersonatePill />}
+        {/* Admin-pillen er midlertidig skjult — hentes frem igjen senere. */}
+        {false && userRole === "admin" && <ImpersonatePill />}
         <span className={styles.modelInfo}>
           <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
           <span className={styles.modelName}>{modelAlias(activeModel)}</span>
