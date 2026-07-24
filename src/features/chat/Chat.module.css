@@ -1144,3 +1144,24 @@
   align-items: center;
   opacity: 0.8;
 }
+
+/* Tools-snarvei ved siden av bindersen — åpner slash-menyen. */
+.toolsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #949494;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.toolsBtn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
