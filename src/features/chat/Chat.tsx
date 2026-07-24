@@ -13,7 +13,6 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   NeuralNetworkIcon,
-  AlertCircleIcon,
   ArrowDown01Icon,
   Attachment01Icon,
   BadgePlusIcon,
@@ -231,7 +230,6 @@ function ImpersonatePill() {
         onClick={toggle}
         title="Velg hvem du vil opptre som"
       >
-        <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} />
         {imp ? imp.email : "Admin mode"}
         <HugeiconsIcon icon={ArrowDown01Icon} size={13} strokeWidth={2} />
       </button>
