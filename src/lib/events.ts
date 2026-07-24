@@ -6,6 +6,10 @@ interface EventMap {
   "agents-changed": void;
   "chat-deleted": string;
   "widgets-changed": void;
+  // Start connector-modus i hovedchatten (fra /tilkoblinger → Ny kobling).
+  "connector-mode": void;
+  // Tilkoblingslisten er endret — paneler bør laste på nytt.
+  "connections-changed": void;
 }
 
 export function emit<K extends keyof EventMap>(type: K, detail?: EventMap[K]) {

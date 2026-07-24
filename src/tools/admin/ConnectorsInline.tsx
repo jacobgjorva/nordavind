@@ -6,6 +6,7 @@ import {
 } from "../../lib/api";
 import { Connectors } from "../../features/settings/Connectors";
 import { M365Panel } from "../../features/settings/M365Panel";
+import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import styles from "./AdminPanel.module.css";
 
@@ -14,7 +15,6 @@ import styles from "./AdminPanel.module.css";
 export function ConnectorsInline() {
   const [conns, setConns] = useState<Connection[]>([]);
   const [connId, setConnId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [m365Connected, setM365Connected] = useState(false);
   const [showM365, setShowM365] = useState(false);
 
@@ -25,6 +25,8 @@ export function ConnectorsInline() {
       .catch(swallow);
   }
   useEffect(reload, []);
+  // Ny kobling opprettes i hovedchatten — last lista når agenten er ferdig.
+  useEffect(() => on("connections-changed", reload), []);
 
   const active = conns.find((c) => c.id === connId) ?? null;
 
@@ -36,7 +38,6 @@ export function ConnectorsInline() {
             className={`${styles.connTab} ${showM365 ? styles.connTabActive : ""}`}
             onClick={() => {
               setShowM365(true);
-              setCreating(false);
               setConnId(null);
             }}
           >
@@ -47,24 +48,18 @@ export function ConnectorsInline() {
           <button
             key={c.id}
             className={`${styles.connTab} ${
-              !creating && !showM365 && connId === c.id ? styles.connTabActive : ""
+              !showM365 && connId === c.id ? styles.connTabActive : ""
             }`}
             onClick={() => {
               setShowM365(false);
-              setCreating(false);
               setConnId(c.id);
             }}
           >
             {c.name}
           </button>
         ))}
-        <button
-          className={`${styles.connTab} ${creating ? styles.connTabActive : ""}`}
-          onClick={() => {
-            setShowM365(false);
-            setCreating(true);
-          }}
-        >
+        {/* Oppretting skjer i hovedchatten — ingen chat-i-chat. */}
+        <button className={styles.connTab} onClick={() => emit("connector-mode")}>
           + Ny kobling
         </button>
       </div>
@@ -78,9 +73,9 @@ export function ConnectorsInline() {
       ) : (
         <Connectors
           conn={active}
-          creating={creating}
+          creating={false}
           onReload={reload}
-          onNew={() => setCreating(true)}
+          onNew={() => emit("connector-mode")}
         />
       )}
     </div>

@@ -30,6 +30,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
+  fetchM365Status,
   getImpersonation,
   setImpersonation,
   fetchTenantUsers,
@@ -280,6 +281,23 @@ export function Chat({
   }, []);
   // Lagret widget-utkast → /-menyen oppdateres med en gang.
   useEffect(() => on("widgets-changed", reloadWidgets), []);
+  // «Ny kobling» fra tilkoblingspanelet: gå i connector-modus her.
+  useEffect(
+    () =>
+      on("connector-mode", () => {
+        connectorModeRef.current = true;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: "assistant",
+            content: "Hva vil du koble til? F.eks. «koble til Postgres-basen vår» eller «koble til Microsoft 365».",
+            revealed: true,
+          },
+        ]);
+      }),
+    []
+  );
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -451,6 +469,10 @@ export function Chat({
   // /agent slår på agent-oppsettmodus for resten av denne samtalen, så
   // modellen beholder verktøyene gjennom hele den flerstegs-samtalen.
   const agentModeRef = useRef(false);
+  // Connector-modus: /tilkoblinger → «Ny kobling» ruter DENNE chatten til
+  // connector-agenten (ingen egen chat-i-chat). Slås av når koblingen er laget.
+  const connectorModeRef = useRef(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
   const hasMessages = messages.length > 0;
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -926,6 +948,25 @@ export function Chat({
             }
           }
           if (delta.widgetUpdated) widgetTouched = true;
+          if (delta.m365Auth) {
+            setAuthUrl(delta.m365Auth);
+            window.open(delta.m365Auth, "_blank", "width=520,height=680");
+            const t = window.setInterval(async () => {
+              const st = await fetchM365Status().catch(() => null);
+              if (st?.connected) {
+                window.clearInterval(t);
+                setAuthUrl(null);
+                connectorModeRef.current = false;
+                emit("connections-changed");
+              }
+            }, 2000);
+            window.setTimeout(() => window.clearInterval(t), 180000);
+          }
+          if (delta.connectionCreated) {
+            connectorModeRef.current = false;
+            setAuthUrl(null);
+            emit("connections-changed");
+          }
           // Forhåndssatt widget-blokk: ikke rør svaret — animasjonen står til
           // data er klar. Senere widget-turer streamer som vanlig og avgjøres
           // ved slutt (widget vs. tekstsvar).
@@ -951,6 +992,7 @@ export function Chat({
               ? agent.id
               : undefined,
           widget: widgetEditRef.current ?? undefined,
+          connector: connectorModeRef.current || undefined,
         }
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
@@ -1099,6 +1141,18 @@ export function Chat({
 
   const composer = (
     <>
+      {authUrl && (
+        <div className={styles.attachTagRow}>
+          <a
+            className={styles.authButton}
+            href={authUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Åpne Microsoft-innlogging
+          </a>
+        </div>
+      )}
       {/* Vedlegg som tags OVER composeren — fil-ikon + navn + fjern. */}
       {(attachments.length > 0 || uploadError) && (
         <div className={styles.attachTagRow}>
