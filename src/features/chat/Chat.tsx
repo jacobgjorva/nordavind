@@ -13,6 +13,8 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   NeuralNetworkIcon,
+  AlertCircleIcon,
+  ArrowDown01Icon,
   Attachment01Icon,
   BadgePlusIcon,
   Files01Icon,
@@ -225,11 +227,13 @@ function ImpersonatePill() {
   return (
     <span className={styles.impWrap}>
       <button
-        className={`${styles.impPill} ${imp ? styles.impPillActive : ""}`}
+        className={`${styles.impTrigger} ${imp ? styles.impTriggerActive : ""}`}
         onClick={toggle}
         title="Velg hvem du vil opptre som"
       >
-        {imp ? imp.email : "Admin"}
+        <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} />
+        {imp ? imp.email : "Full tilgang"}
+        <HugeiconsIcon icon={ArrowDown01Icon} size={13} strokeWidth={2} />
       </button>
       {open && (
         <span className={styles.impPop}>
@@ -1344,8 +1348,7 @@ export function Chat({
         <span className={styles.footerRight}>
           <ContextRing messages={messages} />
         </span>
-        {/* Admin-pillen er midlertidig skjult — hentes frem igjen senere. */}
-        {false && userRole === "admin" && <ImpersonatePill />}
+        {userRole === "admin" && <ImpersonatePill />}
         <span className={styles.modelInfo}>
           <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
           <span className={styles.modelName}>{modelAlias(activeModel)}</span>

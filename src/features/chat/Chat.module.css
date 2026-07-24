@@ -1027,23 +1027,6 @@
   display: inline-flex;
 }
 
-/* Samme tag-språk som admin-taggen: lys pastell + mørk tekst, 5px radius. */
-.impPill {
-  padding: 2px 10px;
-  border-radius: 5px;
-  border: none;
-  background: #E6F2FF;
-  color: #2e6bad;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Aktiv simulering: rødlig variant så det er tydelig at du opptrer som en annen. */
-.impPillActive {
-  background: #FFE6E8;
-  color: #b0505a;
-}
 
 .impPop {
   position: absolute;
@@ -1164,4 +1147,33 @@
 .toolsBtn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);
+}
+
+/* Bruker-styring for admin: varm tekst-trigger uten pille (à la «Full access»). */
+.impTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 12px;
+  padding: 3px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #d99a6c;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.impTrigger:hover {
+  background: rgba(217, 154, 108, 0.1);
+}
+
+/* Aktiv simulering: kaldere blå så det er tydelig at du er en annen. */
+.impTriggerActive {
+  color: #7aa2f7;
+}
+
+.impTriggerActive:hover {
+  background: rgba(122, 162, 247, 0.1);
 }
