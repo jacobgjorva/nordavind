@@ -181,27 +181,6 @@ export function TableManager({
         }}
       />
 
-      {pageCount > 1 && (
-        <div className={styles.tmPager}>
-          <button
-            className={styles.tmPageBtn}
-            disabled={safePage === 0}
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-          >
-            ←
-          </button>
-          <span className={styles.tmPageCount}>
-            {safePage + 1} / {pageCount}
-          </span>
-          <button
-            className={styles.tmPageBtn}
-            disabled={safePage >= pageCount - 1}
-            onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
-          >
-            →
-          </button>
-        </div>
-      )}
       <div className={styles.tmList}>
         {tables.map((t) => {
           const s = state[t.name];
@@ -271,6 +250,27 @@ export function TableManager({
           );
         })}
       </div>
+      {pageCount > 1 && (
+        <div className={styles.tmPager}>
+          <button
+            className={styles.tmPageBtn}
+            disabled={safePage === 0}
+            onClick={() => setPage((p) => Math.max(p - 1, 0))}
+          >
+            ←
+          </button>
+          <span className={styles.tmPageCount}>
+            {safePage + 1} / {pageCount}
+          </span>
+          <button
+            className={styles.tmPageBtn}
+            disabled={safePage >= pageCount - 1}
+            onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+          >
+            →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
