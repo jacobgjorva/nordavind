@@ -8,6 +8,15 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   Delete01Icon,
+  Csv01Icon,
+  Doc01Icon,
+  HtmlFile01Icon,
+  LottiefilesIcon,
+  Pdf01Icon,
+  Svg01Icon,
+  Txt01Icon,
+  Xls01Icon,
+  Zip01Icon,
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
@@ -78,6 +87,27 @@ interface ChatMessage extends Omit<ApiMessage, "content"> {
   attachmentNames?: string[];
   /** data:-URL-er for vedlagte bilder (forhåndsvisning i bobla) */
   images?: string[];
+}
+
+// Filtype → ikon for vedleggs-tags.
+const FILE_ICONS: Record<string, typeof AnonymousIcon> = {
+  pdf: Pdf01Icon,
+  txt: Txt01Icon,
+  md: Txt01Icon,
+  svg: Svg01Icon,
+  csv: Csv01Icon,
+  xls: Xls01Icon,
+  xlsx: Xls01Icon,
+  html: HtmlFile01Icon,
+  htm: HtmlFile01Icon,
+  doc: Doc01Icon,
+  docx: Doc01Icon,
+  zip: Zip01Icon,
+};
+
+function fileIcon(name: string): typeof AnonymousIcon {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return FILE_ICONS[ext] ?? LottiefilesIcon;
 }
 
 // Slash-kommandoer i composeren. Flere kommer; Agent er den eneste nå.
@@ -841,7 +871,7 @@ export function Chat({
               {a.image ? (
                 <img src={a.image} alt="" className={styles.attachTagIcon} />
               ) : (
-                <AttachIcon size={13} />
+                <HugeiconsIcon icon={fileIcon(a.name)} size={14} />
               )}
               <span className={styles.attachTagName}>{a.name}</span>
               <button
