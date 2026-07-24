@@ -27,7 +27,6 @@ En europeisk AI-plattform bygget på open-weight modeller (GLM-5.2, Kimi K2.7) m
   som ser forbruk og grenser for hele bedriften.
 - **Brukerne er ansatte** under tenanten: egen innlogging, egne samtaler; forbruk logges per
   bruker og aggregeres per tenant (`tenant_id` + `user_id` på alt fra dag én).
-- **Prismodell:** fastpris per bruker/mnd; vår interne kostkontroll (modellruting) sikrer margin.
 
 ## Per-kunde-tilpasning (skall-modellen)
 - **Backend eier all logikk og konfigurasjon:** modellruting, websøk, system-prompt, usage —
