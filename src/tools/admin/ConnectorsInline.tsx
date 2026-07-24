@@ -19,7 +19,13 @@ export function ConnectorsInline() {
   const [showM365, setShowM365] = useState(false);
 
   function reload() {
-    fetchConnections().then(setConns).catch(swallow);
+    fetchConnections()
+      .then((list) => {
+        setConns(list);
+        // Vis eksisterende tilkoblinger med en gang — velg den første.
+        setConnId((cur) => cur ?? list[0]?.id ?? null);
+      })
+      .catch(swallow);
     fetchM365Status()
       .then((s) => setM365Connected(s.connected))
       .catch(swallow);
