@@ -1120,6 +1120,7 @@
   margin-left: auto;
   display: inline-flex;
   align-items: center;
+  gap: 12px;
 }
 
 .ctxRing {

@@ -1346,15 +1346,15 @@ export function Chat({
           <HugeiconsIcon icon={Attachment01Icon} size={16} strokeWidth={2} />
         </button>
         {userRole === "admin" && <ImpersonatePill />}
-        <span className={styles.modelInfo}>
-          <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
-          <span className={styles.modelName}>{modelAlias(activeModel)}</span>
-          {modelDesc(activeModel) && (
-            <span className={styles.modelHint}>{modelDesc(activeModel)}</span>
-          )}
-        </span>
         <span className={styles.footerRight}>
           <ContextRing messages={messages} />
+          <span className={styles.modelInfo}>
+            <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
+            <span className={styles.modelName}>{modelAlias(activeModel)}</span>
+            {modelDesc(activeModel) && (
+              <span className={styles.modelHint}>{modelDesc(activeModel)}</span>
+            )}
+          </span>
         </span>
       </div>
     </div>
