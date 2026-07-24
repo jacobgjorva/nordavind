@@ -104,3 +104,20 @@
   font-size: 12px;
   color: var(--text-faint);
 }
+
+/* Manuell innloggingsknapp for M365 (popup-blokkering er vanlig). */
+.authButton {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.authButton:hover {
+  background: #fff;
+}

@@ -21,6 +21,9 @@ export function ConnectorAgentChat({ onCreated }: { onCreated: () => void }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  // Innloggings-URL fra agenten: nettlesere blokkerer window.open utenfor
+  // klikk-kontekst, så vi viser alltid en knapp brukeren kan klikke selv.
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
   // Full samtalehistorikk til modellen (inkl. det brukeren skrev).
   const historyRef = useRef<ApiMessage[]>([
     { role: "assistant", content: "Hva vil du koble til?" },
@@ -46,12 +49,14 @@ export function ConnectorAgentChat({ onCreated }: { onCreated: () => void }) {
         (delta) => {
           if (delta.step) setStatus(delta.step);
           if (delta.m365Auth) {
+            setAuthUrl(delta.m365Auth);
             window.open(delta.m365Auth, "_blank", "width=520,height=680");
             // Fang fullført innlogging: bekreft i chatten og oppdater lista.
             const t = window.setInterval(async () => {
               const st = await fetchM365Status().catch(() => null);
               if (st?.connected) {
                 window.clearInterval(t);
+                setAuthUrl(null);
                 say("bot", `Microsoft 365 er koblet til som ${st.email} ✓`);
                 historyRef.current.push({
                   role: "assistant",
@@ -92,6 +97,19 @@ export function ConnectorAgentChat({ onCreated }: { onCreated: () => void }) {
             {m.text}
           </div>
         ))}
+        {authUrl && (
+          <a
+            className={styles.authButton}
+            href={authUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => {
+              /* ekte klikk → popup-blokkering biter ikke */
+            }}
+          >
+            Åpne Microsoft-innlogging
+          </a>
+        )}
         {status && (
           <div className={chatStyles.step}>
             <span className={chatStyles.thinkingLogo}>
