@@ -387,6 +387,32 @@ export function Chat({
     );
   }
 
+  // Cmd/Ctrl+V med bilde i utklippstavlen: legg det rett på som vedlegg.
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imgs: File[] = [];
+    for (const it of items) {
+      if (it.kind === "file" && it.type.startsWith("image/")) {
+        const f = it.getAsFile();
+        if (f) imgs.push(f);
+      }
+    }
+    if (imgs.length === 0) return; // vanlig tekst-lim: la browseren gjøre sitt
+    e.preventDefault();
+    const dt = new DataTransfer();
+    const stamp = new Date().toTimeString().slice(0, 8).replaceAll(":", "");
+    imgs.forEach((f, i) => {
+      const ext = f.type.split("/")[1] || "png";
+      const name =
+        f.name && f.name !== "image.png"
+          ? f.name
+          : `skjermbilde-${stamp}${i ? `-${i + 1}` : ""}.${ext}`;
+      dt.items.add(new File([f], name, { type: f.type }));
+    });
+    handleFiles(dt.files);
+  }
+
   async function handleFiles(files: FileList | null) {
     if (!files) return;
     setUploadError(null);
@@ -927,6 +953,7 @@ export function Chat({
           value={input}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           autoFocus
         />
       </div>
