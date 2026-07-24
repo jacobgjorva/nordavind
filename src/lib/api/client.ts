@@ -27,8 +27,36 @@ export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 export function authHeaders(): Record<string, string> {
   const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const imp = getImpersonation();
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(imp ? { "X-Impersonate-User": imp.id } : {}),
+  };
 }
+
+// --- Admin-simulering: admin trer inn i en annen brukers tilstand. ---
+const IMP_KEY = "nordavind.impersonate";
+
+export interface Impersonation {
+  id: string;
+  email: string;
+}
+
+export function getImpersonation(): Impersonation | null {
+  try {
+    const raw = localStorage.getItem(IMP_KEY);
+    return raw ? (JSON.parse(raw) as Impersonation) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const setImpersonation = (imp: Impersonation | null) => {
+  if (imp) localStorage.setItem(IMP_KEY, JSON.stringify(imp));
+  else localStorage.removeItem(IMP_KEY);
+};
+
+
 
 // ApiError bærer HTTP-statusen så kallere kan skille f.eks. 404 fra 500.
 export class ApiError extends Error {
@@ -52,6 +80,9 @@ interface FetchOptions {
 export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const { method = "GET", body, signal } = opts;
   const headers: Record<string, string> = { ...authHeaders() };
+  // /auth og /me skal alltid svare som den EKTE brukeren — appen må vite
+  // hvem admin er selv midt i en simulering.
+  if (path.startsWith("/auth") || path === "/me") delete headers["X-Impersonate-User"];
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   const res = await fetch(`${BASE_URL}${path}`, {

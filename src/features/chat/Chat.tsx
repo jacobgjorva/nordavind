@@ -22,6 +22,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
+  getImpersonation,
+  setImpersonation,
+  fetchTenantUsers,
+  type TenantUser,
   apiConfigured,
   appendChatMessage,
   createChat,
@@ -154,6 +158,55 @@ const SLASH_ACTIONS: {
     icon: BorderNone02Icon,
   },
 ];
+
+// Admin-pille i composeren: viser hvem admin opptrer som, klikk åpner
+// brukerliste — valgt bruker simuleres i alle data-kall til den slås av.
+function ImpersonatePill() {
+  const [open, setOpen] = useState(false);
+  const [users, setUsers] = useState<TenantUser[] | null>(null);
+  const imp = getImpersonation();
+
+  async function toggle() {
+    if (!open && users === null) {
+      setUsers(await fetchTenantUsers().catch(() => []));
+    }
+    setOpen((o) => !o);
+  }
+
+  function pick(u: TenantUser | null) {
+    setImpersonation(u ? { id: u.id, email: u.email } : null);
+    // Full reload: hele tilstanden (chats, widgets, tilganger) skal arves.
+    window.location.reload();
+  }
+
+  return (
+    <span className={styles.impWrap}>
+      <button
+        className={`${styles.impPill} ${imp ? styles.impPillActive : ""}`}
+        onClick={toggle}
+        title="Velg hvem du vil opptre som"
+      >
+        {imp ? imp.email : "Admin"}
+      </button>
+      {open && (
+        <span className={styles.impPop}>
+          <button className={styles.impRow} onClick={() => pick(null)}>
+            Admin (deg selv)
+          </button>
+          {users === null ? (
+            <span className={styles.impEmpty}>Henter …</span>
+          ) : (
+            users.map((u) => (
+              <button key={u.id} className={styles.impRow} onClick={() => pick(u)}>
+                {u.email}
+              </button>
+            ))
+          )}
+        </span>
+      )}
+    </span>
+  );
+}
 
 // Admin-styring i chatten: settings-panelene kalles inn som blokker.
 const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; adminOnly?: boolean }[] = [
@@ -1121,6 +1174,7 @@ export function Chat({
         >
           <AttachIcon size={15} />
         </button>
+        {userRole === "admin" && <ImpersonatePill />}
         <span className={styles.modelInfo}>
           <span className={styles.modelLabel}>Modell:</span>{" "}
           {modelAlias(activeModel)}
