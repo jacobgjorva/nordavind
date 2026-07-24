@@ -38,33 +38,28 @@ export function ConnectorsInline() {
 
   return (
     <div className={styles.panelCard}>
-      <div className={styles.connRow}>
-        {m365Connected && (
-          <button
-            className={`${styles.connTab} ${showM365 ? styles.connTabActive : ""}`}
-            onClick={() => {
-              setShowM365(true);
-              setConnId(null);
-            }}
-          >
-            Microsoft 365
-          </button>
-        )}
+      {/* Dropdown skalerer til titalls koblinger uten å ta plass. */}
+      <select
+        className={styles.connSelect}
+        value={showM365 ? "__m365" : connId ?? ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "__m365") {
+            setShowM365(true);
+            setConnId(null);
+          } else {
+            setShowM365(false);
+            setConnId(v);
+          }
+        }}
+      >
+        {m365Connected && <option value="__m365">Microsoft 365</option>}
         {conns.map((c) => (
-          <button
-            key={c.id}
-            className={`${styles.connTab} ${
-              !showM365 && connId === c.id ? styles.connTabActive : ""
-            }`}
-            onClick={() => {
-              setShowM365(false);
-              setConnId(c.id);
-            }}
-          >
+          <option key={c.id} value={c.id}>
             {c.name}
-          </button>
+          </option>
         ))}
-      </div>
+      </select>
       {showM365 ? (
         <M365Panel
           onChanged={() => {

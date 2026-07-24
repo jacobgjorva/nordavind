@@ -26,3 +26,15 @@
   background: rgba(255, 255, 255, 0.08);
   color: var(--text, #eee);
 }
+
+/* Tilkoblingsvelger som dropdown — skalerer til mange koblinger. */
+.connSelect {
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  min-width: 260px;
+  border-radius: 8px;
+  border: 0.5px solid var(--border-strong, #2a2a2e);
+  background: var(--bg-raised, #1a1a1e);
+  color: var(--text, #eee);
+  font-size: 13px;
+}
