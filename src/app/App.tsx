@@ -217,9 +217,8 @@ export default function App() {
         onMoveChatToFolder={onMoveChatToFolder}
         onLogout={logout}
       />
-      {/* Chat holdes montert (skjult) mens settings vises, så samtalen overlever. */}
       {/* AdminUserContext: admin-panelene i chatten trenger innlogget bruker-id. */}
-      <div className={styles.main} style={view === "settings" ? { display: "none" } : undefined}>
+      <div className={styles.main}>
         <Chat
           key={session.key}
           userRole={user.role}
@@ -237,8 +236,13 @@ export default function App() {
         />
       </div>
       {view === "settings" && (
-        <div className={styles.settingsPage}>
-          <Settings user={user} onClose={closeSettings} />
+        <div className={styles.settingsOverlay} onClick={closeSettings}>
+          <div
+            className={styles.settingsModal}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Settings user={user} onClose={closeSettings} />
+          </div>
         </div>
       )}
     </div>
