@@ -832,20 +832,24 @@ export function Chat({
   }
 
   const composer = (
-    <div className={styles.composer}>
+    <>
+      {/* Vedlegg som tags OVER composeren — fil-ikon + navn + fjern. */}
       {(attachments.length > 0 || uploadError) && (
-        <div className={styles.attachRow}>
+        <div className={styles.attachTagRow}>
           {attachments.map((a) => (
             <span
               key={a.name}
-              className={`${styles.attachChip} ${
+              className={`${styles.attachTag} ${
                 a.image ? styles.attachImageChip : ""
               }`}
             >
               {a.image ? (
                 <img src={a.image} alt={a.name} className={styles.attachThumb} />
               ) : (
-                a.name
+                <>
+                  <AttachIcon size={13} />
+                  <span className={styles.attachTagName}>{a.name}</span>
+                </>
               )}
               <button
                 className={styles.attachRemove}
@@ -863,6 +867,7 @@ export function Chat({
           )}
         </div>
       )}
+    <div className={styles.composer}>
       <div className={styles.inputRow}>
         <textarea
           ref={textareaRef}
@@ -931,6 +936,7 @@ export function Chat({
         </span>
       </div>
     </div>
+    </>
   );
 
   return (
