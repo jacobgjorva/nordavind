@@ -709,9 +709,10 @@ export function Chat({
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
     // Admin-panelene rendres inline på samme måte som widgets.
-    const adminAct = ADMIN_ACTIONS.find(
-      (a) => a.cmd === firstTok && (!a.adminOnly || effectiveRole === "admin")
-    );
+    const adminAct =
+      effectiveRole === "admin"
+        ? ADMIN_ACTIONS.find((a) => a.cmd === firstTok)
+        : undefined;
     if (adminAct) {
       await renderAdminInline(raw, adminAct.cmd);
       return;
@@ -1020,10 +1021,12 @@ export function Chat({
   const slashItems = slashMatch
     ? [
         ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
-        ...ADMIN_ACTIONS.filter(
-          (a) =>
-            a.cmd.startsWith(slashPrefix) && (!a.adminOnly || effectiveRole === "admin")
-        ).map((a) => ({ ...a, icon: AnonymousIcon, tag: "Admin" })),
+        // Hele admin-styringen er kun for admin (og skjules under simulering).
+        ...(effectiveRole === "admin"
+          ? ADMIN_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)).map(
+              (a) => ({ ...a, icon: AnonymousIcon, tag: "Admin" })
+            )
+          : []),
         ...widgets
           .filter((w) => w.slug.startsWith(slashPrefix))
           .map((w) => ({
