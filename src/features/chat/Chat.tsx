@@ -13,6 +13,7 @@ import {
   AnonymousIcon,
   BorderNone02Icon,
   NeuralNetworkIcon,
+  Attachment01Icon,
   BadgePlusIcon,
   Files01Icon,
   FlashIcon,
@@ -1309,7 +1310,7 @@ export function Chat({
           title="Legg ved fil"
           aria-label="Legg ved fil"
         >
-          <AttachIcon size={15} />
+          <HugeiconsIcon icon={Attachment01Icon} size={16} strokeWidth={2} />
         </button>
         {/* Admin-pillen er midlertidig skjult — hentes frem igjen senere. */}
         {false && userRole === "admin" && <ImpersonatePill />}
