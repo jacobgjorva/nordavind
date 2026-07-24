@@ -270,3 +270,31 @@
     transparent 3.5px
   );
 }
+
+/* Paginering: panelet skal aldri trenge scroll. */
+.tmPager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.tmPageBtn {
+  padding: 3px 10px;
+  border-radius: 7px;
+  border: 0.5px solid var(--border-strong, #2a2a2e);
+  background: transparent;
+  color: var(--text-muted, #a0a0a8);
+  cursor: pointer;
+}
+
+.tmPageBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tmPageCount {
+  font-size: 12px;
+  color: var(--text-faint, #6a6a72);
+  font-variant-numeric: tabular-nums;
+}

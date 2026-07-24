@@ -63,6 +63,7 @@ export function TableManager({
   const cfg = schema.config.tables ?? [];
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const views = schema.config.views ?? [];
@@ -97,9 +98,14 @@ export function TableManager({
   }, []);
 
   const adminId = users.find((u) => u.role === "admin")?.id ?? "";
-  const tables = schema.tables.filter((t) =>
+  const allTables = schema.tables.filter((t) =>
     t.name.toLowerCase().includes(query.trim().toLowerCase())
   );
+  // Paginering: brukeren skal aldri måtte skrolle i panelet.
+  const PAGE_SIZE = 8;
+  const pageCount = Math.max(1, Math.ceil(allTables.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const tables = allTables.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
   const chosenCount = Object.values(state).filter((s) => s.on).length;
 
   function patch(name: string, p: Partial<(typeof state)[string]>) {
@@ -169,9 +175,33 @@ export function TableManager({
         className={styles.tmSearch}
         placeholder="Søk i bord …"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setPage(0);
+        }}
       />
 
+      {pageCount > 1 && (
+        <div className={styles.tmPager}>
+          <button
+            className={styles.tmPageBtn}
+            disabled={safePage === 0}
+            onClick={() => setPage((p) => Math.max(p - 1, 0))}
+          >
+            ←
+          </button>
+          <span className={styles.tmPageCount}>
+            {safePage + 1} / {pageCount}
+          </span>
+          <button
+            className={styles.tmPageBtn}
+            disabled={safePage >= pageCount - 1}
+            onClick={() => setPage((p) => Math.min(p + 1, pageCount - 1))}
+          >
+            →
+          </button>
+        </div>
+      )}
       <div className={styles.tmList}>
         {tables.map((t) => {
           const s = state[t.name];
