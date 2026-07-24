@@ -6,7 +6,7 @@ import {
 } from "../../lib/api";
 import { Connectors } from "../../features/settings/Connectors";
 import { M365Panel } from "../../features/settings/M365Panel";
-import { emit, on } from "../../lib/events";
+import { on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import styles from "./AdminPanel.module.css";
 
@@ -58,10 +58,6 @@ export function ConnectorsInline() {
             {c.name}
           </button>
         ))}
-        {/* Oppretting skjer i hovedchatten — ingen chat-i-chat. */}
-        <button className={styles.connTab} onClick={() => emit("connector-mode")}>
-          + Ny kobling
-        </button>
       </div>
       {showM365 ? (
         <M365Panel
@@ -71,12 +67,7 @@ export function ConnectorsInline() {
           }}
         />
       ) : (
-        <Connectors
-          conn={active}
-          creating={false}
-          onReload={reload}
-          onNew={() => emit("connector-mode")}
-        />
+        <Connectors conn={active} onReload={reload} />
       )}
     </div>
   );

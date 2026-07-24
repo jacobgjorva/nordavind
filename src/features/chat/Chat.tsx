@@ -281,23 +281,7 @@ export function Chat({
   }, []);
   // Lagret widget-utkast → /-menyen oppdateres med en gang.
   useEffect(() => on("widgets-changed", reloadWidgets), []);
-  // «Ny kobling» fra tilkoblingspanelet: gå i connector-modus her.
-  useEffect(
-    () =>
-      on("connector-mode", () => {
-        connectorModeRef.current = true;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: nextId(),
-            role: "assistant",
-            content: "Hva vil du koble til? F.eks. «koble til Postgres-basen vår» eller «koble til Microsoft 365».",
-            revealed: true,
-          },
-        ]);
-      }),
-    []
-  );
+
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -469,9 +453,7 @@ export function Chat({
   // /agent slår på agent-oppsettmodus for resten av denne samtalen, så
   // modellen beholder verktøyene gjennom hele den flerstegs-samtalen.
   const agentModeRef = useRef(false);
-  // Connector-modus: /tilkoblinger → «Ny kobling» ruter DENNE chatten til
-  // connector-agenten (ingen egen chat-i-chat). Slås av når koblingen er laget.
-  const connectorModeRef = useRef(false);
+  // M365-innlogging: lenke fra connect_m365-verktøyet vises over composeren.
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const hasMessages = messages.length > 0;
 
@@ -956,14 +938,12 @@ export function Chat({
               if (st?.connected) {
                 window.clearInterval(t);
                 setAuthUrl(null);
-                connectorModeRef.current = false;
                 emit("connections-changed");
               }
             }, 2000);
             window.setTimeout(() => window.clearInterval(t), 180000);
           }
           if (delta.connectionCreated) {
-            connectorModeRef.current = false;
             setAuthUrl(null);
             emit("connections-changed");
           }
@@ -992,7 +972,6 @@ export function Chat({
               ? agent.id
               : undefined,
           widget: widgetEditRef.current ?? undefined,
-          connector: connectorModeRef.current || undefined,
         }
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.

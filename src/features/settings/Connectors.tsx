@@ -6,21 +6,16 @@ import {
   type ConnectionSchema,
 } from "../../lib/api";
 import styles from "./Connectors.module.css";
-import { ConnectorAgentChat } from "./ConnectorAgentChat";
 import { TableManager } from "./TableManager";
 import { swallow } from "../../lib/log";
 
 // Styrt visning: valget skjer i settings-navigasjonen (undersider av Connectors).
 export function Connectors({
   conn,
-  creating,
   onReload,
-  onNew,
 }: {
   conn: Connection | null;
-  creating: boolean;
   onReload: () => void;
-  onNew: () => void;
 }) {
   const [schema, setSchema] = useState<ConnectionSchema | null>(null);
 
@@ -37,16 +32,13 @@ export function Connectors({
     onReload();
   }
 
-  if (creating) {
-    return <ConnectorAgentChat onCreated={onReload} />;
-  }
 
   if (!conn) {
+    // Ingen valgt: nye koblinger opprettes ved å be agenten i chatten
+    // («koble til Postgres-basen vår») — ingen egen knapp eller veiviser.
     return (
       <div className={styles.connEmpty}>
-        <button className={styles.primary} onClick={onNew}>
-          Ny kobling
-        </button>
+        Velg en tilkobling over, eller be agenten i chatten om å koble til en ny.
       </div>
     );
   }
