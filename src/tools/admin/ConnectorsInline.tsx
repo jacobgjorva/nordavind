@@ -70,7 +70,9 @@ export function ConnectorsInline() {
       </select>
         <button
           className={styles.createBtn}
-          onClick={() => emit("compose-send", "Opprett en ny kobling")}
+          onClick={() =>
+            emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?" })
+          }
           title="Be agenten opprette en ny kobling"
         >
           Opprett kobling

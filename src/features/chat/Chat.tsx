@@ -281,10 +281,25 @@ export function Chat({
   }, []);
   // Lagret widget-utkast → /-menyen oppdateres med en gang.
   useEffect(() => on("widgets-changed", reloadWidgets), []);
-  // Paneler kan sende en melding på brukerens vegne (f.eks. «Opprett kobling»).
+  // Paneler kan sende en melding på brukerens vegne. Fast reply rendres
+  // deterministisk — modellen er ikke involvert, så flyten er alltid lik.
   useEffect(
     () =>
-      on("compose-send", (text) => {
+      on("compose-send", ({ text, reply }) => {
+        if (reply) {
+          setMessages((prev) => [
+            ...prev,
+            { id: nextId(), role: "user", content: text, display: text, revealed: true },
+            { id: nextId(), role: "assistant", content: reply, revealed: true },
+          ]);
+          const cid = chatIdRef.current;
+          if (cid) {
+            appendChatMessage(cid, { role: "user", content: text })
+              .then(() => appendChatMessage(cid, { role: "assistant", content: reply }))
+              .catch(swallow);
+          }
+          return;
+        }
         send(text);
       }),
     // send er stabil nok her — lytteren registreres én gang.

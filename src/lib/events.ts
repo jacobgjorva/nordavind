@@ -8,8 +8,9 @@ interface EventMap {
   "widgets-changed": void;
   // Tilkoblingslisten er endret — paneler bør laste på nytt.
   "connections-changed": void;
-  // Send en melding i chatten på brukerens vegne (f.eks. «Opprett kobling»).
-  "compose-send": string;
+  // Send en melding i chatten på brukerens vegne. Med reply satt rendres
+  // svaret deterministisk (ingen LLM) — robust for faste flyter.
+  "compose-send": { text: string; reply?: string };
 }
 
 export function emit<K extends keyof EventMap>(type: K, detail?: EventMap[K]) {
