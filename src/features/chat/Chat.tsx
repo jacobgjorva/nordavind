@@ -281,13 +281,14 @@ export function Chat({
   }, []);
   // Lagret widget-utkast → /-menyen oppdateres med en gang.
   useEffect(() => on("widgets-changed", reloadWidgets), []);
-  // Paneler kan forhåndsutfylle composeren (f.eks. «Opprett kobling»).
+  // Paneler kan sende en melding på brukerens vegne (f.eks. «Opprett kobling»).
   useEffect(
     () =>
-      on("compose-prefill", (text) => {
-        setInput(text);
-        textareaRef.current?.focus();
+      on("compose-send", (text) => {
+        send(text);
       }),
+    // send er stabil nok her — lytteren registreres én gang.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
