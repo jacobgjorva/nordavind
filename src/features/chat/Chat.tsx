@@ -155,6 +155,15 @@ const SLASH_ACTIONS: {
   },
 ];
 
+// Admin-styring i chatten: settings-panelene kalles inn som blokker.
+const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; adminOnly?: boolean }[] = [
+  { cmd: "forbruk", label: "Forbruk", desc: "Token- og kostnadsoversikt" },
+  { cmd: "kunnskap", label: "Kunnskap", desc: "Bedriftskunnskapen AI-en husker" },
+  { cmd: "dokumenter", label: "Dokumenter", desc: "Dokumentbiblioteket" },
+  { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret" },
+  { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", adminOnly: true },
+];
+
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
 // nettverks-chunkenes rykkete ankomst. Ufullstendige ord holdes tilbake;
 // markdown tar over når svaret er ferdig.
@@ -164,12 +173,15 @@ export function Chat({
   initialTitle,
   onChatCreated,
   onTitleGenerated,
+  userRole,
 }: {
   chatId: string | null;
   onStartAgent?: () => void;
   initialTitle?: string | null;
   onChatCreated?: (chat: ChatSummary) => void;
   onTitleGenerated?: () => void;
+  /** Rolle til innlogget bruker — styrer admin-kommandoene i slash-menyen. */
+  userRole?: string;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [title, setTitle] = useState<string | null>(initialTitle ?? null);
@@ -599,6 +611,34 @@ export function Chat({
     }
   }
 
+  // Kaller et admin-panel inline i chatten: ingen LLM, bare en
+  // ```admin <panel>```-blokk som rendrer settings-komponenten der og da.
+  async function renderAdminInline(raw: string, panel: string) {
+    setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    const block = "```admin\n" + panel + "\n```";
+    if (!chatIdRef.current) {
+      try {
+        const chat = await createChat(`/${panel}`);
+        chatIdRef.current = chat.id;
+        onChatCreated?.(chat);
+      } catch {
+        // persistens er ikke kritisk
+      }
+    }
+    setMessages((prev) => [
+      ...prev,
+      { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+      { id: nextId(), role: "assistant", content: block, revealed: true },
+    ]);
+    const cid = chatIdRef.current;
+    if (cid) {
+      appendChatMessage(cid, { role: "user", content: raw })
+        .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
+        .catch(swallow);
+    }
+  }
+
   async function send(overrideText?: string) {
     const raw = (overrideText ?? input).trim();
     if ((!raw && attachments.length === 0) || busy) return;
@@ -612,6 +652,14 @@ export function Chat({
 
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
+    // Admin-panelene rendres inline på samme måte som widgets.
+    const adminAct = ADMIN_ACTIONS.find(
+      (a) => a.cmd === firstTok && (!a.adminOnly || userRole === "admin")
+    );
+    if (adminAct) {
+      await renderAdminInline(raw, adminAct.cmd);
+      return;
+    }
     if (firstTok && firstTok !== "widget" && firstTok !== "agent") {
       const w = widgets.find((x) => x.slug === firstTok);
       if (w) {
@@ -916,6 +964,10 @@ export function Chat({
   const slashItems = slashMatch
     ? [
         ...SLASH_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)),
+        ...ADMIN_ACTIONS.filter(
+          (a) =>
+            a.cmd.startsWith(slashPrefix) && (!a.adminOnly || userRole === "admin")
+        ).map((a) => ({ ...a, icon: AnonymousIcon })),
         ...widgets
           .filter((w) => w.slug.startsWith(slashPrefix))
           .map((w) => ({

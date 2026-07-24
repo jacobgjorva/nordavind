@@ -1,0 +1,9 @@
+/* Settings-komponent innfelt i chatten: eget kort med rullbar høyde. */
+.panelCard {
+  border: 0.5px solid var(--border, #26262a);
+  border-radius: 12px;
+  background: var(--bg-raised, #141416);
+  padding: 16px;
+  max-height: 560px;
+  overflow-y: auto;
+}

@@ -3,6 +3,7 @@ import { Chat } from "../features/chat/Chat";
 import { Login } from "../features/auth/Login";
 import { Settings } from "../features/settings/Settings";
 import { Sidebar } from "../layout/Sidebar";
+import { AdminUserContext } from "../tools/admin";
 import {
   clearToken,
   createDraftAgent,
@@ -199,6 +200,7 @@ export default function App() {
   if (user === false) return <Login onLogin={setUser} />;
 
   return (
+    <AdminUserContext.Provider value={user.id}>
     <div className={styles.app}>
       <Sidebar
         chats={chats}
@@ -216,9 +218,11 @@ export default function App() {
         onLogout={logout}
       />
       {/* Chat holdes montert (skjult) mens settings vises, så samtalen overlever. */}
+      {/* AdminUserContext: admin-panelene i chatten trenger innlogget bruker-id. */}
       <div className={styles.main} style={view === "settings" ? { display: "none" } : undefined}>
         <Chat
           key={session.key}
+          userRole={user.role}
           chatId={session.chatId}
           onStartAgent={startAgent}
           initialTitle={
@@ -238,5 +242,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </AdminUserContext.Provider>
   );
 }
