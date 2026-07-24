@@ -32,7 +32,7 @@ import {
   Upload05Icon,
   Zip01Icon,
 } from "@hugeicons/core-free-icons";
-import { AttachIcon, SearchIcon } from "../../ui/Icons";
+import { SearchIcon } from "../../ui/Icons";
 import {
   connectM365,
   fetchM365Status,
