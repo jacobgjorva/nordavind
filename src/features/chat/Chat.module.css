@@ -975,7 +975,7 @@
   flex-shrink: 0;
 }
 
-/* Drag & drop-overlegg: vises så lenge en fil dras over vinduet. */
+/* Drag & drop-overlegg: mørk tint over hele skjermen, hvit tekst + ikon. */
 .dropOverlay {
   position: fixed;
   inset: 0;
@@ -983,17 +983,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
+  background: rgba(10, 10, 12, 0.72);
+  backdrop-filter: blur(3px);
   pointer-events: none;
+  animation: overlayFade 0.12s ease;
 }
 
-.dropBox {
-  border: 1.5px dashed rgba(255, 255, 255, 0.5);
-  border-radius: 16px;
-  padding: 36px 72px;
-  font-size: 17px;
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dropHint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #fff;
+  font-size: 16px;
   font-weight: 550;
-  color: var(--text, #eee);
-  background: rgba(38, 38, 42, 0.5);
 }

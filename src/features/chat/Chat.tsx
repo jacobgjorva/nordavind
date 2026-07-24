@@ -16,6 +16,7 @@ import {
   Svg01Icon,
   Txt01Icon,
   Xls01Icon,
+  Upload05Icon,
   Zip01Icon,
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
@@ -1064,7 +1065,10 @@ export function Chat({
     <div className={styles.chatRoot}>
       {dragging && (
         <div className={styles.dropOverlay}>
-          <div className={styles.dropBox}>Slipp for å legge ved</div>
+          <div className={styles.dropHint}>
+            <HugeiconsIcon icon={Upload05Icon} size={40} strokeWidth={1.5} />
+            <span>Slipp for å legge ved</span>
+          </div>
         </div>
       )}
       {title && (hasMessages || agent) && (
