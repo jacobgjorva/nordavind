@@ -8,6 +8,8 @@ interface EventMap {
   "widgets-changed": void;
   // Tilkoblingslisten er endret — paneler bør laste på nytt.
   "connections-changed": void;
+  // Forhåndsutfyll composeren med tekst og gi den fokus.
+  "compose-prefill": string;
 }
 
 export function emit<K extends keyof EventMap>(type: K, detail?: EventMap[K]) {

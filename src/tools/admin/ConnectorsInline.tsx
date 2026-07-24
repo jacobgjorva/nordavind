@@ -6,7 +6,7 @@ import {
 } from "../../lib/api";
 import { Connectors } from "../../features/settings/Connectors";
 import { M365Panel } from "../../features/settings/M365Panel";
-import { on } from "../../lib/events";
+import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import styles from "./AdminPanel.module.css";
 
@@ -45,6 +45,7 @@ export function ConnectorsInline() {
 
   return (
     <div className={styles.panelCard}>
+      <div className={styles.topRow}>
       {/* Dropdown skalerer til titalls koblinger uten å ta plass. */}
       <select
         className={styles.connSelect}
@@ -67,6 +68,14 @@ export function ConnectorsInline() {
           </option>
         ))}
       </select>
+        <button
+          className={styles.createBtn}
+          onClick={() => emit("compose-prefill", "Koble til ")}
+          title="Be agenten opprette en ny kobling"
+        >
+          Opprett kobling
+        </button>
+      </div>
       {showM365 ? (
         <M365Panel
           onChanged={() => {

@@ -281,6 +281,15 @@ export function Chat({
   }, []);
   // Lagret widget-utkast → /-menyen oppdateres med en gang.
   useEffect(() => on("widgets-changed", reloadWidgets), []);
+  // Paneler kan forhåndsutfylle composeren (f.eks. «Opprett kobling»).
+  useEffect(
+    () =>
+      on("compose-prefill", (text) => {
+        setInput(text);
+        textareaRef.current?.focus();
+      }),
+    []
+  );
 
 
   function saveTitle(next: string) {
