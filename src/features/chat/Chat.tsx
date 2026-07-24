@@ -14,6 +14,7 @@ import {
   BorderNone02Icon,
   NeuralNetworkIcon,
   Files01Icon,
+  FlashIcon,
   UserGroupIcon,
   UserSettings01Icon,
   Delete01Icon,
@@ -1310,9 +1311,11 @@ export function Chat({
         </button>
         {userRole === "admin" && <ImpersonatePill />}
         <span className={styles.modelInfo}>
-          <span className={styles.modelLabel}>Modell:</span>{" "}
-          {modelAlias(activeModel)}
-          {modelDesc(activeModel) && ` - ${modelDesc(activeModel)}`}
+          <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
+          <span className={styles.modelName}>{modelAlias(activeModel)}</span>
+          {modelDesc(activeModel) && (
+            <span className={styles.modelHint}>{modelDesc(activeModel)}</span>
+          )}
         </span>
         <span className={styles.cmdHint}>
           Kommandoer <span className={styles.kbd}>/</span>

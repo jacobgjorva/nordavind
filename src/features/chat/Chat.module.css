@@ -808,10 +808,10 @@
 }
 
 .modelInfo {
-  padding: 0 6px;
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
 }
 
 /* Vedlegg-ikonet i footeren er hvitt. */
@@ -819,8 +819,14 @@
   color: #ffffff;
 }
 
-.modelLabel {
-  color: var(--text-muted);
+.modelName {
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.modelHint {
+  font-size: 12.5px;
+  color: var(--text-faint);
 }
 
 
