@@ -71,7 +71,7 @@ export function ConnectorsInline() {
         <button
           className={styles.createBtn}
           onClick={() =>
-            emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?" })
+            emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?", intent: "connect" })
           }
           title="Be agenten opprette en ny kobling"
         >

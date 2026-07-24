@@ -10,7 +10,7 @@ interface EventMap {
   "connections-changed": void;
   // Send en melding i chatten på brukerens vegne. Med reply satt rendres
   // svaret deterministisk (ingen LLM) — robust for faste flyter.
-  "compose-send": { text: string; reply?: string };
+  "compose-send": { text: string; reply?: string; intent?: "connect" };
 }
 
 export function emit<K extends keyof EventMap>(type: K, detail?: EventMap[K]) {

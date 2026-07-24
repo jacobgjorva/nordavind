@@ -30,6 +30,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { AttachIcon, SearchIcon } from "../../ui/Icons";
 import {
+  connectM365,
   fetchM365Status,
   getImpersonation,
   setImpersonation,
@@ -285,7 +286,8 @@ export function Chat({
   // deterministisk — modellen er ikke involvert, så flyten er alltid lik.
   useEffect(
     () =>
-      on("compose-send", ({ text, reply }) => {
+      on("compose-send", ({ text, reply, intent }) => {
+        if (intent === "connect") pendingConnectRef.current = true;
         if (reply) {
           setMessages((prev) => [
             ...prev,
@@ -480,6 +482,9 @@ export function Chat({
   const agentModeRef = useRef(false);
   // M365-innlogging: lenke fra connect_m365-verktøyet vises over composeren.
   const [authUrl, setAuthUrl] = useState<string | null>(null);
+  // Satt etter «Hva skal vi koble til?» — neste melding intent-ruters
+  // deterministisk (M365 rett til OAuth, databaser til agenten).
+  const pendingConnectRef = useRef(false);
   const hasMessages = messages.length > 0;
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -748,6 +753,57 @@ export function Chat({
 
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
+    // Deterministisk connect-ruting: svar på «Hva skal vi koble til?».
+    if (pendingConnectRef.current) {
+      pendingConnectRef.current = false;
+      if (/m365|microsoft|365|outlook|onedrive|sharepoint/i.test(raw)) {
+        setInput("");
+        const userId = nextId();
+        const replyId = nextId();
+        setMessages((prev) => [
+          ...prev,
+          { id: userId, role: "user", content: raw, display: raw, revealed: true },
+          { id: replyId, role: "assistant", content: "", loading: true },
+        ]);
+        try {
+          const st = await fetchM365Status();
+          if (st.connected) {
+            update(replyId, {
+              loading: false,
+              content: `Microsoft 365 er allerede koblet til som ${st.email}.`,
+              revealed: true,
+            });
+          } else {
+            const { url } = await connectM365();
+            setAuthUrl(url);
+            window.open(url, "_blank", "width=520,height=680");
+            update(replyId, {
+              loading: false,
+              content: "Logg inn i Microsoft-vinduet (knappen over feltet hvis det ikke åpnet seg) — jeg sier fra når koblingen er bekreftet.",
+              revealed: true,
+            });
+            const t = window.setInterval(async () => {
+              const st2 = await fetchM365Status().catch(() => null);
+              if (st2?.connected) {
+                window.clearInterval(t);
+                setAuthUrl(null);
+                emit("connections-changed");
+                setMessages((prev) => [
+                  ...prev,
+                  { id: nextId(), role: "assistant", content: `Microsoft 365 er koblet til som ${st2.email} ✓`, revealed: true },
+                ]);
+              }
+            }, 2000);
+            window.setTimeout(() => window.clearInterval(t), 180000);
+          }
+        } catch {
+          update(replyId, { loading: false, error: true, content: "Kunne ikke starte Microsoft-innloggingen." });
+        }
+        return;
+      }
+      // Ikke M365: la agenten ta databasetilkoblingen som før.
+    }
+
     // Admin-panelene rendres inline på samme måte som widgets.
     const adminAct =
       effectiveRole === "admin"
