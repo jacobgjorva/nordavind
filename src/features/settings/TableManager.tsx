@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   fetchAdminUsers,
   saveConnectionConfig,
@@ -52,7 +52,7 @@ function CostBar({ cols }: { cols: number }) {
 export function TableManager({
   conn,
   schema,
-  onClose,
+  onClose: _onClose,
   onRemove,
 }: {
   conn: Connection;
@@ -106,14 +106,17 @@ export function TableManager({
   const pageCount = Math.max(1, Math.ceil(allTables.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const tables = allTables.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
-  const chosenCount = Object.values(state).filter((s) => s.on).length;
+  void 0;
 
   function patch(name: string, p: Partial<(typeof state)[string]>) {
+    // open-endringer er ren UI — de skal ikke utløse lagring.
+    if (Object.keys(p).some((k) => k !== "open")) dirtyRef.current = true;
     setState((prev) => ({ ...prev, [name]: { ...prev[name], ...p } }));
   }
 
   // Slår man på et bord uten definert tilgang: standard er kun admin.
   function toggleTableOn(name: string, on: boolean) {
+    dirtyRef.current = true;
     setState((prev) => {
       const cur = prev[name];
       const userIds =
@@ -121,6 +124,14 @@ export function TableManager({
       return { ...prev, [name]: { ...cur, on, open: on, userIds } };
     });
   }
+
+  // Auto-lagring: hver endring lagres etter en kort debounce — ingen knapp.
+  const dirtyRef = useRef(false);
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    const t = window.setTimeout(save, 800);
+    return () => window.clearTimeout(t);
+  }, [state]);
 
   async function save() {
     setSaving(true);
@@ -144,7 +155,8 @@ export function TableManager({
     try {
       await saveConnectionConfig(conn.id, cfgTables, links, nextViews);
       setSaved(true);
-      setTimeout(onClose, 700);
+      setSaving(false);
+      window.setTimeout(() => setSaved(false), 1500);
     } catch {
       setSaving(false);
     }
@@ -165,9 +177,9 @@ export function TableManager({
               Fjern
             </button>
           )}
-          <button className={styles.primary} onClick={save} disabled={saving || chosenCount === 0}>
-            {saved ? "Lagret ✓" : saving ? "Lagrer …" : `Lagre (${chosenCount})`}
-          </button>
+          <span className={styles.autosave}>
+            {saving ? "Lagrer …" : saved ? "Lagret ✓" : ""}
+          </span>
         </div>
       </div>
 
