@@ -1345,9 +1345,6 @@ export function Chat({
         >
           <HugeiconsIcon icon={Attachment01Icon} size={16} strokeWidth={2} />
         </button>
-        <span className={styles.footerRight}>
-          <ContextRing messages={messages} />
-        </span>
         {userRole === "admin" && <ImpersonatePill />}
         <span className={styles.modelInfo}>
           <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
@@ -1356,7 +1353,9 @@ export function Chat({
             <span className={styles.modelHint}>{modelDesc(activeModel)}</span>
           )}
         </span>
-
+        <span className={styles.footerRight}>
+          <ContextRing messages={messages} />
+        </span>
       </div>
     </div>
     </>
