@@ -9,7 +9,7 @@ import {
   Analytics01Icon,
   AnonymousIcon,
   BorderNone02Icon,
-  Brain02Icon,
+  NeuralNetworkIcon,
   Files01Icon,
   UserGroupIcon,
   UserSettings01Icon,
@@ -216,7 +216,7 @@ function ImpersonatePill() {
 // Admin-styring i chatten: settings-panelene kalles inn som blokker.
 const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; icon: typeof AnonymousIcon }[] = [
   { cmd: "forbruk", label: "Forbruk", desc: "Token- og kostnadsoversikt", icon: Analytics01Icon },
-  { cmd: "kunnskap", label: "Kunnskap", desc: "Bedriftskunnskapen AI-en husker", icon: Brain02Icon },
+  { cmd: "kunnskap", label: "Kunnskap", desc: "Bedriftskunnskapen AI-en husker", icon: NeuralNetworkIcon },
   { cmd: "dokumenter", label: "Dokumenter", desc: "Dokumentbiblioteket", icon: Files01Icon },
   { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret", icon: UserGroupIcon },
   { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", icon: UserSettings01Icon },
