@@ -230,7 +230,7 @@ function ImpersonatePill() {
         onClick={toggle}
         title="Velg hvem du vil opptre som"
       >
-        {imp ? imp.email : "Admin mode"}
+        {imp ? imp.email : "Admin"}
         <HugeiconsIcon icon={ArrowDown01Icon} size={13} strokeWidth={2} />
       </button>
       {open && (
