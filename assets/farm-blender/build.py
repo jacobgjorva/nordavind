@@ -191,60 +191,197 @@ def build_golem():
     export([body] + extras, os.path.join(OUT, "golem.glb"))
 
 
+def box(name, loc, scale, bevel=0.06, rot=(0, 0, 0)):
+    """Boks med myke, avfasede kanter — grunnformen i steinbarnet."""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=loc, rotation=rot)
+    o = bpy.context.object
+    o.name = name
+    o.scale = scale
+    bpy.ops.object.transform_apply(scale=True)
+    mod = o.modifiers.new("Bevel", "BEVEL")
+    mod.width = bevel
+    mod.segments = 3
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(38))
+    return o
+
+
+def stone_material(name, tint=(0.72, 0.68, 0.6)):
+    """Lys, glatt stein: svak tekstur og normalmap over en varm gråtone."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    bsdf = nodes["Principled BSDF"]
+    bsdf.inputs["Roughness"].default_value = 0.85
+
+    mapping = nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (3.0, 3.0, 3.0)
+    uv = nodes.new("ShaderNodeTexCoord")
+    links.new(uv.outputs["UV"], mapping.inputs["Vector"])
+
+    diff = nodes.new("ShaderNodeTexImage")
+    diff.image = bpy.data.images.load(os.path.join(TEX, "rock_diff.jpg"))
+    links.new(mapping.outputs["Vector"], diff.inputs["Vector"])
+    # Bleket steintekstur: bland mot lys tone så den blir beige, ikke grå fjellside.
+    mix = nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.inputs["Factor"].default_value = 0.6
+    links.new(diff.outputs["Color"], mix.inputs["A"])
+    mix.inputs["B"].default_value = (*tint, 1)
+    links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
+
+    nor = nodes.new("ShaderNodeTexImage")
+    nor.image = bpy.data.images.load(os.path.join(TEX, "rock_nor.jpg"))
+    nor.image.colorspace_settings.name = "Non-Color"
+    links.new(mapping.outputs["Vector"], nor.inputs["Vector"])
+    nmap = nodes.new("ShaderNodeNormalMap")
+    nmap.inputs["Strength"].default_value = 0.45
+    links.new(nor.outputs["Color"], nmap.inputs["Color"])
+    links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def flat_material(name, rgb, rough=0.7, emission=None):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    b = mat.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = (*rgb, 1)
+    b.inputs["Roughness"].default_value = rough
+    if emission:
+        b.inputs["Emission Color"].default_value = (*emission, 1)
+        b.inputs["Emission Strength"].default_value = 1.5
+    return mat
+
+
 def build_troll():
-    """Mosetroll: avrundet stein med mosetopp, blanke øyne, spire på hodet."""
+    """Steinbarnet fra referansen: sittende, bokset hode med gresstopp,
+    segmenterte armer, én hånd rakt frem. Front = -Y."""
     reset()
-    random.seed(3)
+    random.seed(11)
+    stone = stone_material("TrollRock")
+
+    # Kropp og hode — hodet er størst, som på referansen.
     parts = [
-        ico("body", 0.62, (0, 0, 0.95), (1, 0.88, 1.45)),
-        ico("head", 0.4, (0, -0.02, 1.75), (1.05, 0.9, 0.95)),
-        ico("earL", 0.12, (-0.4, 0, 1.95), (1, 0.7, 1.6)),
-        ico("earR", 0.12, (0.4, 0, 1.95), (1, 0.7, 1.6)),
-        ico("armL", 0.14, (-0.62, 0.02, 0.85), (0.9, 0.9, 1.5)),
-        ico("armR", 0.14, (0.62, 0.02, 0.85), (0.9, 0.9, 1.5)),
-        ico("footL", 0.16, (-0.24, -0.06, 0.12), (1.1, 1.2, 0.7)),
-        ico("footR", 0.16, (0.24, -0.06, 0.12), (1.1, 1.2, 0.7)),
-        ico("nose", 0.09, (0, -0.4, 1.68), (1, 1.2, 0.9)),
+        box("head", (0, 0, 1.62), (1.02, 0.88, 0.92), bevel=0.1),
+        box("jaw", (0, -0.06, 1.28), (0.94, 0.8, 0.3), bevel=0.08),
+        box("torso", (0, 0.02, 0.72), (0.62, 0.52, 0.66), bevel=0.09),
+        box("hip", (0, 0, 0.36), (0.56, 0.48, 0.3), bevel=0.08),
+        # Bein rett frem langs bakken (sittende).
+        box("thighL", (-0.19, -0.44, 0.16), (0.17, 0.4, 0.15), bevel=0.05),
+        box("thighR", (0.19, -0.44, 0.16), (0.17, 0.4, 0.15), bevel=0.05),
+        box("calfL", (-0.2, -0.82, 0.12), (0.14, 0.32, 0.12), bevel=0.05),
+        box("calfR", (0.2, -0.82, 0.12), (0.14, 0.32, 0.12), bevel=0.05),
+        box("footL", (-0.2, -1.06, 0.11), (0.15, 0.14, 0.11), bevel=0.04),
+        box("footR", (0.2, -1.06, 0.11), (0.15, 0.14, 0.11), bevel=0.04),
+        # Venstre arm hviler langs siden.
+        box("upperL", (-0.42, 0.04, 0.82), (0.11, 0.11, 0.3), bevel=0.04),
+        box("lowerL", (-0.44, -0.05, 0.5), (0.1, 0.1, 0.26), bevel=0.04),
+        # Høyre arm rakt frem med åpen hånd (sommerfugl-hånden).
+        box("upperR", (0.44, -0.16, 0.86), (0.11, 0.28, 0.1), bevel=0.04,
+            rot=(math.radians(-12), 0, math.radians(-8))),
+        box("lowerR", (0.5, -0.52, 0.94), (0.1, 0.26, 0.09), bevel=0.04,
+            rot=(math.radians(-4), 0, 0)),
+        box("palmR", (0.52, -0.78, 0.97), (0.11, 0.12, 0.05), bevel=0.03),
+        box("fingR1", (0.47, -0.9, 0.98), (0.03, 0.1, 0.03), bevel=0.012),
+        box("fingR2", (0.52, -0.92, 0.98), (0.03, 0.11, 0.03), bevel=0.012),
+        box("fingR3", (0.57, -0.9, 0.98), (0.03, 0.1, 0.03), bevel=0.012),
+        box("thumbR", (0.61, -0.78, 0.98), (0.08, 0.03, 0.03), bevel=0.012),
     ]
     body = join(parts, "troll")
-    sculpt(body, voxel=0.055, displace=0.05, noise_scale=0.7, target_faces=14000)
     smart_uv(body)
-    vertex_moss(body, (0.78, 0.79, 0.77), (0.42, 0.55, 0.22), threshold=0.35, moss_bias=0.5)
-    body.data.materials.append(rock_material("TrollRock", tex_scale=2.4))
+    body.data.materials.append(stone)
 
     extras = []
-    eye_mat = bpy.data.materials.new("TrollEye")
-    eye_mat.use_nodes = True
-    b = eye_mat.node_tree.nodes["Principled BSDF"]
-    b.inputs["Base Color"].default_value = (0.05, 0.045, 0.04, 1)
-    b.inputs["Roughness"].default_value = 0.1
+    # Øyne: to små mørke groper.
+    eye_mat = flat_material("TrollEye", (0.04, 0.038, 0.035), rough=0.35)
     for side in (-1, 1):
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=14, ring_count=10, radius=0.055,
-                                             location=(0.16 * side, -0.36, 1.82))
-        eye = bpy.context.object
-        eye.name = f"eye{side}"
-        eye.data.materials.append(eye_mat)
-        extras.append(eye)
+        e = box(f"eye{side}", (0.15 * side, -0.442, 1.7), (0.055, 0.016, 0.075), bevel=0.008)
+        e.data.materials.append(eye_mat)
+        extras.append(e)
+    # Munnspalte: en tynn mørk fuge i kjevefronten.
+    mouth = box("mouth", (0, -0.458, 1.36), (0.55, 0.018, 0.028), bevel=0.006)
+    mouth.data.materials.append(eye_mat)
+    extras.append(mouth)
 
-    # Spire på hodet.
-    stem_mat = bpy.data.materials.new("Stem")
-    stem_mat.use_nodes = True
-    stem_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.24, 0.42, 0.16, 1)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.016, depth=0.28, location=(0.06, 0, 2.32))
+    # Gresstopp: moseplate senket ned i hodet + tette, korte strå i to toner.
+    moss_mat = flat_material("Moss", (0.4, 0.5, 0.13), rough=0.9)
+    grass_mats = [
+        flat_material("GrassBlade1", (0.55, 0.68, 0.16), rough=0.8),
+        flat_material("GrassBlade2", (0.66, 0.74, 0.2), rough=0.8),
+    ]
+    cap = box("mosscap", (0, 0.02, 2.06), (0.9, 0.74, 0.06), bevel=0.03)
+    cap.data.materials.append(moss_mat)
+    extras.append(cap)
+    for i in range(90):
+        gx = ((hash_i(i * 3 + 1) % 100) - 50) / 125
+        gy = ((hash_i(i * 5 + 2) % 100) - 50) / 155
+        gh = 0.07 + (hash_i(i * 7 + 3) % 100) / 700
+        bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.028, depth=gh,
+                                        location=(gx, gy, 2.09 + gh / 2),
+                                        rotation=(((hash_i(i) % 40) - 20) / 45,
+                                                  ((hash_i(i + 9) % 40) - 20) / 45, 0))
+        blade = bpy.context.object
+        blade.data.materials.append(grass_mats[i % 2])
+        extras.append(blade)
+    # Prestekrage: stilk, hvite kronblad, gul knapp.
+    stem_mat = flat_material("Stem", (0.3, 0.46, 0.14))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=6, radius=0.014, depth=0.42,
+                                        location=(0.12, 0.1, 2.36),
+                                        rotation=(0, math.radians(6), 0))
     stem = bpy.context.object
-    stem.rotation_euler = (0, math.radians(-8), 0)
     stem.data.materials.append(stem_mat)
     extras.append(stem)
-    for side in (-1, 1):
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=8, radius=0.06,
-                                             location=(0.06 + 0.06 * side, 0, 2.44))
-        leaf = bpy.context.object
-        leaf.scale = (1, 0.5, 0.35)
-        bpy.ops.object.transform_apply(scale=True)
-        leaf.data.materials.append(stem_mat)
-        extras.append(leaf)
+    petal_mat = flat_material("Petal", (0.94, 0.94, 0.9), rough=0.5)
+    for i in range(8):
+        a = i / 8 * math.tau
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=6, radius=0.05,
+                                             location=(0.145 + math.cos(a) * 0.075, 0.1 + math.sin(a) * 0.075, 2.57))
+        p = bpy.context.object
+        p.scale = (1, 0.45, 0.18)
+        p.rotation_euler = (0, 0, a)
+        bpy.ops.object.transform_apply(scale=True, rotation=True)
+        p.data.materials.append(petal_mat)
+        extras.append(p)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=8, radius=0.045, location=(0.145, 0.1, 2.58))
+    center = bpy.context.object
+    center.data.materials.append(flat_material("FlowerCenter", (0.92, 0.75, 0.2), emission=(0.9, 0.7, 0.15)))
+    extras.append(center)
 
     export([body] + extras, os.path.join(OUT, "troll.glb"))
+    preview([body] + extras, os.path.join(OUT, "troll_preview.png"))
+
+
+def hash_i(i):
+    """Stabil pseudotilfeldighet uten random-tilstand."""
+    x = (i * 2654435761) & 0xFFFFFFFF
+    x ^= x >> 16
+    return x
+
+
+def preview(objects, path):
+    """Rendrer en kontrollbilde-PNG så resultatet kan inspiseres uten Blender-UI."""
+    bpy.ops.object.camera_add(location=(1.9, -3.4, 2.1))
+    cam = bpy.context.object
+    bpy.ops.object.empty_add(location=(0.1, 0, 1.3))
+    target = bpy.context.object
+    con = cam.constraints.new("TRACK_TO")
+    con.target = target
+    bpy.context.scene.camera = cam
+    bpy.ops.object.light_add(type="SUN", location=(4, -2, 6))
+    sun = bpy.context.object
+    sun.data.energy = 3.5
+    sun.rotation_euler = (math.radians(35), math.radians(15), math.radians(20))
+    world = bpy.data.worlds.new("W")
+    world.use_nodes = True
+    world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.35, 0.4, 0.45, 1)
+    bpy.context.scene.world = world
+    scene = bpy.context.scene
+    scene.render.engine = "BLENDER_EEVEE"
+    scene.render.resolution_x = 560
+    scene.render.resolution_y = 700
+    scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
 
 
 build_golem()
