@@ -106,7 +106,7 @@ export class FarmScene {
   private downAt = new THREE.Vector2();
 
   // Blender-modellene; til de er forsøkt lastet holdes spawning tilbake.
-  private models: { troll?: THREE.Group; golem?: THREE.Group } = {};
+  private models: { troll?: THREE.Group } = {};
   private modelsTried = false;
   private pendingAgents: AgentInfo[] | null = null;
 
@@ -155,20 +155,16 @@ export class FarmScene {
 
   private async loadModels() {
     const loader = new GLTFLoader();
-    const [troll, golem] = await Promise.allSettled([
-      // ?v= bustes ved modellendring, ellers server nettleseren gammel GLB
-      // fra cache og nye Blender-bygg blir usynlige.
+    // ?v= bustes ved modellendring, ellers server nettleseren gammel GLB
+    // fra cache og nye Blender-bygg blir usynlige.
+    const [troll] = await Promise.allSettled([
       loader.loadAsync(`/farm/troll.glb?v=${MODEL_VERSION}`),
-      loader.loadAsync(`/farm/golem.glb?v=${MODEL_VERSION}`),
     ]);
     if (troll.status === "fulfilled") this.models.troll = troll.value.scene;
     else console.warn("farm: troll.glb feilet", troll.reason);
-    if (golem.status === "fulfilled") this.models.golem = golem.value.scene;
-    else console.warn("farm: golem.glb feilet", golem.reason);
     this.modelsTried = true;
     this.onModelStatus?.(
-      `modeller v${MODEL_VERSION}: troll=${troll.status === "fulfilled" ? "glb" : "FALLBACK"} ` +
-        `golem=${golem.status === "fulfilled" ? "glb" : "FALLBACK"}`
+      `modell v${MODEL_VERSION}: ${troll.status === "fulfilled" ? "glb" : "FALLBACK"}`
     );
     if (this.pendingAgents) {
       const agents = this.pendingAgents;
@@ -206,10 +202,8 @@ export class FarmScene {
 
   private spawn(agent: AgentInfo) {
     const h = hash(agent.id);
-    // Bit 4 i hashen gir best artsmiks på reelle id-er (bit 0 traff likt
-    // for alle test-agentene — ren uflaks, men synlig uflaks).
-    const golem = ((h >>> 4) & 1) === 1;
-    const model = golem ? this.models.golem : this.models.troll;
+    // Én art: steinbarnet. Golemen er pensjonert (ligger i git om den savnes).
+    const model = this.models.troll;
 
     let built: { group: THREE.Group; body: THREE.Mesh; height: number };
     if (model) {
@@ -219,7 +213,7 @@ export class FarmScene {
         if (!(o instanceof THREE.Mesh)) return;
         o.castShadow = true;
         const mat = o.material as THREE.MeshStandardMaterial;
-        if (mat.name === "GolemRock" || mat.name === "TrollRock") {
+        if (mat.name === "TrollRock") {
           // Egen materialkopi per agent: liten individuell fargetone.
           const own = mat.clone();
           own.color.offsetHSL(((h % 20) - 10) / 500, 0, ((h >> 6) % 10) / 300);
@@ -228,7 +222,7 @@ export class FarmScene {
         }
       });
       const body = rockMesh ?? (group.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh);
-      built = { group, body, height: golem ? 3.1 : 2.7 };
+      built = { group, body, height: 2.7 };
     } else {
       built = buildFallback(agent.id);
     }
