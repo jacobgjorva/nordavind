@@ -184,7 +184,11 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
-      {testOK && !error && <div className={styles.testOk}>Tilkoblingen svarer ✓</div>}
+      {testOK && !error && (
+        <div className={styles.testOk}>
+          <span className={styles.testOkMark}>✓</span> Tilkoblingen svarer
+        </div>
+      )}
 
       <div className={styles.actions}>
         <button
