@@ -1188,15 +1188,15 @@
 .textShimmer {
   background: linear-gradient(
     100deg,
-    currentColor 44%,
+    currentColor 30%,
     var(--shimmer-glow, #ffffff) 50%,
-    currentColor 56%
+    currentColor 70%
   );
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: text-shimmer 0.8s linear infinite;
+  animation: text-shimmer 2.2s ease-in-out infinite;
   filter: drop-shadow(
     0 0 10px color-mix(in srgb, var(--shimmer-glow, #ffffff) 40%, transparent)
   );
