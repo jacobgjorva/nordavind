@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Chat } from "../features/chat/Chat";
 import { Login } from "../features/auth/Login";
+import { M365Onboarding } from "../features/auth/M365Onboarding";
 import { Settings } from "../features/settings/Settings";
 import { Sidebar } from "../layout/Sidebar";
 import { AdminUserContext } from "../tools/admin";
@@ -205,6 +206,7 @@ export default function App() {
   return (
     <AdminUserContext.Provider value={user.id}>
     <div className={styles.app}>
+      <M365Onboarding userId={user.id} />
       <Sidebar
         chats={chats}
         activeChatId={view === "chat" ? activeChatId : null}
