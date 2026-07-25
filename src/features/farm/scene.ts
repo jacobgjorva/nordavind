@@ -195,6 +195,17 @@ function displaceStone(
   geo.computeVertexNormals();
 }
 
+// terrainY gir høyden på øy-toppen: flatt rundt bålet, myke koller utover,
+// og faller mot null ved kanten så terrenget møter klippen pent.
+function terrainY(x: number, z: number): number {
+  const r = Math.hypot(x, z);
+  const inner = Math.min(1, Math.max(0, (r - 6) / 7)); // flatt nær bålet
+  const edge = Math.min(1, Math.max(0, (ISLAND_R - 1 - r) / 3)); // ned mot kanten
+  const rolling =
+    noise3(x * 0.08, 0, z * 0.08) * 0.9 + noise3(x * 0.22, 3.7, z * 0.22) * 0.35;
+  return rolling * inner * edge;
+}
+
 // Troll er ett troll i verdenen med tilstand og animasjonsdata.
 interface Troll {
   agent: AgentInfo;
@@ -377,7 +388,7 @@ export class FarmScene {
     // Lav gyllen kveldssol med lange, myke skygger; kjølig motlys fra
     // himmelhvelvet på skyggesiden, slik naturlig sprett-lys oppfører seg.
     const sun = new THREE.DirectionalLight(0xffb168, 2.4);
-    sun.position.set(26, 9, -34);
+    sun.position.set(60, 48, -85);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -34;
@@ -402,17 +413,29 @@ export class FarmScene {
         depthWrite: false,
       })
     );
-    sunGlow.position.set(30, 8, -40);
-    sunGlow.scale.setScalar(26);
+    sunGlow.position.set(66, 52, -94);
+    sunGlow.scale.setScalar(30);
     this.scene.add(sunGlow);
 
     this.fireLight = new THREE.PointLight(0xff9a3d, 60, 26, 2);
     this.fireLight.position.set(0, 1.4, 0);
     this.scene.add(this.fireLight);
 
-    // Øy-toppen: gressflata trollene bor på.
+    // Øy-toppen: gressflata trollene bor på, med myke koller fra terrainY.
+    // (Geometrien ligger i XY-planet og roteres ned; verdens-z = -geometri-y,
+    // så høyden skrives til geometri-z før rotasjonen.)
+    // RingGeometry (nesten-null indre radius) gir et rutenett av ringer å
+    // forme koller i — CircleGeometry er bare en vifte uten indre punkter.
+    const groundGeo = new THREE.RingGeometry(0.02, ISLAND_R, 96, 28);
+    {
+      const pos = groundGeo.getAttribute("position") as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        pos.setZ(i, terrainY(pos.getX(i), -pos.getY(i)));
+      }
+      groundGeo.computeVertexNormals();
+    }
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(ISLAND_R, 48),
+      groundGeo,
       new THREE.MeshStandardMaterial({ map: groundTexture(), roughness: 1 })
     );
     ground.rotation.x = -Math.PI / 2;
@@ -530,32 +553,83 @@ export class FarmScene {
     });
     // Tett eng: én instansert mesh = ett draw call uansett antall tuster.
     // Kvadratrot-fordeling gir jevn tetthet helt ut til kanten.
-    const G = 2600;
+    const G = 3200;
     const grass = new THREE.InstancedMesh(grassGeo, grassMat, G * 2);
+    const tint = new THREE.Color();
     for (let i = 0; i < G; i++) {
       const a = (hash(`ga${i}`) % 628) / 100;
       const r = 1.6 + Math.sqrt((hash(`gd${i}`) % 1000) / 1000) * (ISLAND_R - 2.8);
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
+      const y = terrainY(x, z);
       const s = 0.7 + (hash(`gs${i}`) % 100) / 140;
+      // Naturlig fargevariasjon: hver tust har sin egen grønntone.
+      tint.setHSL(
+        0.26 + ((hash(`gh${i}`) % 100) / 100) * 0.05,
+        0.42,
+        0.32 + ((hash(`gl${i}`) % 100) / 100) * 0.16
+      );
       for (let c = 0; c < 2; c++) {
         m.makeRotationY(a * 5 + c * Math.PI / 2);
         m.scale(new THREE.Vector3(s, s, s));
-        m.setPosition(x, 0, z);
+        m.setPosition(x, y, z);
         grass.setMatrixAt(i * 2 + c, m);
+        grass.setColorAt(i * 2 + c, tint);
       }
     }
     grass.receiveShadow = true;
     this.scene.add(grass);
 
-    // Hvite småblomster i gresset.
-    const flowerMat = new THREE.MeshStandardMaterial({ color: 0xdce6dc, roughness: 0.7 });
-    for (let i = 0; i < 20; i++) {
-      const f = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 4), flowerMat);
-      const a = (hash(`fa${i}`) % 628) / 100;
-      const r = 3 + (hash(`fr${i}`) % 240) / 10;
-      f.position.set(Math.cos(a) * r, 0.32, Math.sin(a) * r);
-      this.scene.add(f);
+    // Blomster i gresset: hvite, gule og røde, instansert per farge.
+    const flowerColors = [0xe0e8de, 0xd9b84c, 0xc96a55];
+    const flowerGeo = new THREE.SphereGeometry(0.05, 5, 4);
+    for (let ci = 0; ci < flowerColors.length; ci++) {
+      const F = 26;
+      const flowers = new THREE.InstancedMesh(
+        flowerGeo,
+        new THREE.MeshStandardMaterial({ color: flowerColors[ci], roughness: 0.7 }),
+        F
+      );
+      for (let i = 0; i < F; i++) {
+        const a = (hash(`fa${ci}-${i}`) % 628) / 100;
+        const r = 3 + (hash(`fr${ci}-${i}`) % 230) / 10;
+        const x = Math.cos(a) * r;
+        const z = Math.sin(a) * r;
+        m.makeScale(1, 1, 1);
+        m.setPosition(x, terrainY(x, z) + 0.3, z);
+        flowers.setMatrixAt(i, m);
+      }
+      this.scene.add(flowers);
+    }
+
+    // Busker: klaser av mosegrønne, støyforskjøvne kuler — lav vegetasjon
+    // som gir øya dybde uten å stjele utsikten.
+    for (let i = 0; i < 16; i++) {
+      const bush = new THREE.Group();
+      const parts = 2 + (hash(`bp${i}`) % 3);
+      const mossTone = new THREE.Color(MOSS_TINTS[(hash(`bm${i}`) >> 2) % MOSS_TINTS.length]);
+      for (let p = 0; p < parts; p++) {
+        const size = 0.35 + (hash(`bs${i}-${p}`) % 100) / 220;
+        const geo = new THREE.IcosahedronGeometry(size, 2);
+        displaceStone(geo, i * 2.9 + p, mossTone, mossTone.clone().offsetHSL(0, 0.05, 0.06), 0.9);
+        const part = new THREE.Mesh(
+          geo,
+          new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })
+        );
+        part.position.set(
+          ((hash(`bx${i}-${p}`) % 100) - 50) / 90,
+          size * 0.55,
+          ((hash(`bz${i}-${p}`) % 100) - 50) / 90
+        );
+        part.castShadow = true;
+        bush.add(part);
+      }
+      const a = (hash(`ba${i}`) % 628) / 100;
+      const r = 6 + (hash(`br${i}`) % 200) / 10;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      bush.position.set(x, terrainY(x, z), z);
+      this.scene.add(bush);
     }
 
     // Ildfluer: additive punkter som driver sakte rundt i lysningen.
@@ -619,7 +693,9 @@ export class FarmScene {
     const idx = this.trolls.size;
     const angle = (h % 628) / 100;
     const radius = 4 + (idx % 8) * 2.4 + ((h >> 8) % 10) / 6;
-    const home = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+    const hx = Math.cos(angle) * radius;
+    const hz = Math.sin(angle) * radius;
+    const home = new THREE.Vector3(hx, terrainY(hx, hz), hz);
     group.position.copy(home);
     group.rotation.y = Math.atan2(-home.x, -home.z);
 
@@ -740,11 +816,15 @@ export class FarmScene {
         }
         case "thinking":
           group.rotation.y += Math.sin(t * 0.8 + p) * 0.004;
-          group.position.y = Math.abs(Math.sin(t * 1.6 + p)) * 0.03;
+          group.position.y =
+            terrainY(group.position.x, group.position.z) +
+            Math.abs(Math.sin(t * 1.6 + p)) * 0.03;
           if (troll.bubble) troll.bubble.position.y = 3.1 + Math.sin(t * 2 + p) * 0.08;
           break;
         case "working":
-          group.position.y = Math.abs(Math.sin(t * 7 + p)) * 0.06;
+          group.position.y =
+            terrainY(group.position.x, group.position.z) +
+            Math.abs(Math.sin(t * 7 + p)) * 0.06;
           if (troll.bubble) troll.bubble.rotation.z = Math.sin(t * 9 + p) * 0.12;
           break;
         case "broken":
@@ -766,7 +846,9 @@ export class FarmScene {
     dir.normalize();
     pos.addScaledVector(dir, Math.min(speed * dt, dist));
     troll.group.rotation.y = Math.atan2(dir.x, dir.z);
-    troll.group.position.y = Math.abs(Math.sin(this.clock.elapsedTime * 8 + troll.phase)) * 0.05;
+    troll.group.position.y =
+      terrainY(pos.x, pos.z) +
+      Math.abs(Math.sin(this.clock.elapsedTime * 8 + troll.phase)) * 0.05;
   }
 
   // Klikk vs. dra: plukk kun når pekeren knapt har flyttet seg, ellers er
