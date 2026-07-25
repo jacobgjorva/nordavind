@@ -195,12 +195,25 @@ function displaceStone(
   geo.computeVertexNormals();
 }
 
+// islandRadius: kystlinja som funksjon av vinkel — noen store lober og litt
+// småkruss gjør øya organisk i stedet for en perfekt sirkel.
+function islandRadius(a: number): number {
+  return (
+    ISLAND_R *
+    (0.82 +
+      0.14 * Math.sin(a * 2 + 1.3) +
+      0.09 * Math.sin(a * 3 + 4.1) +
+      0.05 * Math.sin(a * 5 + 2.2))
+  );
+}
+
 // terrainY gir høyden på øy-toppen: flatt rundt bålet, myke koller utover,
-// og faller mot null ved kanten så terrenget møter klippen pent.
+// og faller mot null ved den buktede kanten så terrenget møter klippen pent.
 function terrainY(x: number, z: number): number {
   const r = Math.hypot(x, z);
+  const rim = islandRadius(Math.atan2(z, x));
   const inner = Math.min(1, Math.max(0, (r - 6) / 7)); // flatt nær bålet
-  const edge = Math.min(1, Math.max(0, (ISLAND_R - 1 - r) / 3)); // ned mot kanten
+  const edge = Math.min(1, Math.max(0, (rim - 1 - r) / 3)); // ned mot kanten
   const rolling =
     noise3(x * 0.08, 0, z * 0.08) * 0.9 + noise3(x * 0.22, 3.7, z * 0.22) * 0.35;
   return rolling * inner * edge;
@@ -416,7 +429,13 @@ export class FarmScene {
     {
       const pos = groundGeo.getAttribute("position") as THREE.BufferAttribute;
       for (let i = 0; i < pos.count; i++) {
-        pos.setZ(i, terrainY(pos.getX(i), -pos.getY(i)));
+        // Radiell omforming: sirkelen strekkes til den buktede kystlinja.
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const f = islandRadius(Math.atan2(y, x)) / ISLAND_R;
+        pos.setX(i, x * f);
+        pos.setY(i, y * f);
+        pos.setZ(i, terrainY(x * f, -y * f));
       }
       groundGeo.computeVertexNormals();
     }
@@ -446,8 +465,9 @@ export class FarmScene {
         v.fromBufferAttribute(pos, i);
         const d = -v.y / DEPTH; // 0 ved kanten, 1 ved spissen
         const n = noise3(v.x * 0.35, v.y * 0.5, v.z * 0.35);
-        // Horisontal støy gir klippeprofil; kanten (d≈0) holdes flush.
-        const bulge = 1 + n * 0.16 * Math.min(1, d * 3);
+        // Følg kystlinja, og la støy gi klippeprofil; kanten holdes flush.
+        const f = islandRadius(Math.atan2(v.z, v.x)) / ISLAND_R;
+        const bulge = f * (1 + n * 0.16 * Math.min(1, d * 3));
         pos.setXYZ(i, v.x * bulge, v.y + n * 0.6 * d, v.z * bulge);
         if (d < 0.08) c.copy(dirt);
         else c.copy(rock).lerp(deep, Math.min(1, d * 1.15));
@@ -521,7 +541,8 @@ export class FarmScene {
     const tint = new THREE.Color();
     for (let i = 0; i < G; i++) {
       const a = (hash(`ga${i}`) % 628) / 100;
-      const r = 1.6 + Math.sqrt((hash(`gd${i}`) % 1000) / 1000) * (ISLAND_R - 2.8);
+      const rimF = islandRadius(a) / ISLAND_R;
+      const r = (1.6 + Math.sqrt((hash(`gd${i}`) % 1000) / 1000) * (ISLAND_R - 2.8)) * rimF;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       const y = terrainY(x, z);
@@ -555,7 +576,7 @@ export class FarmScene {
       );
       for (let i = 0; i < F; i++) {
         const a = (hash(`fa${ci}-${i}`) % 628) / 100;
-        const r = 3 + (hash(`fr${ci}-${i}`) % 230) / 10;
+        const r = (3 + (hash(`fr${ci}-${i}`) % 230) / 10) * (islandRadius(a) / ISLAND_R);
         const x = Math.cos(a) * r;
         const z = Math.sin(a) * r;
         m.makeScale(1, 1, 1);
@@ -588,7 +609,7 @@ export class FarmScene {
         bush.add(part);
       }
       const a = (hash(`ba${i}`) % 628) / 100;
-      const r = 6 + (hash(`br${i}`) % 200) / 10;
+      const r = (6 + (hash(`br${i}`) % 200) / 10) * (islandRadius(a) / ISLAND_R);
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       bush.position.set(x, terrainY(x, z), z);
@@ -655,7 +676,9 @@ export class FarmScene {
     // Stabil plass i en ring rundt bålet, vendt inn mot varmen.
     const idx = this.trolls.size;
     const angle = (h % 628) / 100;
-    const radius = 4 + (idx % 8) * 2.4 + ((h >> 8) % 10) / 6;
+    // Skaler mot kystlinja så ingen troll bor utenfor stupet.
+    const radius =
+      (4 + (idx % 8) * 2.4 + ((h >> 8) % 10) / 6) * (islandRadius(angle) / ISLAND_R) * 0.9;
     const hx = Math.cos(angle) * radius;
     const hz = Math.sin(angle) * radius;
     const home = new THREE.Vector3(hx, terrainY(hx, hz), hz);
