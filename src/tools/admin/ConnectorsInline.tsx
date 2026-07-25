@@ -58,14 +58,17 @@ export function ConnectorsInline() {
   if (conns.length === 0 && !m365Connected) {
     return (
       <div className={styles.panelCard}>
-        <button
-          className={styles.newConnBtn}
-          onClick={() =>
-            emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?", intent: "connect" })
-          }
-        >
-          Ny kobling
-        </button>
+        <div className={styles.emptyState}>
+          <span className={styles.emptyText}>Ingen tilkoblinger satt opp.</span>
+          <button
+            className={styles.newConnBtn}
+            onClick={() =>
+              emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?", intent: "connect" })
+            }
+          >
+            Sett opp en ny kobling
+          </button>
+        </div>
       </div>
     );
   }
