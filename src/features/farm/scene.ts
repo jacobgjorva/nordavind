@@ -10,6 +10,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
 
 const FPS_CAP = 30;
+const ISLAND_R = 28; // radius på den svevende øya
 // Solnedgang: dyp skumringsblå øverst, rose midt på, gyllen horisont.
 const FOG_COLOR = 0x6e5064;
 
@@ -314,6 +315,11 @@ export class FarmScene {
   private canvas: HTMLCanvasElement;
   private controls!: OrbitControls;
   private downAt = new THREE.Vector2();
+  private floatIsles: THREE.Mesh[] = [];
+  // Innflygning: kameraet starter langt unna og glir inn mot øya.
+  private flightT = 0;
+  private flightFrom = new THREE.Vector3(52, 40, 62);
+  private flightTo = new THREE.Vector3(0, 14, 32);
 
   private fireLight!: THREE.PointLight;
   private flames: THREE.Sprite[] = [];
@@ -335,18 +341,20 @@ export class FarmScene {
     this.scene.background = skyTexture();
     this.scene.fog = new THREE.Fog(FOG_COLOR, 28, 85);
 
-    this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
-    this.camera.position.set(0, 10.5, 20);
+    this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+    // Launch: start langt unna, skrått ovenfra — innflygningen skjer i tick.
+    this.camera.position.copy(this.flightFrom);
 
     // Fri kamerastyring: dra for å snurre, scroll for å zoome, høyreklikk
-    // for å panorere. Grensene holder kameraet over bakken og innenfor tåka.
+    // for å panorere. Man kan kikke litt under øya, men ikke helt rundt.
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.target.set(0, 0.8, 0);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
-    this.controls.minDistance = 5;
-    this.controls.maxDistance = 60;
-    this.controls.maxPolarAngle = Math.PI / 2.15; // aldri under bakken
+    this.controls.minDistance = 6;
+    this.controls.maxDistance = 80;
+    this.controls.maxPolarAngle = Math.PI * 0.68;
+    this.controls.enabled = false; // slås på når innflygningen er ferdig
     this.controls.update();
 
     this.buildEnvironment();
@@ -383,13 +391,74 @@ export class FarmScene {
     this.fireLight.position.set(0, 1.4, 0);
     this.scene.add(this.fireLight);
 
-    // Skogbunn.
+    // Øy-toppen: gressflata trollene bor på.
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(60, 48),
+      new THREE.CircleGeometry(ISLAND_R, 48),
       new THREE.MeshStandardMaterial({ map: groundTexture(), roughness: 1 })
     );
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
+
+    // Undersiden: en støyforskjøvet stein-kjegle som henger under øya, med
+    // jordkant øverst, fjell i midten og mørk spiss nederst.
+    const DEPTH = 24;
+    const under = new THREE.ConeGeometry(ISLAND_R, DEPTH, 48, 9, true);
+    under.rotateX(Math.PI);
+    under.translate(0, -DEPTH / 2, 0);
+    {
+      const pos = under.getAttribute("position") as THREE.BufferAttribute;
+      const colors = new Float32Array(pos.count * 3);
+      const v = new THREE.Vector3();
+      const dirt = new THREE.Color(0x54452e);
+      const rock = new THREE.Color(0x63666a);
+      const deep = new THREE.Color(0x35383e);
+      const c = new THREE.Color();
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        const d = -v.y / DEPTH; // 0 ved kanten, 1 ved spissen
+        const n = noise3(v.x * 0.35, v.y * 0.5, v.z * 0.35);
+        // Horisontal støy gir klippeprofil; kanten (d≈0) holdes flush.
+        const bulge = 1 + n * 0.16 * Math.min(1, d * 3);
+        pos.setXYZ(i, v.x * bulge, v.y + n * 0.6 * d, v.z * bulge);
+        if (d < 0.08) c.copy(dirt);
+        else c.copy(rock).lerp(deep, Math.min(1, d * 1.15));
+        const shade = 0.88 + noise3(v.x * 2.1, v.y * 2.1, v.z * 2.1) * 0.12;
+        colors[i * 3] = c.r * shade;
+        colors[i * 3 + 1] = c.g * shade;
+        colors[i * 3 + 2] = c.b * shade;
+      }
+      under.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      under.computeVertexNormals();
+    }
+    this.scene.add(
+      new THREE.Mesh(under, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.98 }))
+    );
+
+    // Kantsteiner langs stupet, så overgangen topp/klippe får en leppe.
+    const rimMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+    for (let i = 0; i < 14; i++) {
+      const geo = new THREE.IcosahedronGeometry(0.5 + (hash(`rim${i}`) % 10) / 16, 1);
+      displaceStone(geo, i * 5.1, new THREE.Color(0x6d7073), new THREE.Color(0x5d8735), 0.3);
+      const stone = new THREE.Mesh(geo, rimMat);
+      const a = (i / 14) * Math.PI * 2 + (hash(`rima${i}`) % 100) / 220;
+      stone.position.set(Math.cos(a) * (ISLAND_R - 0.7), 0.18, Math.sin(a) * (ISLAND_R - 0.7));
+      stone.rotation.y = a * 3;
+      this.scene.add(stone);
+    }
+
+    // Småøyer som svever rundt hovedøya og duver sakte (animeres i tick).
+    for (let i = 0; i < 5; i++) {
+      const size = 1.2 + (hash(`fi${i}`) % 100) / 60;
+      const geo = new THREE.IcosahedronGeometry(size, 2);
+      geo.scale(1, 0.75, 1);
+      displaceStone(geo, i * 7.3, new THREE.Color(0x63666a), new THREE.Color(0x6d9c3f), 0.32);
+      const isle = new THREE.Mesh(geo, rimMat);
+      const a = (hash(`fia${i}`) % 628) / 100;
+      const r = ISLAND_R + 10 + (hash(`fir${i}`) % 140) / 10;
+      isle.position.set(Math.cos(a) * r, -3 + (hash(`fiy${i}`) % 120) / 10, Math.sin(a) * r);
+      this.floatIsles.push(isle);
+      this.scene.add(isle);
+    }
 
     // Bålet: steinring, vedkubber, flammer og glød på bakken.
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6b6f72, roughness: 0.9 });
@@ -448,7 +517,7 @@ export class FarmScene {
         new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })
       );
       const a = (hash(`ra${i}`) % 628) / 100;
-      const r = 7 + (hash(`rr${i}`) % 220) / 10;
+      const r = 7 + (hash(`rr${i}`) % 190) / 10;
       rock.position.set(Math.cos(a) * r, 0.28, Math.sin(a) * r);
       rock.rotation.y = a * 2;
       this.scene.add(rock);
@@ -468,7 +537,7 @@ export class FarmScene {
     const grass = new THREE.InstancedMesh(grassGeo, grassMat, G * 2);
     for (let i = 0; i < G; i++) {
       const a = (hash(`ga${i}`) % 628) / 100;
-      const r = 2 + (hash(`gd${i}`) % 100) / 3.2;
+      const r = 2 + (hash(`gd${i}`) % 100) / 4;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       const s = 0.7 + (hash(`gs${i}`) % 100) / 140;
@@ -551,7 +620,7 @@ export class FarmScene {
     // Stabil plass i en ring rundt bålet, vendt inn mot varmen.
     const idx = this.trolls.size;
     const angle = (h % 628) / 100;
-    const radius = 4 + (idx % 8) * 2.6 + ((h >> 8) % 10) / 6;
+    const radius = 4 + (idx % 8) * 2.4 + ((h >> 8) % 10) / 6;
     const home = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
     group.position.copy(home);
     group.rotation.y = Math.atan2(-home.x, -home.z);
@@ -624,7 +693,23 @@ export class FarmScene {
     const dt = Math.min(this.accumulator, 0.1);
     this.accumulator = 0;
     const t = this.clock.elapsedTime;
+
+    // Innflygning: myk easing fra launch-punktet inn til øya, så fri styring.
+    if (this.flightT < 1) {
+      this.flightT = Math.min(1, this.flightT + dt / 3);
+      const e = this.flightT * this.flightT * (3 - 2 * this.flightT); // smoothstep
+      this.camera.position.lerpVectors(this.flightFrom, this.flightTo, e);
+      this.camera.lookAt(this.controls.target);
+      if (this.flightT >= 1) this.controls.enabled = true;
+    }
     this.controls.update();
+
+    // Småøyene duver sakte.
+    for (let i = 0; i < this.floatIsles.length; i++) {
+      const isle = this.floatIsles[i];
+      isle.position.y += Math.sin(t * 0.35 + i * 1.9) * 0.004;
+      isle.rotation.y += 0.0006;
+    }
 
     // Bålet flakrer: lys og flammer i utakt.
     this.fireLight.intensity = 52 + Math.sin(t * 9) * 6 + Math.sin(t * 23.7) * 4;
