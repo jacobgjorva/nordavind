@@ -11,6 +11,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
 
 // PBR-teksturer (CC0, PolyHaven) — ligger i public/farm/, self-hosted.
@@ -467,6 +468,12 @@ export class FarmScene {
   private downAt = new THREE.Vector2();
   private composer!: EffectComposer;
   private grassShader: { uniforms: { uTime: { value: number } } } | null = null;
+
+  // Blender-skulpterte GLB-modeller. Til de er forsøkt lastet, holdes
+  // spawning tilbake; feiler lastingen brukes de prosedyrale som fallback.
+  private models: { troll?: THREE.Group; golem?: THREE.Group } = {};
+  private modelsTried = false;
+  private pendingAgents: AgentInfo[] | null = null;
   // Innflygning: kameraet starter langt unna og glir inn mot øya.
   private flightT = 0;
   private flightFrom = new THREE.Vector3(52, 40, 62);
@@ -537,6 +544,25 @@ export class FarmScene {
     window.addEventListener("resize", this.resize);
     this.resize();
     this.renderer.setAnimationLoop(this.tick);
+    this.loadModels();
+  }
+
+  // loadModels henter Blender-modellene. Uansett utfall markeres forsøket,
+  // så spawning aldri blokkeres permanent.
+  private async loadModels() {
+    const loader = new GLTFLoader();
+    const [troll, golem] = await Promise.allSettled([
+      loader.loadAsync("/farm/troll.glb"),
+      loader.loadAsync("/farm/golem.glb"),
+    ]);
+    if (troll.status === "fulfilled") this.models.troll = troll.value.scene;
+    if (golem.status === "fulfilled") this.models.golem = golem.value.scene;
+    this.modelsTried = true;
+    if (this.pendingAgents) {
+      const agents = this.pendingAgents;
+      this.pendingAgents = null;
+      this.syncAgents(agents);
+    }
   }
 
   // buildEnvironment reiser skogen: måneskinn, bål, trær, gress, ildfluer.
@@ -826,6 +852,11 @@ export class FarmScene {
 
   // syncAgents oppdaterer trollbestanden mot ferske agent-data.
   syncAgents(agents: AgentInfo[]) {
+    // Vent på modell-forsøket, så alle skapninger fødes i riktig drakt.
+    if (!this.modelsTried) {
+      this.pendingAgents = agents;
+      return;
+    }
     const seen = new Set<string>();
     for (const agent of agents) {
       seen.add(agent.id);
@@ -850,8 +881,30 @@ export class FarmScene {
   private spawn(agent: AgentInfo) {
     const h = hash(agent.id);
     // To arter, valgt stabilt per agent: mosetroll eller blå steingolem.
+    // Blender-modellen brukes når den finnes; ellers prosedyral fallback.
     const golem = h % 2 === 1;
-    const built = golem ? buildGolem(agent.id) : { ...buildTroll(agent.id), height: 2.3 };
+    const model = golem ? this.models.golem : this.models.troll;
+    let built: { group: THREE.Group; body: THREE.Mesh; height: number };
+    if (model) {
+      const group = model.clone(true);
+      let rockMesh: THREE.Mesh | null = null;
+      group.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        o.castShadow = true;
+        const mat = o.material as THREE.MeshStandardMaterial;
+        if (mat.name === "GolemRock" || mat.name === "TrollRock") {
+          // Egen materialkopi per agent: liten individuell fargetone.
+          const own = mat.clone();
+          own.color.offsetHSL(((h % 20) - 10) / 500, 0, ((h >> 6) % 10) / 300);
+          o.material = own;
+          rockMesh = o;
+        }
+      });
+      const body = rockMesh ?? (group.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh);
+      built = { group, body, height: golem ? 3.1 : 2.7 };
+    } else {
+      built = golem ? buildGolem(agent.id) : { ...buildTroll(agent.id), height: 2.3 };
+    }
     const { group, body } = built;
 
     // Stabil plass i en ring rundt bålet, vendt inn mot varmen.
