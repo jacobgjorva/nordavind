@@ -89,16 +89,14 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
 
       <div className={styles.grid}>
         <label className={styles.field}>
-          <span className={styles.label}>Navn</span>
           <input
             className={styles.input}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="f.eks. Kundedata"
+            placeholder="Navn, f.eks. Kundedata"
           />
         </label>
         <label className={styles.field}>
-          <span className={styles.label}>Type</span>
           <select className={styles.select} value={driver} onChange={(e) => setDriver(e.target.value)}>
             <option value="postgres">PostgreSQL</option>
             <option value="mysql">MySQL</option>
@@ -107,36 +105,31 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
         </label>
 
         <label className={styles.field}>
-          <span className={styles.label}>Host</span>
           <input
             className={styles.input}
             value={host}
             onChange={(e) => setHost(e.target.value)}
-            placeholder="db.example.com"
+            placeholder="Host, f.eks. db.example.com"
           />
         </label>
         <label className={styles.field}>
-          <span className={styles.label}>Port</span>
           <input
             className={styles.input}
             value={port}
             onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
-            placeholder={String(defaultPorts[driver] ?? "")}
+            placeholder={`Port, standard ${defaultPorts[driver] ?? ""}`}
             inputMode="numeric"
           />
         </label>
 
         <label className={styles.field}>
-          <span className={styles.label}>Database</span>
-          <input className={styles.input} value={database} onChange={(e) => setDatabase(e.target.value)} />
+          <input className={styles.input} value={database} onChange={(e) => setDatabase(e.target.value)} placeholder="Database" />
         </label>
         <label className={styles.field}>
-          <span className={styles.label}>Bruker</span>
-          <input className={styles.input} value={user} onChange={(e) => setUser(e.target.value)} />
+          <input className={styles.input} value={user} onChange={(e) => setUser(e.target.value)} placeholder="Bruker" />
         </label>
 
         <label className={`${styles.field} ${styles.span2}`}>
-          <span className={styles.label}>Passord</span>
           <input
             className={styles.input}
             type="password"
@@ -146,6 +139,7 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
               if (e.key === "Enter" && ready && !busy) submit();
             }}
             autoComplete="new-password"
+            placeholder="Passord"
           />
         </label>
       </div>
