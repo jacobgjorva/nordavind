@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createConnection } from "../../lib/api";
+import { createConnection, testConnection } from "../../lib/api";
 import styles from "./Credential.module.css";
 
 // CredentialForm er chattens sikre inntaksfelt for databasetilkoblinger:
@@ -21,16 +21,24 @@ const defaultPorts: Record<string, number> = {
   mssql: 1433,
 };
 
+const knownDefaults = new Set(Object.values(defaultPorts).map(String));
+
 export function CredentialForm({ spec }: { spec: CredentialSpec }) {
+  const initialDriver = spec.driver ?? "postgres";
   const [name, setName] = useState(spec.name ?? "");
-  const [driver, setDriver] = useState(spec.driver ?? "postgres");
+  const [driver, setDriver] = useState(initialDriver);
   const [host, setHost] = useState(spec.host ?? "");
-  const [port, setPort] = useState<string>(spec.port ? String(spec.port) : "");
+  // Port forhåndsutfylles med databasetypens standard og følger typevalget
+  // så lenge brukeren ikke har satt en egen verdi.
+  const [port, setPort] = useState<string>(
+    spec.port ? String(spec.port) : String(defaultPorts[initialDriver] ?? "")
+  );
   const [database, setDatabase] = useState(spec.database ?? "");
   const [user, setUser] = useState(spec.user ?? "");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"" | "test" | "save">("");
   const [error, setError] = useState("");
+  const [testOK, setTestOK] = useState(false);
   const [doneName, setDoneName] = useState("");
 
   if (doneName) {
@@ -47,29 +55,54 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
     );
   }
 
-  const ready =
-    name.trim() && host.trim() && database.trim() && user.trim() && password;
+  function changeDriver(next: string) {
+    setDriver(next);
+    if (!port || knownDefaults.has(port)) {
+      setPort(String(defaultPorts[next] ?? ""));
+    }
+  }
+
+  const filled =
+    host.trim() && database.trim() && user.trim() && password;
+  const ready = name.trim() && filled;
+
+  function payload(pw: string) {
+    return {
+      driver,
+      host: host.trim(),
+      port: Number(port) || defaultPorts[driver] || 0,
+      database: database.trim(),
+      user: user.trim(),
+      password: pw,
+    };
+  }
+
+  async function runTest() {
+    setBusy("test");
+    setError("");
+    setTestOK(false);
+    try {
+      await testConnection(payload(password));
+      setTestOK(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Tilkoblingen feilet.");
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function submit() {
-    setBusy(true);
+    setBusy("save");
     setError("");
     const pw = password;
     setPassword(""); // aldri la hemmeligheten bli liggende i feltet
     try {
-      await createConnection({
-        name: name.trim(),
-        driver,
-        host: host.trim(),
-        port: Number(port) || defaultPorts[driver] || 0,
-        database: database.trim(),
-        user: user.trim(),
-        password: pw,
-      });
+      await createConnection({ name: name.trim(), ...payload(pw) });
       setDoneName(name.trim());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Tilkoblingen feilet.");
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -78,12 +111,11 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
       <div className={styles.head}>
         <div className={styles.titleRow}>
           <span className={styles.title}>Databasetilkobling</span>
-          <span className={styles.dot}>·</span>
-          <span className={styles.meta}>kryptert</span>
         </div>
         <div className={styles.sub}>
-          Fyll inn detaljene, så testes og lagres tilkoblingen automatisk.
-          Passordet sendes direkte og vises aldri i chatten.
+          Fyll inn detaljene under. Tilkoblingen testes før den lagres, og
+          passordet sendes kryptert direkte til serveren — det vises aldri i
+          chatten og leses aldri av AI-en.
         </div>
       </div>
 
@@ -94,12 +126,12 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
             className={styles.input}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="f.eks. Kundedata"
+            placeholder="Visningsnavn, f.eks. Kundedata"
           />
         </label>
         <label className={styles.field}>
           <span className={styles.label}>Type</span>
-          <select className={styles.select} value={driver} onChange={(e) => setDriver(e.target.value)}>
+          <select className={styles.select} value={driver} onChange={(e) => changeDriver(e.target.value)}>
             <option value="postgres">PostgreSQL</option>
             <option value="mysql">MySQL</option>
             <option value="mssql">SQL Server</option>
@@ -112,7 +144,7 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
             className={styles.input}
             value={host}
             onChange={(e) => setHost(e.target.value)}
-            placeholder="db.example.com"
+            placeholder="Serveradresse, f.eks. db.example.com"
           />
         </label>
         <label className={styles.field}>
@@ -121,18 +153,28 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
             className={styles.input}
             value={port}
             onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
-            placeholder={String(defaultPorts[driver] ?? "")}
+            placeholder={`Standard for ${driver === "mssql" ? "SQL Server" : driver === "mysql" ? "MySQL" : "PostgreSQL"}: ${defaultPorts[driver]}`}
             inputMode="numeric"
           />
         </label>
 
         <label className={styles.field}>
           <span className={styles.label}>Database</span>
-          <input className={styles.input} value={database} onChange={(e) => setDatabase(e.target.value)} />
+          <input
+            className={styles.input}
+            value={database}
+            onChange={(e) => setDatabase(e.target.value)}
+            placeholder="Navnet på selve databasen"
+          />
         </label>
         <label className={styles.field}>
           <span className={styles.label}>Bruker</span>
-          <input className={styles.input} value={user} onChange={(e) => setUser(e.target.value)} />
+          <input
+            className={styles.input}
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            placeholder="Databasebruker med lesetilgang"
+          />
         </label>
 
         <label className={`${styles.field} ${styles.span2}`}>
@@ -146,15 +188,26 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
               if (e.key === "Enter" && ready && !busy) submit();
             }}
             autoComplete="new-password"
+            placeholder="Sendes kryptert, vises aldri i chatten"
           />
         </label>
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
+      {testOK && !error && <div className={styles.testOk}>Tilkoblingen svarer ✓</div>}
 
-      <button className={styles.submit} disabled={!ready || busy} onClick={submit}>
-        {busy ? "Tester tilkoblingen …" : "Koble til"}
-      </button>
+      <div className={styles.actions}>
+        <button
+          className={styles.testBtn}
+          disabled={!filled || busy !== ""}
+          onClick={runTest}
+        >
+          {busy === "test" ? "Tester …" : "Test tilkobling"}
+        </button>
+        <button className={styles.submit} disabled={!ready || busy !== ""} onClick={submit}>
+          {busy === "save" ? "Kobler til …" : "Koble til"}
+        </button>
+      </div>
     </div>
   );
 }

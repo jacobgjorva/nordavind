@@ -64,6 +64,17 @@ export async function createConnection(payload: {
   return apiFetch("/connections", { method: "POST", body: payload });
 }
 
+export async function testConnection(payload: {
+  driver: string;
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+}): Promise<void> {
+  await apiFetch("/connections/test", { method: "POST", body: payload });
+}
+
 export async function deleteConnection(id: string): Promise<void> {
   await apiFetch(`/connections/${id}`, { method: "DELETE" });
 }
