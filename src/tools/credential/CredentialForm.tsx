@@ -40,6 +40,9 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
   const [error, setError] = useState("");
   const [testOK, setTestOK] = useState(false);
   const [doneName, setDoneName] = useState("");
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) return null;
 
   if (doneName) {
     return (
@@ -186,6 +189,9 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
       {testOK && !error && <div className={styles.testOk}>Tilkoblingen svarer ✓</div>}
 
       <div className={styles.actions}>
+        <button className={styles.cancelBtn} onClick={() => setDismissed(true)}>
+          Avbryt
+        </button>
         <button
           className={styles.testBtn}
           disabled={!filled || busy !== ""}
