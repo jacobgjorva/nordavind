@@ -788,7 +788,8 @@ export function Chat({
     // /<slug>: en kjent widget kalt inline — render den, ingen LLM-tur.
     const firstTok = /^\/([a-z0-9-]+)/i.exec(raw)?.[1]?.toLowerCase();
     // Deterministisk connect-ruting: svar på «Hva skal vi koble til?».
-    if (pendingConnectRef.current) {
+    // Slash-kommandoer vinner alltid — de avbryter den ventende flyten.
+    if (pendingConnectRef.current && !raw.startsWith("/")) {
       pendingConnectRef.current = false;
       if (/m365|microsoft|365|outlook|onedrive|sharepoint/i.test(raw)) {
         setInput("");
@@ -851,6 +852,9 @@ export function Chat({
       ]);
       return;
     }
+
+    // En slash-kommando avbryter en ventende connect-flyt permanent.
+    if (raw.startsWith("/")) pendingConnectRef.current = false;
 
     // /koble: start ny tilkobling deterministisk (samme løype som panelknappen).
     if (firstTok === "koble" && effectiveRole === "admin") {
