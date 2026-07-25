@@ -834,7 +834,21 @@ export function Chat({
         }
         return;
       }
-      // Ikke M365: la agenten ta databasetilkoblingen som før.
+      // Ikke M365: spawn credential-skjemaet direkte — svaret re-rutes ALDRI
+      // via intent-motoren (feilstavinger som «datbase» droppet hele flyten).
+      setInput("");
+      const drv = /mysql/i.test(raw) ? "mysql" : /mssql|sql ?server/i.test(raw) ? "mssql" : "postgres";
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+        {
+          id: nextId(),
+          role: "assistant",
+          content: "Fyll inn tilkoblingen her — passordet går kryptert utenom chatten. Lurer du på noe underveis, bare spør.\n```credential\n" + JSON.stringify({ driver: drv }) + "\n```",
+          revealed: true,
+        },
+      ]);
+      return;
     }
 
     // Admin-panelene rendres inline på samme måte som widgets.
