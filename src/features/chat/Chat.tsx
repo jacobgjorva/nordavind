@@ -1559,7 +1559,10 @@ export function Chat({
                                 glow={modelGlow(m.resolvedModel ?? null)}
                               />
                             </span>
-                            <span className={styles.stepActive}>
+                            <span
+                              className={`${styles.stepActive} ${styles.textShimmer}`}
+                              style={{ "--shimmer-glow": modelGlow(m.resolvedModel ?? null) } as React.CSSProperties}
+                            >
                               {thinkingLabel(m.reasoning)} …
                             </span>
                           </div>
@@ -1691,7 +1694,7 @@ export function Chat({
                       <span className={styles.thinkingLogo}>
                         <Logo size={10} flutter />
                       </span>
-                      <span className={`${styles.stepActive} ${styles.activityThought}`}>
+                      <span className={`${styles.stepActive} ${styles.activityThought} ${styles.textShimmer}`}>
                         {activity.thought?.trim() || "Tenker"} …
                       </span>
                     </div>
