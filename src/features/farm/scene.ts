@@ -53,7 +53,7 @@ function noise3(x: number, y: number, z: number): number {
 }
 
 // textSprite tegner tekst på canvas → sprite (navneskilt og tilstandsbobler).
-function textSprite(text: string, opts?: { size?: number; color?: string; bg?: string }): THREE.Sprite {
+function textSprite(text: string, opts?: { size?: number; color?: string; bg?: string; scale?: number }): THREE.Sprite {
   const size = opts?.size ?? 44;
   const pad = 18;
   const canvas = document.createElement("canvas");
@@ -81,7 +81,7 @@ function textSprite(text: string, opts?: { size?: number; color?: string; bg?: s
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
   );
-  const scale = 0.013;
+  const scale = opts?.scale ?? 0.013;
   sprite.scale.set(w * scale, h * scale, 1);
   return sprite;
 }
@@ -625,8 +625,8 @@ export class FarmScene {
     group.position.copy(home);
     group.rotation.y = Math.atan2(-home.x, -home.z);
 
-    const nameTag = textSprite(agent.name || "Troll", { bg: "rgba(10,20,16,0.55)" });
-    nameTag.position.y = 2.6;
+    const nameTag = textSprite(agent.name || "Troll", { bg: "rgba(10,20,16,0.45)", scale: 0.0055 });
+    nameTag.position.y = 2.3;
     nameTag.userData.text = agent.name;
     group.add(nameTag);
 
@@ -652,8 +652,8 @@ export class FarmScene {
 
   private setName(troll: Troll, name: string) {
     troll.group.remove(troll.nameTag);
-    troll.nameTag = textSprite(name || "Troll", { bg: "rgba(10,20,16,0.55)" });
-    troll.nameTag.position.y = 2.6;
+    troll.nameTag = textSprite(name || "Troll", { bg: "rgba(10,20,16,0.45)", scale: 0.0055 });
+    troll.nameTag.position.y = 2.3;
     troll.nameTag.userData.text = name;
     troll.group.add(troll.nameTag);
   }
@@ -665,18 +665,7 @@ export class FarmScene {
       troll.group.remove(troll.bubble);
       troll.bubble = null;
     }
-    const bubbleFor: Partial<Record<AgentState, [string, string]>> = {
-      sleeping: ["z Z", "rgba(190,214,228,0.85)"],
-      thinking: ["…", "rgba(235,224,180,0.85)"],
-      working: ["✎", "rgba(205,228,190,0.85)"],
-      broken: ["!", "rgba(232,180,170,0.9)"],
-    };
-    const spec = bubbleFor[state];
-    if (spec) {
-      troll.bubble = textSprite(spec[0], { size: 52, color: "#2a2620", bg: spec[1] });
-      troll.bubble.position.set(0.6, 3.1, 0);
-      troll.group.add(troll.bubble);
-    }
+    // Ingen aktivitetsbobler — tilstanden leses av kroppsspråket alene.
     troll.group.rotation.z = state === "broken" ? Math.PI / 2.4 : 0;
     troll.group.scale.setScalar(state === "paused" ? 0.85 : 1);
     // Pausede/ødelagte troll mister fargen: mose og stein gråner.
