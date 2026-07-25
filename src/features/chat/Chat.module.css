@@ -1196,7 +1196,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: text-shimmer 2.2s ease-in-out infinite;
+  animation: text-shimmer 1.5s ease-in-out infinite;
   filter: drop-shadow(
     0 0 10px color-mix(in srgb, var(--shimmer-glow, #ffffff) 40%, transparent)
   );
