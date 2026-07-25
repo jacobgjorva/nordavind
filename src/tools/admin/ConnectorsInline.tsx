@@ -54,6 +54,22 @@ export function ConnectorsInline() {
 
   const active = conns.find((c) => c.id === connId) ?? null;
 
+  // Tom tilstand: ingen koblinger i det hele tatt — kun en ny kobling-knapp.
+  if (conns.length === 0 && !m365Connected) {
+    return (
+      <div className={styles.panelCard}>
+        <button
+          className={styles.newConnBtn}
+          onClick={() =>
+            emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?", intent: "connect" })
+          }
+        >
+          Ny kobling
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.panelCard}>
       <div className={styles.topRow}>
