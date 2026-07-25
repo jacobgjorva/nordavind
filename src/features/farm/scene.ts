@@ -10,7 +10,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
 
 const FPS_CAP = 30;
-const FLOOR_R = 30;
 
 // hash gir et stabilt tall fra en streng — plass og tone følger agent-id.
 function hash(s: string): number {
@@ -117,8 +116,6 @@ export class FarmScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene.background = new THREE.Color(0x0a0a0c);
 
@@ -134,26 +131,9 @@ export class FarmScene {
     this.controls.maxPolarAngle = Math.PI / 2.1;
     this.controls.update();
 
-    // Sort gulv + nøytralt studiolys: én myk hovedkilde med skygge, svak
-    // fylling så skyggesiden ikke forsvinner helt i mørket.
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(FLOOR_R, 64),
-      new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.95 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    this.scene.add(floor);
-
+    // Ingen verden i det hele tatt — skapningene svever i mørket.
     const key = new THREE.DirectionalLight(0xffffff, 2.2);
     key.position.set(14, 22, 10);
-    key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
-    key.shadow.camera.left = -32;
-    key.shadow.camera.right = 32;
-    key.shadow.camera.top = 32;
-    key.shadow.camera.bottom = -32;
-    key.shadow.bias = -0.0005;
-    key.shadow.radius = 4;
     const fill = new THREE.HemisphereLight(0x3a3f4a, 0x0a0a0c, 0.5);
     this.scene.add(key, fill);
 
