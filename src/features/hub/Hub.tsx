@@ -72,29 +72,15 @@ export default function Hub({
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       for (const n of sim.nodes) {
-        const { h, s, l } = categoryColor(n.agent.category ?? "");
+        const [bg] = categoryColor(n.agent.category ?? "");
         const depth = n.depth;
         const r = n.r * (0.7 + depth * 0.5);
         const alpha = 0.35 + depth * 0.65;
         const state = n.agent.state ?? "sleeping";
 
-        // Glød bak aktive noder.
-        if (depth > 0.6) {
-          const glow = ctx.createRadialGradient(n.x, n.y, r * 0.4, n.x, n.y, r * 2.2);
-          glow.addColorStop(0, `hsla(${h}, ${s}%, ${l}%, ${0.25 * depth})`);
-          glow.addColorStop(1, "transparent");
-          ctx.fillStyle = glow;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, r * 2.2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Selve noden. Ødelagte får rød ring, pausede gråner.
-        const lightness = state === "paused" ? 30 : l;
-        const sat = state === "paused" ? 8 : s;
+        // Solid, flat avatarfarge — pausede gråner.
         ctx.globalAlpha = alpha;
-        // Solid, flat farge — ingen kule-effekt.
-        ctx.fillStyle = `hsl(${h}, ${sat}%, ${lightness}%)`;
+        ctx.fillStyle = state === "paused" ? "#3a3b40" : bg;
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
         ctx.fill();

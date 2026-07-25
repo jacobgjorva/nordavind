@@ -3,6 +3,7 @@
 // bildet lever. Ren Canvas 2D og egen fysikk — ingen avhengigheter, O(n²)
 // frastøtning er helt fint opp til noen hundre agenter.
 import type { AgentInfo, AgentState } from "../../lib/api";
+import { avatarColor } from "../../ui/avatar";
 
 export interface Node {
   agent: AgentInfo;
@@ -34,12 +35,12 @@ const DEPTH: Record<AgentState, number> = {
   sleeping: 0.1,
 };
 
-// categoryColor: stabil, behagelig HSL-farge per kategori. Ukategorisert er
-// nøytralt grå-blå.
-export function categoryColor(category: string): { h: number; s: number; l: number } {
-  if (!category) return { h: 220, s: 12, l: 60 };
-  const h = hash(category.toLowerCase()) % 360;
-  return { h, s: 55, l: 62 };
+// categoryColor: stabil farge per kategori fra den delte avatar-paletten
+// (samme visuelle språk som mail-kort og widget-deling). Returnerer
+// [bakgrunn, tekstfarge]; ukategorisert er nøytralt grå.
+export function categoryColor(category: string): [string, string] {
+  if (!category) return ["#3a3b40", "#b8b8b2"];
+  return avatarColor(category.toLowerCase());
 }
 
 export class GraphSim {
@@ -65,7 +66,7 @@ export class GraphSim {
         y: this.height / 2 + (((h >> 8) % 200) - 100),
         vx: 0,
         vy: 0,
-        r: 26,
+        r: 14,
         depth: 0.5,
         phase: (h % 628) / 100,
       };
