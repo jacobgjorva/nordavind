@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Chat } from "../features/chat/Chat";
+
+// Farmen lazy-lastes: three.js (~150 kB gzip) skal aldri belaste chat-bundelen.
+const Farm = lazy(() => import("../features/farm/Farm"));
 import { Login } from "../features/auth/Login";
 import { M365Onboarding } from "../features/auth/M365Onboarding";
 import { Settings } from "../features/settings/Settings";
@@ -26,7 +29,7 @@ import { swallow } from "../lib/log";
 import styles from "./App.module.css";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "settings">("chat");
+  const [view, setView] = useState<"chat" | "settings" | "farm">("chat");
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
   // remonter komponenten og dreper streamen.
@@ -189,6 +192,8 @@ export default function App() {
 
   const openSettings = useCallback(() => setView("settings"), []);
   const closeSettings = useCallback(() => setView("chat"), []);
+  const openFarm = useCallback(() => setView("farm"), []);
+  const closeFarm = useCallback(() => setView("chat"), []);
 
   // Esc lukker settings-overlayet.
   useEffect(() => {
@@ -213,6 +218,7 @@ export default function App() {
         userEmail={user.email}
         onNewChat={newChat}
         onOpenSettings={openSettings}
+        onOpenFarm={openFarm}
         onOpenChat={openChat}
         onDeleteChat={onDeleteChat}
         folders={folders}
@@ -240,6 +246,13 @@ export default function App() {
           }}
         />
       </div>
+      {view === "farm" && (
+        <Suspense fallback={null}>
+          {/* Overlay, ikke bytte av hovedvisning: en pågående chat-stream
+              under skal ikke dø av en tur i skogen. */}
+          <Farm onClose={closeFarm} onOpenChat={openChat} />
+        </Suspense>
+      )}
       {view === "settings" && (
         <div className={styles.settingsOverlay} onClick={closeSettings}>
           <div

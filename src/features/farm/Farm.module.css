@@ -1,0 +1,204 @@
+/* Farmen ligger som fullskjerms-lag over appen, chatten består under. */
+.farm {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #8fb3c7;
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  pointer-events: none;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 650;
+  color: #2e3a2c;
+}
+
+.count {
+  font-size: 13px;
+  color: #46554a;
+}
+
+.close {
+  margin-left: auto;
+  pointer-events: auto;
+  border: none;
+  background: rgba(255, 255, 255, 0.55);
+  color: #2e3a2c;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Statuskortet for et valgt troll. */
+.card {
+  position: absolute;
+  top: 56px;
+  right: 18px;
+  width: 280px;
+  background: #fbf8ef;
+  border: 1px solid #d8d2c2;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 8px 28px rgba(30, 40, 30, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 650;
+  color: #2e2a24;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 6px;
+  background: transparent;
+}
+
+.cardName:hover,
+.cardName:focus {
+  border-color: #d8d2c2;
+  background: #fff;
+  outline: none;
+}
+
+.cardState {
+  font-size: 12.5px;
+  color: #5c7050;
+  font-weight: 550;
+}
+
+.cardTask {
+  font-size: 12.5px;
+  color: #55503f;
+  margin: 0;
+  line-height: 1.45;
+  max-height: 78px;
+  overflow: hidden;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: #837d6c;
+}
+
+.cardPersonality {
+  font-size: 12.5px;
+  border: 1px solid #d8d2c2;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #2e2a24;
+  resize: none;
+  font-family: inherit;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+}
+
+.cardBtn {
+  border: none;
+  background: #5c7050;
+  color: #fbf8ef;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cardBtn:hover {
+  background: #4c5e42;
+}
+
+.cardBtnGhost {
+  border: 1px solid #d8d2c2;
+  background: transparent;
+  color: #55503f;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+/* Summon-feltet nederst, med forslagsliste over. */
+.summon {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 36px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summonInput {
+  width: 100%;
+  border: 1px solid #d8d2c2;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 14px;
+  background: #fbf8ef;
+  color: #2e2a24;
+  box-shadow: 0 6px 22px rgba(30, 40, 30, 0.16);
+}
+
+.summonInput:focus {
+  outline: none;
+  border-color: #5c7050;
+}
+
+.summonList {
+  background: #fbf8ef;
+  border: 1px solid #d8d2c2;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 22px rgba(30, 40, 30, 0.16);
+}
+
+.summonItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 9px 14px;
+  font-size: 13.5px;
+  color: #2e2a24;
+  cursor: pointer;
+}
+
+.summonItem:hover {
+  background: #efe9d9;
+}
+
+.summonState {
+  font-size: 12px;
+  color: #837d6c;
+}

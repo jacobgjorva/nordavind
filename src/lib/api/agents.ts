@@ -41,10 +41,23 @@ export async function createDraftAgent(): Promise<{
   return apiFetch("/agents/draft", { method: "POST" });
 }
 
+// Live-tilstanden trollet viser i farmen.
+export type AgentState =
+  | "working"
+  | "thinking"
+  | "broken"
+  | "paused"
+  | "sleeping";
+
 export interface AgentInfo {
   id: string;
   name: string;
   enabled: boolean;
+  personality?: string;
+  state?: AgentState;
+  chat_id?: string;
+  plan_status?: string;
+  last_run_at?: string;
   task?: string;
   connection_id?: string;
   schedule_label?: string;
@@ -108,4 +121,18 @@ export async function setAgentPush(id: string, on: boolean): Promise<void> {
 // Deaktiverer (sletter) en agent.
 export async function deleteAgent(id: string): Promise<void> {
   await apiFetch(`/agents/${id}`, { method: "DELETE" });
+}
+
+// Henter alle agentene med live-tilstand (til farmen).
+export async function fetchAgents(): Promise<AgentInfo[]> {
+  const data = await apiFetch<{ agents?: AgentInfo[] }>("/agents");
+  return data.agents ?? [];
+}
+
+// Setter navn og/eller personlighet på en agent fra farmen.
+export async function setAgentPersona(
+  id: string,
+  persona: { name?: string; personality?: string }
+): Promise<void> {
+  await apiFetch(`/agents/${id}/persona`, { method: "PATCH", body: persona });
 }
