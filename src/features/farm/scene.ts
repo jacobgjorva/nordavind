@@ -508,11 +508,13 @@ export class FarmScene {
       alphaTest: 0.35,
       side: THREE.DoubleSide,
     });
-    const G = 260;
+    // Tett eng: én instansert mesh = ett draw call uansett antall tuster.
+    // Kvadratrot-fordeling gir jevn tetthet helt ut til kanten.
+    const G = 2600;
     const grass = new THREE.InstancedMesh(grassGeo, grassMat, G * 2);
     for (let i = 0; i < G; i++) {
       const a = (hash(`ga${i}`) % 628) / 100;
-      const r = 2 + (hash(`gd${i}`) % 100) / 4;
+      const r = 1.6 + Math.sqrt((hash(`gd${i}`) % 1000) / 1000) * (ISLAND_R - 2.8);
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       const s = 0.7 + (hash(`gs${i}`) % 100) / 140;
