@@ -31,10 +31,21 @@ export function ConnectorsInline() {
         setConns(list);
         // Vis eksisterende tilkoblinger med en gang — velg den første.
         setConnId((cur) => cur ?? list[0]?.id ?? null);
+        if (list.length === 0) {
+          // Kun M365 igjen: velg den, ellers kan den aldri velges (dropdownen
+          // viser første option uten at et change-event kan utløses).
+          fetchM365Status()
+            .then((s) => {
+              setM365Connected(s.connected);
+              if (s.connected) setShowM365(true);
+            })
+            .catch(swallow);
+          return;
+        }
+        fetchM365Status()
+          .then((s) => setM365Connected(s.connected))
+          .catch(swallow);
       })
-      .catch(swallow);
-    fetchM365Status()
-      .then((s) => setM365Connected(s.connected))
       .catch(swallow);
   }
   useEffect(reload, []);
