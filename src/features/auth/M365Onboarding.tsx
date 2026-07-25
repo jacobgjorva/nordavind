@@ -25,12 +25,6 @@ export function M365Onboarding({ userId }: { userId: string }) {
 
   if (!show) return null;
 
-  function dismiss() {
-    localStorage.setItem(dismissKey(userId), "1");
-    window.clearInterval(pollRef.current);
-    setShow(false);
-  }
-
   async function start() {
     setBusy(true);
     setError("");
@@ -62,9 +56,6 @@ export function M365Onboarding({ userId }: { userId: string }) {
         </div>
         {error && <div className={styles.error}>{error}</div>}
         <div className={styles.actions}>
-          <button className={styles.skip} onClick={dismiss}>
-            Hopp over
-          </button>
           <button className={styles.connect} disabled={busy} onClick={start}>
             {busy ? "Venter på innloggingen …" : "Logg inn med Microsoft"}
           </button>
