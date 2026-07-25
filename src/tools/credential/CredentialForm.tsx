@@ -39,7 +39,7 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
         <div className={styles.doneRow}>
           <span className={styles.doneMark}>✓</span>
           <div>
-            <div className={styles.doneText}>Tilkoblingen «{doneName}» er opprettet og testet</div>
+            <div className={styles.doneText}>Tilkoblingen «{doneName}» er opprettet og testet.</div>
             <div className={styles.doneSub}>Si fra i chatten når du vil velge hvilke tabeller AI-en skal se.</div>
           </div>
         </div>
@@ -76,8 +76,15 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
   return (
     <div className={styles.card}>
       <div className={styles.head}>
-        <span className={styles.title}>Koble til database</span>
-        <span className={styles.sub}>Testes automatisk før lagring</span>
+        <div className={styles.titleRow}>
+          <span className={styles.title}>Databasetilkobling</span>
+          <span className={styles.dot}>·</span>
+          <span className={styles.meta}>kryptert</span>
+        </div>
+        <div className={styles.sub}>
+          Fyll inn detaljene, så testes og lagres tilkoblingen automatisk.
+          Passordet sendes direkte og vises aldri i chatten.
+        </div>
       </div>
 
       <div className={styles.grid}>
@@ -145,15 +152,9 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
 
       {error && <div className={styles.error}>{error}</div>}
 
-      <div className={styles.footer}>
-        <span className={styles.hint}>
-          <span className={styles.lockDot} />
-          Sendes kryptert direkte — vises aldri i chatten
-        </span>
-        <button className={styles.submit} disabled={!ready || busy} onClick={submit}>
-          {busy ? "Tester tilkoblingen …" : "Koble til"}
-        </button>
-      </div>
+      <button className={styles.submit} disabled={!ready || busy} onClick={submit}>
+        {busy ? "Tester tilkoblingen …" : "Koble til"}
+      </button>
     </div>
   );
 }
