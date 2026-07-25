@@ -318,7 +318,6 @@ export class FarmScene {
   private canvas: HTMLCanvasElement;
   private controls!: OrbitControls;
   private downAt = new THREE.Vector2();
-  private floatIsles: THREE.Mesh[] = [];
   // Innflygning: kameraet starter langt unna og glir inn mot øya.
   private flightT = 0;
   private flightFrom = new THREE.Vector3(52, 40, 62);
@@ -464,31 +463,8 @@ export class FarmScene {
       new THREE.Mesh(under, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.98 }))
     );
 
-    const rimMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
 
-    // Småøyer som svever rundt hovedøya og duver sakte (animeres i tick).
-    for (let i = 0; i < 5; i++) {
-      const size = 1.2 + (hash(`fi${i}`) % 100) / 60;
-      const geo = new THREE.IcosahedronGeometry(size, 2);
-      geo.scale(1, 0.75, 1);
-      displaceStone(geo, i * 7.3, new THREE.Color(0x63666a), new THREE.Color(0x6d9c3f), 0.32);
-      const isle = new THREE.Mesh(geo, rimMat);
-      const a = (hash(`fia${i}`) % 628) / 100;
-      const r = ISLAND_R + 10 + (hash(`fir${i}`) % 140) / 10;
-      isle.position.set(Math.cos(a) * r, -3 + (hash(`fiy${i}`) % 120) / 10, Math.sin(a) * r);
-      this.floatIsles.push(isle);
-      this.scene.add(isle);
-    }
-
-    // Bålet: steinring, vedkubber, flammer og glød på bakken.
-    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6b6f72, roughness: 0.9 });
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2;
-      const s = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16 + (hash(`fs${i}`) % 10) / 80, 0), stoneMat);
-      s.position.set(Math.cos(a) * 0.85, 0.1, Math.sin(a) * 0.85);
-      s.rotation.y = a * 3;
-      this.scene.add(s);
-    }
+    // Bålet: vedkubber, flammer og glød på bakken.
     const logMat = new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.95 });
     for (let i = 0; i < 3; i++) {
       const log = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 6), logMat);
@@ -540,7 +516,7 @@ export class FarmScene {
     });
     // Tett eng: én instansert mesh = ett draw call uansett antall tuster.
     // Kvadratrot-fordeling gir jevn tetthet helt ut til kanten.
-    const G = 3200;
+    const G = 12000;
     const grass = new THREE.InstancedMesh(grassGeo, grassMat, G * 2);
     const tint = new THREE.Color();
     for (let i = 0; i < G; i++) {
@@ -753,13 +729,6 @@ export class FarmScene {
       if (this.flightT >= 1) this.controls.enabled = true;
     }
     this.controls.update();
-
-    // Småøyene duver sakte.
-    for (let i = 0; i < this.floatIsles.length; i++) {
-      const isle = this.floatIsles[i];
-      isle.position.y += Math.sin(t * 0.35 + i * 1.9) * 0.004;
-      isle.rotation.y += 0.0006;
-    }
 
     // Bålet flakrer: lys og flammer i utakt.
     this.fireLight.intensity = 52 + Math.sin(t * 9) * 6 + Math.sin(t * 23.7) * 4;
