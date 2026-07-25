@@ -333,7 +333,7 @@ export class FarmScene {
     this.renderer.toneMappingExposure = 1.15;
 
     this.scene.background = skyTexture();
-    this.scene.fog = new THREE.Fog(FOG_COLOR, 18, 55);
+    this.scene.fog = new THREE.Fog(FOG_COLOR, 28, 85);
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
     this.camera.position.set(0, 10.5, 20);
@@ -345,7 +345,7 @@ export class FarmScene {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.minDistance = 5;
-    this.controls.maxDistance = 38;
+    this.controls.maxDistance = 60;
     this.controls.maxPolarAngle = Math.PI / 2.15; // aldri under bakken
     this.controls.update();
 
@@ -436,41 +436,11 @@ export class FarmScene {
     glow.position.y = 0.03;
     this.scene.add(glow);
 
-    // Skogen rundt: instanserte silhuett-trær i to ringer.
-    const trunkGeo = new THREE.CylinderGeometry(0.22, 0.34, 1, 6);
-    const crownGeo = new THREE.IcosahedronGeometry(1, 1);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x101c1a, roughness: 1 });
-    const crownMat = new THREE.MeshStandardMaterial({ color: 0x122820, roughness: 1 });
-    const COUNT = 46;
-    const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, COUNT);
-    const crowns = new THREE.InstancedMesh(crownGeo, crownMat, COUNT * 2);
+    // (Trærne er tatt ut inntil videre — åpen slette gir trollene mer plass.)
     const m = new THREE.Matrix4();
-    let crownIdx = 0;
-    for (let i = 0; i < COUNT; i++) {
-      const ring = i % 2 === 0 ? 0 : 1;
-      const a = (i / COUNT) * Math.PI * 2 + (hash(`ta${i}`) % 100) / 160;
-      const r = 20 + ring * 9 + (hash(`tr${i}`) % 100) / 18;
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
-      const height = 7 + (hash(`th${i}`) % 70) / 10;
-      m.makeScale(1, height, 1);
-      m.setPosition(x, height / 2, z);
-      trunks.setMatrixAt(i, m);
-      for (let c = 0; c < 2; c++) {
-        const cs = 2.2 + (hash(`tc${i}${c}`) % 100) / 45;
-        m.makeScale(cs, cs * 0.85, cs);
-        m.setPosition(
-          x + ((hash(`tx${i}${c}`) % 100) - 50) / 55,
-          height * (0.72 + c * 0.2),
-          z + ((hash(`tz${i}${c}`) % 100) - 50) / 55
-        );
-        crowns.setMatrixAt(crownIdx++, m);
-      }
-    }
-    this.scene.add(trunks, crowns);
 
     // Mosekledde steiner spredt i lysningen.
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 12; i++) {
       const geo = new THREE.IcosahedronGeometry(0.45 + (hash(`rk${i}`) % 10) / 14, 2);
       displaceStone(geo, i * 3.7, new THREE.Color(0x767b7d), new THREE.Color(0x5d8735), 0.35);
       const rock = new THREE.Mesh(
@@ -478,7 +448,7 @@ export class FarmScene {
         new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })
       );
       const a = (hash(`ra${i}`) % 628) / 100;
-      const r = 6 + (hash(`rr${i}`) % 90) / 10;
+      const r = 7 + (hash(`rr${i}`) % 220) / 10;
       rock.position.set(Math.cos(a) * r, 0.28, Math.sin(a) * r);
       rock.rotation.y = a * 2;
       this.scene.add(rock);
@@ -494,11 +464,11 @@ export class FarmScene {
       alphaTest: 0.35,
       side: THREE.DoubleSide,
     });
-    const G = 160;
+    const G = 260;
     const grass = new THREE.InstancedMesh(grassGeo, grassMat, G * 2);
     for (let i = 0; i < G; i++) {
       const a = (hash(`ga${i}`) % 628) / 100;
-      const r = 2 + (hash(`gd${i}`) % 100) / 6.5;
+      const r = 2 + (hash(`gd${i}`) % 100) / 3.2;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       const s = 0.7 + (hash(`gs${i}`) % 100) / 140;
@@ -513,10 +483,10 @@ export class FarmScene {
 
     // Hvite småblomster i gresset.
     const flowerMat = new THREE.MeshStandardMaterial({ color: 0xdce6dc, roughness: 0.7 });
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 20; i++) {
       const f = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 4), flowerMat);
       const a = (hash(`fa${i}`) % 628) / 100;
-      const r = 3 + (hash(`fr${i}`) % 80) / 8;
+      const r = 3 + (hash(`fr${i}`) % 240) / 10;
       f.position.set(Math.cos(a) * r, 0.32, Math.sin(a) * r);
       this.scene.add(f);
     }
@@ -527,7 +497,7 @@ export class FarmScene {
     this.fireflySeed = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) {
       const a = (hash(`ffa${i}`) % 628) / 100;
-      const r = 4 + (hash(`ffr${i}`) % 160) / 10;
+      const r = 4 + (hash(`ffr${i}`) % 280) / 10;
       positions[i * 3] = Math.cos(a) * r;
       positions[i * 3 + 1] = 0.6 + (hash(`ffy${i}`) % 100) / 28;
       positions[i * 3 + 2] = Math.sin(a) * r;
@@ -581,7 +551,7 @@ export class FarmScene {
     // Stabil plass i en ring rundt bålet, vendt inn mot varmen.
     const idx = this.trolls.size;
     const angle = (h % 628) / 100;
-    const radius = 3.2 + (idx % 5) * 1.7 + ((h >> 8) % 10) / 9;
+    const radius = 4 + (idx % 8) * 2.6 + ((h >> 8) % 10) / 6;
     const home = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
     group.position.copy(home);
     group.rotation.y = Math.atan2(-home.x, -home.z);
