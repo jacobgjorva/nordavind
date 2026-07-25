@@ -10,6 +10,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
 
 const FPS_CAP = 30;
+// Bumpes hver gang GLB-modellene bygges på nytt i Blender.
+const MODEL_VERSION = 2;
 
 // hash gir et stabilt tall fra en streng — plass og tone følger agent-id.
 function hash(s: string): number {
@@ -148,8 +150,10 @@ export class FarmScene {
   private async loadModels() {
     const loader = new GLTFLoader();
     const [troll, golem] = await Promise.allSettled([
-      loader.loadAsync("/farm/troll.glb"),
-      loader.loadAsync("/farm/golem.glb"),
+      // ?v= bustes ved modellendring, ellers server nettleseren gammel GLB
+      // fra cache og nye Blender-bygg blir usynlige.
+      loader.loadAsync(`/farm/troll.glb?v=${MODEL_VERSION}`),
+      loader.loadAsync(`/farm/golem.glb?v=${MODEL_VERSION}`),
     ]);
     if (troll.status === "fulfilled") this.models.troll = troll.value.scene;
     if (golem.status === "fulfilled") this.models.golem = golem.value.scene;
