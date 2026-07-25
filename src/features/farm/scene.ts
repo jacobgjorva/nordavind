@@ -434,17 +434,7 @@ export class FarmScene {
       new THREE.Mesh(under, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.98 }))
     );
 
-    // Kantsteiner langs stupet, så overgangen topp/klippe får en leppe.
     const rimMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
-    for (let i = 0; i < 14; i++) {
-      const geo = new THREE.IcosahedronGeometry(0.5 + (hash(`rim${i}`) % 10) / 16, 1);
-      displaceStone(geo, i * 5.1, new THREE.Color(0x6d7073), new THREE.Color(0x5d8735), 0.3);
-      const stone = new THREE.Mesh(geo, rimMat);
-      const a = (i / 14) * Math.PI * 2 + (hash(`rima${i}`) % 100) / 220;
-      stone.position.set(Math.cos(a) * (ISLAND_R - 0.7), 0.18, Math.sin(a) * (ISLAND_R - 0.7));
-      stone.rotation.y = a * 3;
-      this.scene.add(stone);
-    }
 
     // Småøyer som svever rundt hovedøya og duver sakte (animeres i tick).
     for (let i = 0; i < 5; i++) {
@@ -507,21 +497,6 @@ export class FarmScene {
 
     // (Trærne er tatt ut inntil videre — åpen slette gir trollene mer plass.)
     const m = new THREE.Matrix4();
-
-    // Mosekledde steiner spredt i lysningen.
-    for (let i = 0; i < 12; i++) {
-      const geo = new THREE.IcosahedronGeometry(0.45 + (hash(`rk${i}`) % 10) / 14, 2);
-      displaceStone(geo, i * 3.7, new THREE.Color(0x767b7d), new THREE.Color(0x5d8735), 0.35);
-      const rock = new THREE.Mesh(
-        geo,
-        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })
-      );
-      const a = (hash(`ra${i}`) % 628) / 100;
-      const r = 7 + (hash(`rr${i}`) % 190) / 10;
-      rock.position.set(Math.cos(a) * r, 0.28, Math.sin(a) * r);
-      rock.rotation.y = a * 2;
-      this.scene.add(rock);
-    }
 
     // Gresstuster: instanserte kryssplan med alpha-strå, tettest nær bålet.
     const grassTex = grassTexture();
