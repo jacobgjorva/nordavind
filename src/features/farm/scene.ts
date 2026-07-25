@@ -286,18 +286,10 @@ function buildTroll(id: string): { group: THREE.Group; body: THREE.Mesh } {
     }
   }
 
-  // Myk fuskeskygge under — mye billigere enn skyggekart.
-  const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.5, 1.5),
-    new THREE.MeshBasicMaterial({
-      map: radialTexture("rgba(0,0,0,0.32)", "rgba(0,0,0,0)"),
-      transparent: true,
-      depthWrite: false,
-    })
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.02;
-  group.add(shadow);
+  // Ekte sol-skygger: alt i trollet kaster skygge på bakken.
+  group.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.castShadow = true;
+  });
 
   return { group, body };
 }
@@ -336,10 +328,24 @@ export class FarmScene {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     // Filmisk tonemapping gir det myke, malte lyset fra referansene.
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.2;
+    // Ekte skygger fra kveldssola — én myk 1024-map er den største
+    // realisme-gevinsten vi kan kjøpe for så lite GPU.
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene.background = skyTexture();
     this.scene.fog = new THREE.Fog(FOG_COLOR, 28, 85);
+
+    // Miljølys fra himmelen: solnedgangsgradienten brukes som IBL, så stein
+    // og mose får naturlig himmelfarge i stedet for flatt konstantlys.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const equirect = skyTexture();
+    equirect.mapping = THREE.EquirectangularReflectionMapping;
+    this.scene.environment = pmrem.fromEquirectangular(equirect).texture;
+    this.scene.environmentIntensity = 0.55;
+    equirect.dispose();
+    pmrem.dispose();
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
     // Launch: start langt unna, skrått ovenfra — innflygningen skjer i tick.
@@ -368,11 +374,24 @@ export class FarmScene {
 
   // buildEnvironment reiser skogen: måneskinn, bål, trær, gress, ildfluer.
   private buildEnvironment() {
-    // Lav gyllen kveldssol bakfra + varm skumringshimmel; bålet fyller på.
-    const sun = new THREE.DirectionalLight(0xffb168, 1.5);
-    sun.position.set(26, 7, -34);
-    const hemi = new THREE.HemisphereLight(0x8a5a72, 0x241c14, 0.6);
-    this.scene.add(sun, hemi);
+    // Lav gyllen kveldssol med lange, myke skygger; kjølig motlys fra
+    // himmelhvelvet på skyggesiden, slik naturlig sprett-lys oppfører seg.
+    const sun = new THREE.DirectionalLight(0xffb168, 2.4);
+    sun.position.set(26, 9, -34);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left = -34;
+    sun.shadow.camera.right = 34;
+    sun.shadow.camera.top = 34;
+    sun.shadow.camera.bottom = -34;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 120;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.radius = 4;
+    const fill = new THREE.DirectionalLight(0x6a7ab8, 0.35);
+    fill.position.set(-20, 14, 24);
+    const hemi = new THREE.HemisphereLight(0x8a5a72, 0x241c14, 0.3);
+    this.scene.add(sun, fill, hemi);
 
     // Solskiven som en varm glød lavt mellom trærne.
     const sunGlow = new THREE.Sprite(
@@ -397,6 +416,7 @@ export class FarmScene {
       new THREE.MeshStandardMaterial({ map: groundTexture(), roughness: 1 })
     );
     ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
     this.scene.add(ground);
 
     // Undersiden: en støyforskjøvet stein-kjegle som henger under øya, med
@@ -525,6 +545,7 @@ export class FarmScene {
         grass.setMatrixAt(i * 2 + c, m);
       }
     }
+    grass.receiveShadow = true;
     this.scene.add(grass);
 
     // Hvite småblomster i gresset.
