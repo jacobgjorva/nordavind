@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { createConnection, testConnection } from "../../lib/api";
+import { createConnection, testConnection, type Connection } from "../../lib/api";
+import { Connectors } from "../../features/settings/Connectors";
+import { emit } from "../../lib/events";
 import styles from "./Credential.module.css";
 
 // CredentialForm er chattens sikre inntaksfelt for databasetilkoblinger:
@@ -39,19 +41,15 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
   const [busy, setBusy] = useState<"" | "test" | "save">("");
   const [error, setError] = useState("");
   const [testOK, setTestOK] = useState(false);
-  const [doneName, setDoneName] = useState("");
+  const [created, setCreated] = useState<Connection | null>(null);
 
 
-  if (doneName) {
+  // Rett i tabellvalget: brukeren styrer tilganger med en gang, ingen
+  // mellommelding.
+  if (created) {
     return (
       <div className={styles.card}>
-        <div className={styles.doneRow}>
-          <span className={styles.doneMark}>✓</span>
-          <div>
-            <div className={styles.doneText}>Tilkoblingen «{doneName}» er opprettet og testet.</div>
-            <div className={styles.doneSub}>Si fra i chatten når du vil velge hvilke tabeller AI-en skal se.</div>
-          </div>
-        </div>
+        <Connectors conn={created} onReload={() => emit("connections-changed")} />
       </div>
     );
   }
@@ -98,8 +96,9 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
     const pw = password;
     setPassword(""); // aldri la hemmeligheten bli liggende i feltet
     try {
-      await createConnection({ name: name.trim(), ...payload(pw) });
-      setDoneName(name.trim());
+      const conn = await createConnection({ name: name.trim(), ...payload(pw) });
+      emit("connections-changed");
+      setCreated(conn);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Tilkoblingen feilet.");
     } finally {
