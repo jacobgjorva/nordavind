@@ -3,7 +3,7 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: #0a141c;
+  background: #0a0a0c;
 }
 
 .canvas {
@@ -27,20 +27,20 @@
 .title {
   font-size: 17px;
   font-weight: 650;
-  color: #cfe3d8;
+  color: #d8d8d4;
 }
 
 .count {
   font-size: 13px;
-  color: #7d95a2;
+  color: #8a8a90;
 }
 
 .close {
   margin-left: auto;
   pointer-events: auto;
   border: none;
-  background: rgba(20, 36, 30, 0.6);
-  color: #cfe3d8;
+  background: rgba(34, 34, 38, 0.6);
+  color: #d8d8d4;
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -49,7 +49,7 @@
 }
 
 .close:hover {
-  background: rgba(30, 52, 44, 0.85);
+  background: rgba(48, 48, 54, 0.85);
 }
 
 /* Statuskortet for et valgt troll. */
