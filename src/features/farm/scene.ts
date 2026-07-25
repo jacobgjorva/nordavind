@@ -11,8 +11,8 @@ import type { AgentInfo, AgentState } from "../../lib/api";
 
 const FPS_CAP = 30;
 const ISLAND_R = 28; // radius på den svevende øya
-// Solnedgang: dyp skumringsblå øverst, rose midt på, gyllen horisont.
-const FOG_COLOR = 0x6e5064;
+// Sen ettermiddag: klar blå himmel som varmes svakt mot horisonten.
+const FOG_COLOR = 0x93a8bd;
 
 // skyTexture: vertikal gradient som himmel — strekkes over hele bakgrunnen.
 function skyTexture(): THREE.CanvasTexture {
@@ -21,10 +21,10 @@ function skyTexture(): THREE.CanvasTexture {
   canvas.height = 512;
   const ctx = canvas.getContext("2d")!;
   const g = ctx.createLinearGradient(0, 0, 0, 512);
-  g.addColorStop(0, "#312e52");
-  g.addColorStop(0.45, "#7a4e66");
-  g.addColorStop(0.75, "#c97a52");
-  g.addColorStop(1, "#e8a35e");
+  g.addColorStop(0, "#3f6a9e");
+  g.addColorStop(0.5, "#7fa3c2");
+  g.addColorStop(0.8, "#c2cfc9");
+  g.addColorStop(1, "#e8c98a");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 2, 512);
   const tex = new THREE.CanvasTexture(canvas);
@@ -387,8 +387,8 @@ export class FarmScene {
   private buildEnvironment() {
     // Lav gyllen kveldssol med lange, myke skygger; kjølig motlys fra
     // himmelhvelvet på skyggesiden, slik naturlig sprett-lys oppfører seg.
-    const sun = new THREE.DirectionalLight(0xffb168, 2.4);
-    sun.position.set(60, 48, -85);
+    const sun = new THREE.DirectionalLight(0xffe8c4, 2.2);
+    sun.position.set(55, 68, -78);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -34;
@@ -399,23 +399,10 @@ export class FarmScene {
     sun.shadow.camera.far = 120;
     sun.shadow.bias = -0.0005;
     sun.shadow.radius = 4;
-    const fill = new THREE.DirectionalLight(0x6a7ab8, 0.35);
+    const fill = new THREE.DirectionalLight(0x7a92b8, 0.4);
     fill.position.set(-20, 14, 24);
-    const hemi = new THREE.HemisphereLight(0x8a5a72, 0x241c14, 0.3);
+    const hemi = new THREE.HemisphereLight(0x7f9cc0, 0x2a2418, 0.35);
     this.scene.add(sun, fill, hemi);
-
-    // Solskiven som en varm glød lavt mellom trærne.
-    const sunGlow = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: radialTexture("rgba(255,214,150,0.95)", "rgba(255,150,60,0)"),
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        depthWrite: false,
-      })
-    );
-    sunGlow.position.set(66, 52, -94);
-    sunGlow.scale.setScalar(30);
-    this.scene.add(sunGlow);
 
     this.fireLight = new THREE.PointLight(0xff9a3d, 60, 26, 2);
     this.fireLight.position.set(0, 1.4, 0);
@@ -794,7 +781,8 @@ export class FarmScene {
       pos.setZ(i, pos.getZ(i) + Math.sin(t * 0.47 + sz) * 0.004);
     }
     pos.needsUpdate = true;
-    (this.fireflies.material as THREE.PointsMaterial).opacity = 0.65 + Math.sin(t * 1.8) * 0.25;
+    // Dagslys: ildfluene er bare et svakt glimt til skumringen kommer.
+    (this.fireflies.material as THREE.PointsMaterial).opacity = 0.28 + Math.sin(t * 1.8) * 0.12;
 
     for (const troll of this.trolls.values()) {
       const { group } = troll;
