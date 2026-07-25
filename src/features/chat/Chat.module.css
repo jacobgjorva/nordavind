@@ -1178,3 +1178,8 @@
 .impTriggerActive:hover {
   background: rgba(122, 162, 247, 0.1);
 }
+
+/* MIDLERTIDIG forhåndsvisning: logoen i chatten skjult — reverteres ved beslutning. */
+.thinkingLogo {
+  display: none;
+}
