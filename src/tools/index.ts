@@ -7,3 +7,4 @@ import "./mail";
 import "./agent/AgentWidgets";
 import "./agent/MissionPlan";
 import "./credential";
+import "./m365";

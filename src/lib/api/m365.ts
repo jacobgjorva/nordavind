@@ -21,3 +21,12 @@ export async function connectM365(): Promise<{ url: string }> {
 export async function disconnectM365(): Promise<void> {
   await apiFetch("/m365", { method: "DELETE" });
 }
+
+// Lagrer tenantens Azure app-registrering (admin). Secret sendes kun hit.
+export async function saveM365App(payload: {
+  client_id: string;
+  client_secret: string;
+  directory_id: string;
+}): Promise<void> {
+  await apiFetch("/m365/app", { method: "POST", body: payload });
+}

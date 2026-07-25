@@ -1,0 +1,115 @@
+/* M365-oppskriftens paneler i chatten — samme formspråk som credential-kortet. */
+.card {
+  width: 100%;
+  margin: 14px 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.span2 {
+  grid-column: span 2;
+}
+
+.label {
+  font-size: 12.5px;
+  color: #ffffff;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 13px;
+  border-radius: 10px;
+  border: 0.5px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text, #eee);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.input:hover {
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.input::placeholder {
+  color: var(--text-faint, #6d6d72);
+  opacity: 1;
+}
+
+.primary {
+  align-self: flex-start;
+  padding: 7px 16px;
+  border-radius: 9px;
+  border: 0.5px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #eee);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.primary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-faint, #6d6d72);
+}
+
+.error {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #f2919a;
+}
+
+.doneRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.doneMark {
+  color: #46a758;
+  font-size: 14px;
+}
+
+.doneText {
+  font-size: 13.5px;
+  color: var(--text, #eee);
+}
+
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .span2 {
+    grid-column: auto;
+  }
+}
