@@ -134,10 +134,12 @@ export class FarmScene {
     this.controls.update();
 
     // Ingen verden i det hele tatt — skapningene svever i mørket.
-    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    const key = new THREE.DirectionalLight(0xffffff, 2.6);
     key.position.set(14, 22, 10);
-    const fill = new THREE.HemisphereLight(0x3a3f4a, 0x0a0a0c, 0.5);
-    this.scene.add(key, fill);
+    const rim = new THREE.DirectionalLight(0xbfd0e8, 1.0);
+    rim.position.set(-16, 12, -14);
+    const fill = new THREE.HemisphereLight(0x8a929e, 0x1c1c20, 1.1);
+    this.scene.add(key, rim, fill);
 
     canvas.addEventListener("pointerdown", this.pointerDown);
     canvas.addEventListener("pointerup", this.pointerUp);
@@ -204,7 +206,9 @@ export class FarmScene {
 
   private spawn(agent: AgentInfo) {
     const h = hash(agent.id);
-    const golem = h % 2 === 1;
+    // Bit 4 i hashen gir best artsmiks på reelle id-er (bit 0 traff likt
+    // for alle test-agentene — ren uflaks, men synlig uflaks).
+    const golem = ((h >>> 4) & 1) === 1;
     const model = golem ? this.models.golem : this.models.troll;
 
     let built: { group: THREE.Group; body: THREE.Mesh; height: number };
