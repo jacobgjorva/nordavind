@@ -72,10 +72,12 @@ export default function Hub({
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       for (const n of sim.nodes) {
-        const [bg] = categoryColor(n.agent.category ?? "");
+        const [bg] = categoryColor(n.agent.category ?? "", n.agent.name);
         const depth = n.depth;
         const r = n.r * (0.7 + depth * 0.5);
-        const alpha = 0.35 + depth * 0.65;
+        // Pastellene trenger høy dekkgrad mot mørk bakgrunn; dybden vises
+        // mest gjennom størrelse.
+        const alpha = 0.6 + depth * 0.4;
         const state = n.agent.state ?? "sleeping";
 
         // Solid, flat avatarfarge — pausede gråner.
@@ -95,13 +97,11 @@ export default function Hub({
           ctx.stroke();
         }
 
-        // Navn under noden — kun godt lesbart på de fremste.
-        if (depth > 0.25) {
-          ctx.font = "500 11px system-ui, sans-serif";
-          ctx.fillStyle = `rgba(226,226,222,${0.35 + depth * 0.55})`;
-          ctx.textAlign = "center";
-          ctx.fillText(n.agent.name, n.x, n.y + r + 14);
-        }
+        // Navn i liten skrift rett under noden — alltid synlig.
+        ctx.font = "500 10px system-ui, sans-serif";
+        ctx.fillStyle = `rgba(226,226,222,${0.55 + depth * 0.45})`;
+        ctx.textAlign = "center";
+        ctx.fillText(n.agent.name, n.x, n.y + r + 12);
         ctx.globalAlpha = 1;
       }
     };

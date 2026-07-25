@@ -35,12 +35,11 @@ const DEPTH: Record<AgentState, number> = {
   sleeping: 0.1,
 };
 
-// categoryColor: stabil farge per kategori fra den delte avatar-paletten
-// (samme visuelle språk som mail-kort og widget-deling). Returnerer
-// [bakgrunn, tekstfarge]; ukategorisert er nøytralt grå.
-export function categoryColor(category: string): [string, string] {
-  if (!category) return ["#3a3b40", "#b8b8b2"];
-  return avatarColor(category.toLowerCase());
+// categoryColor: stabil farge fra den delte avatar-paletten (samme visuelle
+// språk som mail-kort og widget-deling). Kategorien styrer fargen; uten
+// kategori farges noden av sitt eget navn, så ingen står gråsvarte.
+export function categoryColor(category: string, fallback: string): [string, string] {
+  return avatarColor((category || fallback).toLowerCase());
 }
 
 export class GraphSim {
