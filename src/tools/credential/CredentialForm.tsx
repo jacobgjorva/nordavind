@@ -36,9 +36,12 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
   if (doneName) {
     return (
       <div className={styles.card}>
-        <div className={styles.done}>
-          Tilkoblingen «{doneName}» er opprettet og testet ✓ — si fra i chatten
-          når du vil velge tabeller.
+        <div className={styles.doneRow}>
+          <span className={styles.doneMark}>✓</span>
+          <div>
+            <div className={styles.doneText}>Tilkoblingen «{doneName}» er opprettet og testet</div>
+            <div className={styles.doneSub}>Si fra i chatten når du vil velge hvilke tabeller AI-en skal se.</div>
+          </div>
         </div>
       </div>
     );
@@ -72,56 +75,83 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
 
   return (
     <div className={styles.card}>
-      <div className={styles.title}>Koble til database</div>
-      <div className={styles.row}>
-        <span className={styles.label}>Navn</span>
-        <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="f.eks. Kundedata" />
+      <div className={styles.head}>
+        <span className={styles.title}>Koble til database</span>
+        <span className={styles.sub}>Testes automatisk før lagring</span>
       </div>
-      <div className={styles.row}>
-        <span className={styles.label}>Type</span>
-        <select className={styles.select} value={driver} onChange={(e) => setDriver(e.target.value)}>
-          <option value="postgres">PostgreSQL</option>
-          <option value="mysql">MySQL</option>
-          <option value="mssql">SQL Server</option>
-        </select>
+
+      <div className={styles.grid}>
+        <label className={styles.field}>
+          <span className={styles.label}>Navn</span>
+          <input
+            className={styles.input}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="f.eks. Kundedata"
+          />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Type</span>
+          <select className={styles.select} value={driver} onChange={(e) => setDriver(e.target.value)}>
+            <option value="postgres">PostgreSQL</option>
+            <option value="mysql">MySQL</option>
+            <option value="mssql">SQL Server</option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.label}>Host</span>
+          <input
+            className={styles.input}
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            placeholder="db.example.com"
+          />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Port</span>
+          <input
+            className={styles.input}
+            value={port}
+            onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
+            placeholder={String(defaultPorts[driver] ?? "")}
+            inputMode="numeric"
+          />
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.label}>Database</span>
+          <input className={styles.input} value={database} onChange={(e) => setDatabase(e.target.value)} />
+        </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Bruker</span>
+          <input className={styles.input} value={user} onChange={(e) => setUser(e.target.value)} />
+        </label>
+
+        <label className={`${styles.field} ${styles.span2}`}>
+          <span className={styles.label}>Passord</span>
+          <input
+            className={styles.input}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && ready && !busy) submit();
+            }}
+            autoComplete="new-password"
+          />
+        </label>
       </div>
-      <div className={styles.row}>
-        <span className={styles.label}>Host</span>
-        <input className={styles.input} value={host} onChange={(e) => setHost(e.target.value)} />
-      </div>
-      <div className={styles.row}>
-        <span className={styles.label}>Port</span>
-        <input
-          className={styles.input}
-          value={port}
-          onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
-          placeholder={String(defaultPorts[driver] ?? "")}
-          inputMode="numeric"
-        />
-      </div>
-      <div className={styles.row}>
-        <span className={styles.label}>Database</span>
-        <input className={styles.input} value={database} onChange={(e) => setDatabase(e.target.value)} />
-      </div>
-      <div className={styles.row}>
-        <span className={styles.label}>Bruker</span>
-        <input className={styles.input} value={user} onChange={(e) => setUser(e.target.value)} />
-      </div>
-      <div className={styles.row}>
-        <span className={styles.label}>Passord</span>
-        <input
-          className={styles.input}
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="new-password"
-        />
-      </div>
+
       {error && <div className={styles.error}>{error}</div>}
+
       <div className={styles.footer}>
-        <span className={styles.hint}>Sendes kryptert direkte — vises aldri i chatten.</span>
+        <span className={styles.hint}>
+          <span className={styles.lockDot} />
+          Sendes kryptert direkte — vises aldri i chatten
+        </span>
         <button className={styles.submit} disabled={!ready || busy} onClick={submit}>
-          {busy ? "Tester …" : "Koble til"}
+          {busy ? "Tester tilkoblingen …" : "Koble til"}
         </button>
       </div>
     </div>
