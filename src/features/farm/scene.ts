@@ -6,6 +6,7 @@
 // blanke svarte øyne; mørk blågrønn skog, varmt bål i midten, ildfluer,
 // tett tåke. Alt er prosedyregenerert — ingen eksterne assets.
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
 
 const FPS_CAP = 30;
@@ -293,6 +294,8 @@ export class FarmScene {
   private accumulator = 0;
   private disposed = false;
   private canvas: HTMLCanvasElement;
+  private controls!: OrbitControls;
+  private downAt = new THREE.Vector2();
 
   private fireLight!: THREE.PointLight;
   private flames: THREE.Sprite[] = [];
@@ -316,11 +319,22 @@ export class FarmScene {
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
     this.camera.position.set(0, 10.5, 20);
-    this.camera.lookAt(0, 0.8, 0);
+
+    // Fri kamerastyring: dra for å snurre, scroll for å zoome, høyreklikk
+    // for å panorere. Grensene holder kameraet over bakken og innenfor tåka.
+    this.controls = new OrbitControls(this.camera, canvas);
+    this.controls.target.set(0, 0.8, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minDistance = 5;
+    this.controls.maxDistance = 38;
+    this.controls.maxPolarAngle = Math.PI / 2.15; // aldri under bakken
+    this.controls.update();
 
     this.buildEnvironment();
 
-    canvas.addEventListener("pointerdown", this.handlePick);
+    canvas.addEventListener("pointerdown", this.pointerDown);
+    canvas.addEventListener("pointerup", this.pointerUp);
     window.addEventListener("resize", this.resize);
     this.resize();
     this.renderer.setAnimationLoop(this.tick);
@@ -609,6 +623,7 @@ export class FarmScene {
     const dt = Math.min(this.accumulator, 0.1);
     this.accumulator = 0;
     const t = this.clock.elapsedTime;
+    this.controls.update();
 
     // Bålet flakrer: lys og flammer i utakt.
     this.fireLight.intensity = 52 + Math.sin(t * 9) * 6 + Math.sin(t * 23.7) * 4;
@@ -681,6 +696,18 @@ export class FarmScene {
     troll.group.position.y = Math.abs(Math.sin(this.clock.elapsedTime * 8 + troll.phase)) * 0.05;
   }
 
+  // Klikk vs. dra: plukk kun når pekeren knapt har flyttet seg, ellers er
+  // det kamerastyring.
+  private pointerDown = (e: PointerEvent) => {
+    this.downAt.set(e.clientX, e.clientY);
+  };
+
+  private pointerUp = (e: PointerEvent) => {
+    if (this.downAt.distanceTo(new THREE.Vector2(e.clientX, e.clientY)) < 6) {
+      this.handlePick(e);
+    }
+  };
+
   private handlePick = (e: PointerEvent) => {
     const rect = this.canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(
@@ -711,7 +738,9 @@ export class FarmScene {
   dispose() {
     this.disposed = true;
     this.renderer.setAnimationLoop(null);
-    this.canvas.removeEventListener("pointerdown", this.handlePick);
+    this.controls.dispose();
+    this.canvas.removeEventListener("pointerdown", this.pointerDown);
+    this.canvas.removeEventListener("pointerup", this.pointerUp);
     window.removeEventListener("resize", this.resize);
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.Points) {
