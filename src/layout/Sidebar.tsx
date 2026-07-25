@@ -18,6 +18,7 @@ type SidebarProps = {
   userEmail: string;
   onNewChat: () => void;
   onOpenSettings: () => void;
+  onOpenHub: () => void;
   onOpenChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
   onNewFolder: () => void;
@@ -57,6 +58,7 @@ export function Sidebar({
   userEmail,
   onNewChat,
   onOpenSettings,
+  onOpenHub,
   onOpenChat,
   onDeleteChat,
   onNewFolder,
@@ -157,6 +159,13 @@ export function Sidebar({
           Settings
         </span>
         <kbd className={styles.kbd}>⌘,</kbd>
+      </button>
+
+      <button className={styles.navLink} onClick={onOpenHub}>
+        <span className={styles.newChatLabel}>
+          <HugeiconsIcon icon={AnonymousIcon} size={15} strokeWidth={1.8} />
+          Agenter
+        </span>
       </button>
 
       <button className={styles.search}>

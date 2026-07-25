@@ -54,6 +54,7 @@ export interface AgentInfo {
   name: string;
   enabled: boolean;
   personality?: string;
+  category?: string;
   state?: AgentState;
   chat_id?: string;
   plan_status?: string;
@@ -132,7 +133,7 @@ export async function fetchAgents(): Promise<AgentInfo[]> {
 // Setter navn og/eller personlighet på en agent fra farmen.
 export async function setAgentPersona(
   id: string,
-  persona: { name?: string; personality?: string }
+  persona: { name?: string; personality?: string; category?: string }
 ): Promise<void> {
   await apiFetch(`/agents/${id}/persona`, { method: "PATCH", body: persona });
 }

@@ -1,0 +1,157 @@
+/* Agent-grafen ligger som fullskjerms-lag over appen; chatten består under. */
+.hub {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #0c0d10;
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  pointer-events: none;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 650;
+  color: #d8d8d4;
+}
+
+.count {
+  font-size: 13px;
+  color: #8a8a90;
+}
+
+.close {
+  margin-left: auto;
+  pointer-events: auto;
+  border: none;
+  background: rgba(34, 34, 38, 0.6);
+  color: #d8d8d4;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.close:hover {
+  background: rgba(48, 48, 54, 0.85);
+}
+
+/* Kortet for en valgt node. */
+.card {
+  position: absolute;
+  top: 56px;
+  right: 18px;
+  width: 280px;
+  background: #17181c;
+  border: 1px solid #2c2d33;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 650;
+  color: #e6e6e2;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 6px;
+  background: transparent;
+}
+
+.cardName:hover,
+.cardName:focus {
+  border-color: #2c2d33;
+  background: #101114;
+  outline: none;
+}
+
+.cardState {
+  font-size: 12.5px;
+  color: #8fae8a;
+  font-weight: 550;
+}
+
+.cardTask {
+  font-size: 12.5px;
+  color: #b8b8b2;
+  margin: 0;
+  line-height: 1.45;
+  max-height: 78px;
+  overflow: hidden;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: #77777d;
+}
+
+.cardInput,
+.cardPersonality {
+  font-size: 12.5px;
+  border: 1px solid #2c2d33;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #101114;
+  color: #e6e6e2;
+  font-family: inherit;
+}
+
+.cardPersonality {
+  resize: none;
+}
+
+.cardInput:focus,
+.cardPersonality:focus {
+  outline: none;
+  border-color: #4a5568;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+}
+
+.cardBtn {
+  border: none;
+  background: #3d5a80;
+  color: #e6e6e2;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.cardBtn:hover {
+  background: #34506f;
+}
+
+.cardBtnGhost {
+  border: 1px solid #2c2d33;
+  background: transparent;
+  color: #b8b8b2;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
