@@ -9,7 +9,7 @@ import {
   type AgentState,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
-import { categoryColor, GraphSim, type Node } from "./sim";
+import { categoryColor, DIVIDE_LEFT, DIVIDE_RIGHT, GraphSim, type Node } from "./sim";
 import styles from "./Hub.module.css";
 
 const POLL_MS = 5000;
@@ -66,22 +66,35 @@ export default function Hub({
       const step = Math.min(acc, 0.1);
       acc = 0;
       const t = now / 1000;
-      sim.step(step, t);
+      sim.step(step, t, Date.now());
 
+      const w = canvas.clientWidth;
+      const hgt = canvas.clientHeight;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      ctx.clearRect(0, 0, w, hgt);
+
+      // Skillelinjene og seksjonsetikettene.
+      ctx.strokeStyle = "rgba(226,226,222,0.12)";
+      ctx.lineWidth = 1;
+      for (const fx of [DIVIDE_LEFT, DIVIDE_RIGHT]) {
+        ctx.beginPath();
+        ctx.moveTo(w * fx, 52);
+        ctx.lineTo(w * fx, hgt - 24);
+        ctx.stroke();
+      }
+      ctx.font = "500 11px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(226,226,222,0.35)";
+      ctx.textAlign = "center";
+      ctx.fillText("venter", (w * DIVIDE_LEFT) / 2, 46);
+      ctx.fillText("kjører", w * (DIVIDE_LEFT + DIVIDE_RIGHT) / 2, 46);
+      ctx.fillText("svar", w * (DIVIDE_RIGHT + 1) / 2, 46);
 
       for (const n of sim.nodes) {
         const [bg] = categoryColor(n.agent.category ?? "", n.agent.name);
-        const depth = n.depth;
-        const r = n.r * (0.7 + depth * 0.5);
-        // Pastellene trenger høy dekkgrad mot mørk bakgrunn; dybden vises
-        // mest gjennom størrelse.
-        const alpha = 0.6 + depth * 0.4;
         const state = n.agent.state ?? "sleeping";
+        // Puls mens den kjører; ellers rolig fast størrelse.
+        const r = n.r * (1 + n.pulse * 0.18 * (1 + Math.sin(t * 5 + n.phase)));
 
-        // Solid, flat avatarfarge — pausede gråner.
-        ctx.globalAlpha = alpha;
         ctx.fillStyle = state === "paused" ? "#3a3b40" : bg;
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
@@ -97,12 +110,11 @@ export default function Hub({
           ctx.stroke();
         }
 
-        // Navn i liten skrift rett under noden — alltid synlig.
+        // Navn i liten skrift rett under noden.
         ctx.font = "500 10px system-ui, sans-serif";
-        ctx.fillStyle = `rgba(226,226,222,${0.55 + depth * 0.45})`;
+        ctx.fillStyle = "rgba(226,226,222,0.75)";
         ctx.textAlign = "center";
-        ctx.fillText(n.agent.name, n.x, n.y + r + 12);
-        ctx.globalAlpha = 1;
+        ctx.fillText(n.agent.name, n.x, n.y + n.r + 13);
       }
     };
     raf = requestAnimationFrame(draw);

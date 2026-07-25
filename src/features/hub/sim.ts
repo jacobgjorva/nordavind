@@ -1,9 +1,20 @@
-// Kraftsimulering for agent-grafen: hver agent er en node som trekkes mot
-// klyngeankeret til kategorien sin, dyttes fra naboene, og driver svakt så
-// bildet lever. Ren Canvas 2D og egen fysikk — ingen avhengigheter, O(n²)
-// frastøtning er helt fint opp til noen hundre agenter.
+// Agent-grafen, tre seksjoner delt av to vertikale linjer:
+//
+//   venter                | kjører      | svar
+//   x = tid til neste     | pulserer nå | resultat klart, ulest
+//   kjøring, y = alder    |             |
+//
+// Venstre er en tidslinje: en node helt til venstre begynte akkurat på
+// søvnen sin, en node inntil linja er i ferd med å våkne. Y-aksen er alder:
+// nye agenter øverst, de eldste nederst. Høyresiden er løst spredt.
+// Nodene glir mot målpunktet med fjær + svak drift — ingen hard hopping.
 import type { AgentInfo, AgentState } from "../../lib/api";
 import { avatarColor } from "../../ui/avatar";
+
+// Seksjonsgrenser som andel av bredden.
+export const DIVIDE_LEFT = 0.41;
+export const DIVIDE_RIGHT = 0.59;
+const PAD = 60; // luft mot kantene
 
 export interface Node {
   agent: AgentInfo;
@@ -11,12 +22,13 @@ export interface Node {
   y: number;
   vx: number;
   vy: number;
-  r: number; // grunnradius
-  depth: number; // 0 = bakerst (sover), 1 = forrest (jobber); glir mot mål
-  phase: number; // individuell fase så driften ikke er synkron
+  r: number;
+  pulse: number; // 0..1, opp når agenten kjører (tegnes som puls)
+  phase: number;
+  jitterX: number; // stabil personlig spredning
+  jitterY: number;
 }
 
-// hash gir stabile tall fra strenger (posisjon, fase, farge).
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -26,29 +38,26 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-// depthTarget: hvor langt frem i bildet tilstanden hører hjemme.
-const DEPTH: Record<AgentState, number> = {
-  working: 1,
-  thinking: 0.8,
-  broken: 0.65,
-  paused: 0.3,
-  sleeping: 0.1,
-};
-
-// categoryColor: stabil farge fra den delte avatar-paletten (samme visuelle
-// språk som mail-kort og widget-deling). Kategorien styrer fargen; uten
-// kategori farges noden av sitt eget navn, så ingen står gråsvarte.
+// categoryColor: stabil farge fra den delte avatar-paletten. Kategorien
+// styrer fargen; uten kategori farges noden av sitt eget navn.
 export function categoryColor(category: string, fallback: string): [string, string] {
   return avatarColor((category || fallback).toLowerCase());
 }
 
+// sleepProgress: 0 = la seg akkurat, 1 = våkner nå. Regnes fra next_run_at
+// bakover med intervallet, klemt til [0,1] så drift i klokker ikke velter noe.
+function sleepProgress(a: AgentInfo, now: number): number {
+  if (!a.next_run_at || !a.interval_seconds) return 0.5;
+  const next = Date.parse(a.next_run_at);
+  const left = (next - now) / 1000;
+  return Math.min(1, Math.max(0, 1 - left / a.interval_seconds));
+}
+
 export class GraphSim {
   nodes: Node[] = [];
-  private anchors = new Map<string, { x: number; y: number }>();
   width = 800;
   height = 600;
 
-  // sync speiler agentlisten inn i simuleringen uten å nullstille fysikken.
   sync(agents: AgentInfo[]) {
     const byId = new Map(this.nodes.map((n) => [n.agent.id, n]));
     this.nodes = agents.map((agent) => {
@@ -58,62 +67,78 @@ export class GraphSim {
         return existing;
       }
       const h = hash(agent.id);
-      // Fødes nær sitt fremtidige anker, med litt spredning.
       return {
         agent,
-        x: this.width / 2 + ((h % 200) - 100),
-        y: this.height / 2 + (((h >> 8) % 200) - 100),
+        // Fødes utenfor venstre kant og glir inn.
+        x: -30,
+        y: this.height / 2,
         vx: 0,
         vy: 0,
         r: 14,
-        depth: 0.5,
+        pulse: 0,
         phase: (h % 628) / 100,
+        jitterX: (((h >> 4) % 100) - 50) / 100, // -0.5..0.5
+        jitterY: (((h >> 12) % 100) - 50) / 100,
       };
     });
-    this.layoutAnchors();
-  }
-
-  // layoutAnchors plasserer én klynge per kategori i en ring rundt midten;
-  // ukategoriserte samles i sentrum. Én kategori alene ligger også i sentrum.
-  private layoutAnchors() {
-    const categories = [...new Set(this.nodes.map((n) => n.agent.category ?? ""))].sort();
-    this.anchors.clear();
-    const cx = this.width / 2;
-    const cy = this.height / 2;
-    const named = categories.filter((c) => c !== "");
-    const ringR = Math.min(this.width, this.height) * (named.length > 1 ? 0.28 : 0);
-    named.forEach((cat, i) => {
-      const a = (i / named.length) * Math.PI * 2 - Math.PI / 2;
-      this.anchors.set(cat, { x: cx + Math.cos(a) * ringR, y: cy + Math.sin(a) * ringR });
-    });
-    // Ukategorisert: i sentrum når det er plass, ellers under klyngeringen.
-    this.anchors.set("", named.length > 1 ? { x: cx, y: cy + ringR * 1.6 } : { x: cx, y: cy });
   }
 
   resize(width: number, height: number) {
     this.width = width;
     this.height = height;
-    this.layoutAnchors();
   }
 
-  // step kjører ett fysikksteg. t brukes til den svake driften.
-  step(dt: number, t: number) {
+  // ageY: y-posisjon fra alders-RANGERING blant alle agentene — nyeste øverst,
+  // eldste nederst. Rangering (ikke absolutt tid) gir jevn spredning uansett
+  // om agentene ble laget samme uke eller over to år.
+  private ageY(agent: AgentInfo): number {
+    const sorted = [...this.nodes].sort(
+      (a, b) => Date.parse(b.agent.created_at ?? "") - Date.parse(a.agent.created_at ?? "")
+    );
+    const idx = sorted.findIndex((n) => n.agent.id === agent.id);
+    const t = sorted.length > 1 ? idx / (sorted.length - 1) : 0.5;
+    return PAD + t * (this.height - PAD * 2);
+  }
+
+  // target: hvor noden hører hjemme akkurat nå.
+  private target(n: Node, now: number): { x: number; y: number; running: boolean } {
+    const a = n.agent;
+    const state: AgentState = a.state ?? "sleeping";
+    const running = state === "working" || state === "thinking";
+    const y = this.ageY(a);
+    const jitterAmp = 26;
+
+    if (running) {
+      // Midtfeltet: kjører akkurat nå.
+      const cx = this.width * (DIVIDE_LEFT + DIVIDE_RIGHT) / 2;
+      return { x: cx + n.jitterX * (this.width * (DIVIDE_RIGHT - DIVIDE_LEFT) * 0.5), y, running };
+    }
+    if (a.has_response) {
+      // Svar-seksjonen: løst spredt.
+      const x0 = this.width * DIVIDE_RIGHT + 30;
+      const x1 = this.width - PAD;
+      const t = ((hash(a.id) >> 6) % 1000) / 1000;
+      return { x: x0 + t * (x1 - x0), y: y + n.jitterY * jitterAmp * 2, running };
+    }
+    // Venter: tidslinja frem mot neste kjøring.
+    const x0 = PAD;
+    const x1 = this.width * DIVIDE_LEFT - 30;
+    const p = sleepProgress(a, now);
+    return { x: x0 + p * (x1 - x0), y: y + n.jitterY * jitterAmp, running };
+  }
+
+  step(dt: number, t: number, now: number) {
     const k = Math.min(dt, 0.05);
     for (const n of this.nodes) {
-      const anchor = this.anchors.get(n.agent.category ?? "") ?? {
-        x: this.width / 2,
-        y: this.height / 2,
-      };
-      // Fjærkraft mot klyngeankeret.
-      n.vx += (anchor.x - n.x) * 1.2 * k;
-      n.vy += (anchor.y - n.y) * 1.2 * k;
-      // Svak organisk drift.
-      n.vx += Math.sin(t * 0.5 + n.phase) * 2.4 * k;
-      n.vy += Math.cos(t * 0.4 + n.phase * 1.3) * 2.4 * k;
-      // Dybden glir mot tilstandens mål.
-      n.depth += ((DEPTH[n.agent.state ?? "sleeping"] ?? 0.5) - n.depth) * Math.min(1, 2.5 * k);
+      const goal = this.target(n, now);
+      n.vx += (goal.x - n.x) * 2.2 * k;
+      n.vy += (goal.y - n.y) * 2.2 * k;
+      // Svak drift så bildet lever.
+      n.vx += Math.sin(t * 0.5 + n.phase) * 1.6 * k;
+      n.vy += Math.cos(t * 0.4 + n.phase * 1.3) * 1.6 * k;
+      n.pulse += ((goal.running ? 1 : 0) - n.pulse) * Math.min(1, 3 * k);
     }
-    // Parvis frastøtning så klyngen brer seg ut i stedet for å kollapse.
+    // Lett frastøtning så noder ikke dekker hverandre.
     for (let i = 0; i < this.nodes.length; i++) {
       for (let j = i + 1; j < this.nodes.length; j++) {
         const a = this.nodes[i];
@@ -121,10 +146,10 @@ export class GraphSim {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d2 = dx * dx + dy * dy;
-        const min = (a.r + b.r) * 1.5;
+        const min = (a.r + b.r) * 1.6;
         if (d2 < min * min && d2 > 0.01) {
           const d = Math.sqrt(d2);
-          const push = ((min - d) / d) * 14 * k;
+          const push = ((min - d) / d) * 10 * k;
           a.vx -= dx * push;
           a.vy -= dy * push;
           b.vx += dx * push;
@@ -133,20 +158,17 @@ export class GraphSim {
       }
     }
     for (const n of this.nodes) {
-      n.vx *= 0.86; // demping — rolig, flytende bevegelse
-      n.vy *= 0.86;
+      n.vx *= 0.85;
+      n.vy *= 0.85;
       n.x += n.vx;
       n.y += n.vy;
     }
-    // Bakerste tegnes først: sorter mot dybde (stabil nok frame til frame).
-    this.nodes.sort((a, b) => a.depth - b.depth);
   }
 
-  // pick returnerer noden under punktet (fremste først).
   pick(x: number, y: number): Node | null {
     for (let i = this.nodes.length - 1; i >= 0; i--) {
       const n = this.nodes[i];
-      const r = n.r * (0.7 + n.depth * 0.5);
+      const r = n.r + 6;
       if ((x - n.x) ** 2 + (y - n.y) ** 2 <= r * r) return n;
     }
     return null;

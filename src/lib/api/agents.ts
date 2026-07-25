@@ -59,6 +59,9 @@ export interface AgentInfo {
   chat_id?: string;
   plan_status?: string;
   last_run_at?: string;
+  next_run_at?: string;
+  created_at?: string;
+  has_response?: boolean;
   task?: string;
   connection_id?: string;
   schedule_label?: string;
