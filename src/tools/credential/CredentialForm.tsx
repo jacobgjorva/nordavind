@@ -108,17 +108,6 @@ export function CredentialForm({ spec }: { spec: CredentialSpec }) {
 
   return (
     <div className={styles.card}>
-      <div className={styles.head}>
-        <div className={styles.titleRow}>
-          <span className={styles.title}>Databasetilkobling</span>
-        </div>
-        <div className={styles.sub}>
-          Fyll inn detaljene under. Tilkoblingen testes før den lagres, og
-          passordet sendes kryptert direkte til serveren — det vises aldri i
-          chatten og leses aldri av AI-en.
-        </div>
-      </div>
-
       <div className={styles.grid}>
         <label className={styles.field}>
           <span className={styles.label}>Navn</span>
