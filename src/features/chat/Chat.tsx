@@ -261,6 +261,7 @@ const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; icon: typeof An
   { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret", icon: UserGroupIcon },
   { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", icon: UserSettings01Icon },
   { cmd: "tilkoblinger", label: "Tilkoblinger", desc: "Databaser og Microsoft 365", icon: Database01Icon },
+  { cmd: "koble", label: "Ny tilkobling", desc: "Koble til en ny datakilde", icon: Database01Icon },
   { cmd: "graf", label: "Kunnskapsgraf", desc: "Grafen over bedriftskunnskapen", icon: ChartRelationshipIcon },
   { cmd: "kvote", label: "Kvote", desc: "Token-kvoter per bruker", icon: DashboardSpeed01Icon },
 ];
@@ -848,6 +849,15 @@ export function Chat({
           revealed: true,
         },
       ]);
+      return;
+    }
+
+    // /koble: start ny tilkobling deterministisk (samme løype som panelknappen).
+    if (firstTok === "koble" && effectiveRole === "admin") {
+      setInput("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      pendingConnectRef.current = true;
+      emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?", intent: "connect" });
       return;
     }
 
