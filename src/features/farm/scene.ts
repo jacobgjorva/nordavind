@@ -7,7 +7,21 @@
 // tett tåke. Alt er prosedyregenerert — ingen eksterne assets.
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
+
+// PBR-teksturer (CC0, PolyHaven) — ligger i public/farm/, self-hosted.
+const texLoader = new THREE.TextureLoader();
+function loadTex(path: string, repeat: number, srgb: boolean): THREE.Texture {
+  const t = texLoader.load(path);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeat);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 const FPS_CAP = 30;
 const ISLAND_R = 28; // radius på den svevende øya
@@ -94,36 +108,6 @@ function radialTexture(inner: string, outer: string, size = 256): THREE.CanvasTe
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
   g.addColorStop(0, inner);
   g.addColorStop(1, outer);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-// groundTexture: mørk skogbunn med varm lysning i midten og spetter av mose.
-function groundTexture(): THREE.CanvasTexture {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#15281c";
-  ctx.fillRect(0, 0, size, size);
-  // Spetter: mose og jord i to toner.
-  for (let i = 0; i < 900; i++) {
-    const x = (hash(`gx${i}`) % size);
-    const y = (hash(`gy${i}`) % size);
-    const r = 2 + (hash(`gr${i}`) % 14);
-    ctx.fillStyle = i % 3 === 0 ? "rgba(38,66,44,0.5)" : "rgba(16,30,22,0.55)";
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // Varm lysning rundt bålet i sentrum.
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.3);
-  g.addColorStop(0, "rgba(140,96,40,0.5)");
-  g.addColorStop(0.5, "rgba(74,66,30,0.25)");
-  g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   const tex = new THREE.CanvasTexture(canvas);
@@ -280,7 +264,14 @@ function buildGolem(id: string): { group: THREE.Group; body: THREE.Mesh; height:
   // Blåskifer med et lite individuelt fargeskift per agent.
   const base = new THREE.Color(0x4d6880).offsetHSL(((h % 20) - 10) / 400, 0, ((h >> 5) % 10) / 200);
   const moss = new THREE.Color(0x71803c);
-  const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
+  // Steintekstur + normalmap over vertex-fargene: ekte overflatedetalj.
+  const rockMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    map: loadTex("/farm/rock_diff.jpg", 1.6, true),
+    normalMap: loadTex("/farm/rock_nor.jpg", 1.6, false),
+    normalScale: new THREE.Vector2(1.1, 1.1),
+    roughness: 0.92,
+  });
   const group = new THREE.Group();
 
   const rock = (
@@ -387,7 +378,12 @@ function buildTroll(id: string): { group: THREE.Group; body: THREE.Mesh } {
   const bodyGeo = new THREE.IcosahedronGeometry(0.62, 3);
   bodyGeo.scale(1, 1.45, 0.88);
   displaceStone(bodyGeo, (h % 100) / 10, stone, moss, 0.3);
-  const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+  const bodyMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    normalMap: loadTex("/farm/rock_nor.jpg", 2.2, false),
+    normalScale: new THREE.Vector2(0.7, 0.7),
+    roughness: 0.95,
+  });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.y = 0.95;
   group.add(body);
@@ -469,6 +465,8 @@ export class FarmScene {
   private canvas: HTMLCanvasElement;
   private controls!: OrbitControls;
   private downAt = new THREE.Vector2();
+  private composer!: EffectComposer;
+  private grassShader: { uniforms: { uTime: { value: number } } } | null = null;
   // Innflygning: kameraet starter langt unna og glir inn mot øya.
   private flightT = 0;
   private flightFrom = new THREE.Vector3(52, 40, 62);
@@ -526,6 +524,14 @@ export class FarmScene {
 
     this.buildEnvironment();
 
+    // Post-prosessering: forsiktig bloom får bålet og golem-øynene til å
+    // gløde fysisk troverdig i stedet for å bare være lyse piksler.
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.75, 0.82);
+    this.composer.addPass(bloom);
+    this.composer.addPass(new OutputPass());
+
     canvas.addEventListener("pointerdown", this.pointerDown);
     canvas.addEventListener("pointerup", this.pointerUp);
     window.addEventListener("resize", this.resize);
@@ -540,7 +546,7 @@ export class FarmScene {
     const sun = new THREE.DirectionalLight(0xffe8c4, 2.2);
     sun.position.set(55, 68, -78);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.left = -34;
     sun.shadow.camera.right = 34;
     sun.shadow.camera.top = 34;
@@ -577,9 +583,17 @@ export class FarmScene {
       }
       groundGeo.computeVertexNormals();
     }
+    // Ekte gress/stein-PBR med normalmap gir mikrodetaljen prosedyre-canvas
+    // aldri når; den håndmalte lysningsteksturen erstattes av bålgløden.
     const ground = new THREE.Mesh(
       groundGeo,
-      new THREE.MeshStandardMaterial({ map: groundTexture(), roughness: 1 })
+      new THREE.MeshStandardMaterial({
+        map: loadTex("/farm/ground_diff.jpg", 9, true),
+        normalMap: loadTex("/farm/ground_nor.jpg", 9, false),
+        normalScale: new THREE.Vector2(0.9, 0.9),
+        color: 0xa8b894, // tint mot palettens kjølige ettermiddagsgrønn
+        roughness: 1,
+      })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -618,7 +632,15 @@ export class FarmScene {
       under.computeVertexNormals();
     }
     this.scene.add(
-      new THREE.Mesh(under, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.98 }))
+      new THREE.Mesh(
+        under,
+        new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          map: loadTex("/farm/rock_diff.jpg", 6, true),
+          normalMap: loadTex("/farm/rock_nor.jpg", 6, false),
+          roughness: 0.98,
+        })
+      )
     );
 
 
@@ -672,6 +694,24 @@ export class FarmScene {
       alphaTest: 0.35,
       side: THREE.DoubleSide,
     });
+    // Vind: toppene svaier i shaderen — null CPU-kost, alle 24k strå i takt
+    // med hver sin fase fra instans-posisjonen.
+    grassMat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = { value: 0 };
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          "#include <common>",
+          "#include <common>\nuniform float uTime;"
+        )
+        .replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+          float sway = sin(uTime * 1.7 + instanceMatrix[3][0] * 0.8 + instanceMatrix[3][2] * 0.6);
+          transformed.x += sway * 0.06 * uv.y;
+          transformed.z += cos(uTime * 1.3 + instanceMatrix[3][2]) * 0.04 * uv.y;`
+        );
+      this.grassShader = shader as unknown as { uniforms: { uTime: { value: number } } };
+    };
     // Tett eng: én instansert mesh = ett draw call uansett antall tuster.
     // Kvadratrot-fordeling gir jevn tetthet helt ut til kanten.
     const G = 12000;
@@ -897,6 +937,8 @@ export class FarmScene {
     }
     this.controls.update();
 
+    if (this.grassShader) this.grassShader.uniforms.uTime.value = t;
+
     // Bålet flakrer: lys og flammer i utakt.
     this.fireLight.intensity = 52 + Math.sin(t * 9) * 6 + Math.sin(t * 23.7) * 4;
     for (let i = 0; i < this.flames.length; i++) {
@@ -958,7 +1000,7 @@ export class FarmScene {
           break;
       }
     }
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
   };
 
   private walkToward(troll: Troll, dt: number, speed: number) {
@@ -1009,6 +1051,7 @@ export class FarmScene {
     const { clientWidth, clientHeight } = this.canvas.parentElement ?? this.canvas;
     if (!clientWidth || !clientHeight) return;
     this.renderer.setSize(clientWidth, clientHeight, false);
+    this.composer.setSize(clientWidth, clientHeight);
     this.camera.aspect = clientWidth / clientHeight;
     this.camera.updateProjectionMatrix();
   };
