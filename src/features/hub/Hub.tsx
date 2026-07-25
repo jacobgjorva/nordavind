@@ -93,13 +93,8 @@ export default function Hub({
         const lightness = state === "paused" ? 30 : l;
         const sat = state === "paused" ? 8 : s;
         ctx.globalAlpha = alpha;
-        const fill = ctx.createRadialGradient(
-          n.x - r * 0.3, n.y - r * 0.3, r * 0.2,
-          n.x, n.y, r
-        );
-        fill.addColorStop(0, `hsl(${h}, ${sat}%, ${Math.min(88, lightness + 16)}%)`);
-        fill.addColorStop(1, `hsl(${h}, ${sat}%, ${lightness - 12}%)`);
-        ctx.fillStyle = fill;
+        // Solid, flat farge — ingen kule-effekt.
+        ctx.fillStyle = `hsl(${h}, ${sat}%, ${lightness}%)`;
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
         ctx.fill();
