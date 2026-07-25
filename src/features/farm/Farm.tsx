@@ -35,6 +35,7 @@ export default function Farm({
   const [selected, setSelected] = useState<AgentInfo | null>(null);
   const [personaDraft, setPersonaDraft] = useState({ name: "", personality: "" });
   const [summon, setSummon] = useState("");
+  const [modelStatus, setModelStatus] = useState("laster modeller …");
 
   // Scene-livssyklus: bygg ved mount, riv ved unmount.
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function Farm({
       setSelected(agent);
       setPersonaDraft({ name: agent.name, personality: agent.personality ?? "" });
     };
+    scene.onModelStatus = setModelStatus;
     sceneRef.current = scene;
     return () => {
       scene.dispose();
@@ -127,7 +129,7 @@ export default function Farm({
       <div className={styles.topBar}>
         <span className={styles.title}>Trollskogen</span>
         <span className={styles.count}>
-          {agents.length === 1 ? "1 troll" : `${agents.length} troll`}
+          {agents.length === 1 ? "1 troll" : `${agents.length} troll`} - {modelStatus}
         </span>
         <button className={styles.close} onClick={onClose} title="Lukk (Esc)">
           ✕

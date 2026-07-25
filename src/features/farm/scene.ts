@@ -147,6 +147,10 @@ export class FarmScene {
     this.loadModels();
   }
 
+  // onModelStatus melder fra om modellene kom fra GLB eller fallback (vises
+  // i topplinja så lastefeil aldri er stumme).
+  onModelStatus: ((status: string) => void) | null = null;
+
   private async loadModels() {
     const loader = new GLTFLoader();
     const [troll, golem] = await Promise.allSettled([
@@ -156,8 +160,14 @@ export class FarmScene {
       loader.loadAsync(`/farm/golem.glb?v=${MODEL_VERSION}`),
     ]);
     if (troll.status === "fulfilled") this.models.troll = troll.value.scene;
+    else console.warn("farm: troll.glb feilet", troll.reason);
     if (golem.status === "fulfilled") this.models.golem = golem.value.scene;
+    else console.warn("farm: golem.glb feilet", golem.reason);
     this.modelsTried = true;
+    this.onModelStatus?.(
+      `modeller v${MODEL_VERSION}: troll=${troll.status === "fulfilled" ? "glb" : "FALLBACK"} ` +
+        `golem=${golem.status === "fulfilled" ? "glb" : "FALLBACK"}`
+    );
     if (this.pendingAgents) {
       const agents = this.pendingAgents;
       this.pendingAgents = null;
