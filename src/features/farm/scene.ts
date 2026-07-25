@@ -10,8 +10,26 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AgentInfo, AgentState } from "../../lib/api";
 
 const FPS_CAP = 30;
-const NIGHT_SKY = 0x0a141c;
-const FOG_COLOR = 0x0c1c26;
+// Solnedgang: dyp skumringsblå øverst, rose midt på, gyllen horisont.
+const FOG_COLOR = 0x6e5064;
+
+// skyTexture: vertikal gradient som himmel — strekkes over hele bakgrunnen.
+function skyTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, "#312e52");
+  g.addColorStop(0.45, "#7a4e66");
+  g.addColorStop(0.75, "#c97a52");
+  g.addColorStop(1, "#e8a35e");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 2, 512);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 
 // hash gir et stabilt tall fra en streng — posisjon, form og pynt følger
 // agent-id, så trollet ser likt ut hver gang.
@@ -314,8 +332,8 @@ export class FarmScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
 
-    this.scene.background = new THREE.Color(NIGHT_SKY);
-    this.scene.fog = new THREE.Fog(FOG_COLOR, 16, 52);
+    this.scene.background = skyTexture();
+    this.scene.fog = new THREE.Fog(FOG_COLOR, 18, 55);
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
     this.camera.position.set(0, 10.5, 20);
@@ -342,11 +360,24 @@ export class FarmScene {
 
   // buildEnvironment reiser skogen: måneskinn, bål, trær, gress, ildfluer.
   private buildEnvironment() {
-    // Kjølig måneskinn + svak blå himmel; bålet er den varme hovedkilden.
-    const moon = new THREE.DirectionalLight(0x9db8d9, 0.5);
-    moon.position.set(-14, 22, -8);
-    const hemi = new THREE.HemisphereLight(0x27405c, 0x0d1a12, 0.55);
-    this.scene.add(moon, hemi);
+    // Lav gyllen kveldssol bakfra + varm skumringshimmel; bålet fyller på.
+    const sun = new THREE.DirectionalLight(0xffb168, 1.5);
+    sun.position.set(26, 7, -34);
+    const hemi = new THREE.HemisphereLight(0x8a5a72, 0x241c14, 0.6);
+    this.scene.add(sun, hemi);
+
+    // Solskiven som en varm glød lavt mellom trærne.
+    const sunGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: radialTexture("rgba(255,214,150,0.95)", "rgba(255,150,60,0)"),
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      })
+    );
+    sunGlow.position.set(30, 8, -40);
+    sunGlow.scale.setScalar(26);
+    this.scene.add(sunGlow);
 
     this.fireLight = new THREE.PointLight(0xff9a3d, 60, 26, 2);
     this.fireLight.position.set(0, 1.4, 0);
