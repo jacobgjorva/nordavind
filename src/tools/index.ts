@@ -6,3 +6,4 @@ import "./admin";
 import "./mail";
 import "./agent/AgentWidgets";
 import "./agent/MissionPlan";
+import "./credential";
