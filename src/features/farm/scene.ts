@@ -236,6 +236,144 @@ interface Troll {
 const STONE_TINTS = [0xcfd4d6, 0xc9cdc6, 0xd6d2c9, 0xc4ccd2];
 const MOSS_TINTS = [0x7fae3f, 0x6f9c3a, 0x8bb84a];
 
+// golemRock: kantete, fasettert stein til golemen — kraftigere forskyvning
+// enn trollsteinen, flat shading, og mose i flekker over hele kroppen i
+// stedet for bare på toppen.
+function golemRock(
+  geo: THREE.BufferGeometry,
+  seed: number,
+  base: THREE.Color,
+  moss: THREE.Color
+): THREE.BufferGeometry {
+  const pos = geo.getAttribute("position") as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const n = noise3(v.x * 1.1 + seed, v.y * 1.1, v.z * 1.1 + seed);
+    v.addScaledVector(v.clone().normalize(), n * 0.16);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  // Flat shading: dupliser vertekser så hver fasett får egen normal.
+  const flat = geo.toNonIndexed();
+  const fpos = flat.getAttribute("position") as THREE.BufferAttribute;
+  const colors = new Float32Array(fpos.count * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < fpos.count; i++) {
+    v.fromBufferAttribute(fpos, i);
+    const patch = noise3(v.x * 2.4 + seed, v.y * 2.4 + seed, v.z * 2.4);
+    c.copy(patch > 0.52 ? moss : base);
+    const shade = 0.82 + noise3(v.x * 5.3, v.y * 5.3 + seed, v.z * 5.3) * 0.18;
+    colors[i * 3] = c.r * shade;
+    colors[i * 3 + 1] = c.g * shade;
+    colors[i * 3 + 2] = c.b * shade;
+  }
+  flat.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  flat.computeVertexNormals();
+  geo.dispose();
+  return flat;
+}
+
+// buildGolem: blå steingolem etter referansen — massiv fasettert kropp, to
+// stein-horn, glødende oransje øyne, hoggtenner og digre never som henger.
+function buildGolem(id: string): { group: THREE.Group; body: THREE.Mesh; height: number } {
+  const h = hash(id);
+  // Blåskifer med et lite individuelt fargeskift per agent.
+  const base = new THREE.Color(0x4d6880).offsetHSL(((h % 20) - 10) / 400, 0, ((h >> 5) % 10) / 200);
+  const moss = new THREE.Color(0x71803c);
+  const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
+  const group = new THREE.Group();
+
+  const rock = (
+    radius: number,
+    detail: number,
+    seed: number,
+    sx: number,
+    sy: number,
+    sz: number
+  ) => {
+    const geo = new THREE.IcosahedronGeometry(radius, detail);
+    geo.scale(sx, sy, sz);
+    return new THREE.Mesh(golemRock(geo, seed, base, moss), rockMat);
+  };
+
+  // Torso: bred, tung, smalere nederst.
+  const body = rock(0.85, 1, (h % 40) / 5, 1.15, 1.05, 0.8);
+  body.position.y = 1.05;
+  group.add(body);
+
+  // Hode: bredt, flatt, sitter tett på torsoen.
+  const head = rock(0.62, 1, (h % 40) / 5 + 2.3, 1.25, 0.95, 0.85);
+  head.position.set(0, 2.08, 0.06);
+  group.add(head);
+
+  // To kantete stein-horn på toppen, pekende litt utover.
+  for (const side of [-1, 1]) {
+    const horn = rock(0.2, 0, (h % 40) / 5 + 4.1 + side, 1, 1.9, 0.8);
+    horn.position.set(0.46 * side, 2.62, 0);
+    horn.rotation.z = -0.32 * side;
+    group.add(horn);
+  }
+
+  // Glødende øyne: varm oransje kjerne + liten additiv glød rundt.
+  const eyeMat = new THREE.MeshStandardMaterial({
+    color: 0x160c04,
+    emissive: 0xffa440,
+    emissiveIntensity: 2.6,
+    roughness: 0.4,
+  });
+  const glowTex = radialTexture("rgba(255,190,110,0.9)", "rgba(255,150,50,0)", 64);
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10), eyeMat);
+    eye.position.set(0.25 * side, 2.12, 0.5);
+    group.add(eye);
+    const glow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glowTex,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      })
+    );
+    glow.position.set(0.25 * side, 2.12, 0.56);
+    glow.scale.setScalar(0.34);
+    group.add(glow);
+  }
+
+  // Hoggtenner opp fra underkjeven.
+  const toothMat = new THREE.MeshStandardMaterial({ color: 0xe8e4d8, roughness: 0.5 });
+  for (const side of [-1, 1]) {
+    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.17, 5), toothMat);
+    tooth.position.set(0.21 * side, 1.8, 0.5);
+    tooth.rotation.x = -0.12;
+    group.add(tooth);
+  }
+
+  // Armene: skulder → underarm → diger neve, hengende langs siden.
+  for (const side of [-1, 1]) {
+    const shoulder = rock(0.34, 1, (h % 30) / 4 + side * 1.7, 1, 1, 0.9);
+    shoulder.position.set(0.98 * side, 1.5, 0);
+    group.add(shoulder);
+    const forearm = rock(0.28, 1, (h % 30) / 4 + side * 2.9, 0.9, 1.15, 0.9);
+    forearm.position.set(1.08 * side, 0.9, 0.04);
+    group.add(forearm);
+    const fist = rock(0.38, 1, (h % 30) / 4 + side * 4.3, 1, 1.1, 1);
+    fist.position.set(1.06 * side, 0.4, 0.08);
+    group.add(fist);
+  }
+
+  // Korte, brede bein.
+  for (const side of [-1, 1]) {
+    const leg = rock(0.3, 1, (h % 20) / 3 + side * 5.1, 1, 0.75, 1);
+    leg.position.set(0.42 * side, 0.2, 0);
+    group.add(leg);
+  }
+
+  group.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.castShadow = true;
+  });
+  return { group, body, height: 3.1 };
+}
+
 // buildTroll: avrundet steinkropp med mosetopp, blanke øyne, småarmer og en
 // spire eller blomst på hodet — som referansene, men lette nok for nett.
 function buildTroll(id: string): { group: THREE.Group; body: THREE.Mesh } {
@@ -671,7 +809,10 @@ export class FarmScene {
 
   private spawn(agent: AgentInfo) {
     const h = hash(agent.id);
-    const { group, body } = buildTroll(agent.id);
+    // To arter, valgt stabilt per agent: mosetroll eller blå steingolem.
+    const golem = h % 2 === 1;
+    const built = golem ? buildGolem(agent.id) : { ...buildTroll(agent.id), height: 2.3 };
+    const { group, body } = built;
 
     // Stabil plass i en ring rundt bålet, vendt inn mot varmen.
     const idx = this.trolls.size;
@@ -686,8 +827,9 @@ export class FarmScene {
     group.rotation.y = Math.atan2(-home.x, -home.z);
 
     const nameTag = textSprite(agent.name || "Troll", { bg: "rgba(10,20,16,0.45)", scale: 0.0055 });
-    nameTag.position.y = 2.3;
+    nameTag.position.y = built.height;
     nameTag.userData.text = agent.name;
+    nameTag.userData.height = built.height;
     group.add(nameTag);
 
     group.userData.agentId = agent.id;
@@ -711,10 +853,12 @@ export class FarmScene {
   }
 
   private setName(troll: Troll, name: string) {
+    const height = (troll.nameTag.userData.height as number) ?? 2.3;
     troll.group.remove(troll.nameTag);
     troll.nameTag = textSprite(name || "Troll", { bg: "rgba(10,20,16,0.45)", scale: 0.0055 });
-    troll.nameTag.position.y = 2.3;
+    troll.nameTag.position.y = height;
     troll.nameTag.userData.text = name;
+    troll.nameTag.userData.height = height;
     troll.group.add(troll.nameTag);
   }
 
