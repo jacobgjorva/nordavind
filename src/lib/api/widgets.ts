@@ -17,6 +17,54 @@ export interface WidgetSpec {
   filters?: { column: string; label?: string }[];
   sort?: { column: string; label?: string; dir?: "asc" | "desc" }[];
   group?: string;
+  // type "deck": presentasjon — slides fylt inn i kittets ferdige layouts.
+  slides?: DeckSlide[];
+  /** Tema fra kit-katalogen (backend: internal/deck/kits). */
+  theme?: string;
+  /** Token-overrides oppå temaet (bg, text, palette …). */
+  style?: Record<string, string>;
+}
+
+// Én slide. Feltene er de kittet definerer for den valgte layouten.
+export interface DeckSlide {
+  /** Stabil id — patcher fra både AI og bruker treffer på denne. */
+  id?: string;
+  layout?: string;
+  title?: string;
+  content?: string;
+  image?: string;
+  images?: string[];
+  widget?: WidgetSpec;
+  widgets?: WidgetSpec[];
+}
+
+// Patcher ÉN slide. Samme vei inn som modellens set_slide, så brukerens
+// redigering og en chat-instruks aldri kommer i utakt.
+export async function patchSlide(
+  slug: string,
+  patch: Partial<DeckSlide> & { op?: "add" | "set" | "remove" | "move"; after?: string }
+): Promise<void> {
+  await apiFetch(`/decks/${slug}/slide`, { method: "POST", body: patch });
+}
+
+// Setter tittel, tema eller stil på presentasjonen.
+export async function patchDeck(
+  slug: string,
+  meta: { title?: string; theme?: string; style?: Record<string, string> }
+): Promise<void> {
+  await apiFetch(`/decks/${slug}/meta`, { method: "POST", body: meta });
+}
+
+// Kjører en lagret SELECT mot en tilkobling (slides henter live data).
+export async function runQuery(
+  connectionId: string,
+  sql: string
+): Promise<QueryResult> {
+  const d = await apiFetch<QueryResult>("/query", {
+    method: "POST",
+    body: { connection_id: connectionId, sql },
+  });
+  return { columns: d.columns ?? [], rows: d.rows ?? [] };
 }
 
 // Widget slik den ligger i registeret; spec finnes kun ved henting av én.

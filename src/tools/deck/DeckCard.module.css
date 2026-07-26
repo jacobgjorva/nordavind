@@ -1,0 +1,51 @@
+/* Presentasjons-kortet i chatten: liten forhåndsvisning, ikke et lerret. */
+.card {
+  border: 0.5px solid var(--border, #26262a);
+  border-radius: 12px;
+  background: var(--bg-raised, #131316);
+  overflow: hidden;
+  max-width: 520px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.title {
+  color: var(--text, #eee);
+  font-size: 14px;
+}
+
+.open {
+  background: var(--bg-inset, #1a1a1e);
+  border: 0.5px solid var(--border, #2a2a2e);
+  border-radius: 8px;
+  color: var(--text, #eee);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* Miniatyren er en ekte slide skalert ned — container-query-typografien i
+   sliden gjør at den holder proporsjonene. */
+.thumb {
+  aspect-ratio: 16 / 9;
+  border-top: 0.5px solid var(--border, #26262a);
+  border-bottom: 0.5px solid var(--border, #26262a);
+}
+
+.empty {
+  padding: 20px 14px;
+  color: var(--text-faint, #6a6a72);
+  font-size: 13px;
+}
+
+.meta {
+  padding: 8px 14px;
+  color: var(--text-muted, #a0a0a8);
+  font-size: 12px;
+}
