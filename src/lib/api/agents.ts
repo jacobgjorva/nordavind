@@ -133,6 +133,20 @@ export async function fetchAgents(): Promise<AgentInfo[]> {
   return data.agents ?? [];
 }
 
+// Én kjøring i historikken (til trådgrafen).
+export interface AgentRunEvent {
+  agent_id: string;
+  started_at: string;
+  status: string;
+  has_output: boolean;
+}
+
+// Henter kjøringshistorikken for brukerens agenter.
+export async function fetchAgentRuns(hours = 24): Promise<AgentRunEvent[]> {
+  const data = await apiFetch<{ runs?: AgentRunEvent[] }>(`/agents/runs?hours=${hours}`);
+  return data.runs ?? [];
+}
+
 // Setter navn og/eller personlighet på en agent fra farmen.
 export async function setAgentPersona(
   id: string,

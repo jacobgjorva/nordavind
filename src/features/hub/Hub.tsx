@@ -1,19 +1,22 @@
-// Agent-grafen: hver agent er en flytende node i en 2D-klynge. Kategorien
-// styrer klynge og farge; tilstanden styrer dybde (sover bakerst, jobber
-// forrest), størrelse og glød. Ren Canvas 2D — lett nok til å stå åpen.
+// Agent-grafen: hver agent er én tråd gjennom tiden (baneskjema-stil).
+// Flat tråd = sover, bølgepakke = en kjøring, prikk = svar (lysende = ulest),
+// levende bølge i høyrekanten = kjører akkurat nå. Ren Canvas 2D.
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  fetchAgentRuns,
   fetchAgents,
   setAgentPersona,
   type AgentInfo,
+  type AgentRunEvent,
   type AgentState,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
-import { categoryColor, DIVIDE_LEFT, DIVIDE_RIGHT, GraphSim, type Node } from "./sim";
+import { layoutStrands, PAD_X, strandY, type Strand } from "./strands";
 import styles from "./Hub.module.css";
 
 const POLL_MS = 5000;
 const FPS_CAP = 30;
+const WINDOW_MS = 24 * 3600 * 1000; // vindu: siste døgn
 
 const STATE_LABEL: Record<AgentState, string> = {
   working: "jobber nå",
@@ -31,91 +34,116 @@ export default function Hub({
   onOpenChat: (chatId: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const simRef = useRef(new GraphSim());
+  const strandsRef = useRef<Strand[]>([]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [selected, setSelected] = useState<AgentInfo | null>(null);
   const [draft, setDraft] = useState({ name: "", personality: "", category: "" });
 
-  // Render-løkke: FPS-tak, stopp når fanen er skjult, full opprydding.
+  // Render-løkke: FPS-tak, stopp når fanen er skjult.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
-    const sim = simRef.current;
     const dpr = Math.min(window.devicePixelRatio, 2);
     let raf = 0;
     let last = performance.now();
     let acc = 0;
 
     const resize = () => {
-      const { clientWidth, clientHeight } = canvas;
-      canvas.width = clientWidth * dpr;
-      canvas.height = clientHeight * dpr;
-      sim.resize(clientWidth, clientHeight);
+      canvas.width = canvas.clientWidth * dpr;
+      canvas.height = canvas.clientHeight * dpr;
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const draw = (now: number) => {
+    const draw = (nowMs: number) => {
       raf = requestAnimationFrame(draw);
-      const dt = (now - last) / 1000;
-      last = now;
+      const dt = (nowMs - last) / 1000;
+      last = nowMs;
       if (document.hidden) return;
       acc += dt;
       if (acc < 1 / FPS_CAP) return;
-      const step = Math.min(acc, 0.1);
       acc = 0;
-      const t = now / 1000;
-      sim.step(step, t, Date.now());
-
+      const t = nowMs / 1000;
+      const now = Date.now();
       const w = canvas.clientWidth;
-      const hgt = canvas.clientHeight;
+      const h = canvas.clientHeight;
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, hgt);
+      ctx.clearRect(0, 0, w, h);
 
-      // Skillelinjene og seksjonsetikettene.
-      ctx.strokeStyle = "rgba(226,226,222,0.12)";
-      ctx.lineWidth = 1;
-      for (const fx of [DIVIDE_LEFT, DIVIDE_RIGHT]) {
-        ctx.beginPath();
-        ctx.moveTo(w * fx, 52);
-        ctx.lineTo(w * fx, hgt - 24);
-        ctx.stroke();
-      }
-      ctx.font = "500 11px system-ui, sans-serif";
-      ctx.fillStyle = "rgba(226,226,222,0.35)";
+      // Tidsakse: stiplete markører hver 6. time + «nå» ved høyre kant.
+      ctx.font = "500 10px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("venter", (w * DIVIDE_LEFT) / 2, 46);
-      ctx.fillText("kjører", w * (DIVIDE_LEFT + DIVIDE_RIGHT) / 2, 46);
-      ctx.fillText("svar", w * (DIVIDE_RIGHT + 1) / 2, 46);
-
-      for (const n of sim.nodes) {
-        const [bg] = categoryColor(n.agent.category ?? "", n.agent.name);
-        const state = n.agent.state ?? "sleeping";
-        // Puls mens den kjører; ellers rolig fast størrelse.
-        const r = n.r * (1 + n.pulse * 0.18 * (1 + Math.sin(t * 5 + n.phase)));
-
-        ctx.fillStyle = state === "paused" ? "#3a3b40" : bg;
+      for (let back = 24; back >= 0; back -= 6) {
+        const x = PAD_X + ((WINDOW_MS - back * 3600 * 1000) / WINDOW_MS) * (w - PAD_X - 24);
+        ctx.strokeStyle = "rgba(226,226,222,0.07)";
         ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        if (state === "broken") {
-          ctx.strokeStyle = "hsla(4, 70%, 58%, 0.9)";
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
+        ctx.moveTo(x, 54);
+        ctx.lineTo(x, h - 20);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(226,226,222,0.35)";
+        ctx.fillText(back === 0 ? "nå" : `-${back}t`, x, 46);
+      }
+
+      for (const s of strandsRef.current) {
+        const state = s.agent.state ?? "sleeping";
+        const dim = state === "paused";
+        ctx.strokeStyle = dim ? "#3a3b40" : s.color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = dim ? 0.6 : 0.92;
+
+        // Tråden, samplet i 6 px-steg.
+        ctx.beginPath();
+        for (let x = PAD_X; x <= w - 24; x += 6) {
+          const y = strandY(s, x, w, WINDOW_MS, now, t);
+          if (x === PAD_X) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
-        if (selected && n.agent.id === selected.id) {
-          ctx.strokeStyle = "rgba(232,232,228,0.9)";
-          ctx.lineWidth = 2;
+        ctx.stroke();
+        if (state === "broken") {
+          // Rød hale ytterst: noe er galt nå.
+          ctx.strokeStyle = "hsla(4, 70%, 58%, 0.9)";
+          ctx.beginPath();
+          for (let x = w - 90; x <= w - 24; x += 6) {
+            const y = strandY(s, x, w, WINDOW_MS, now, t);
+            if (x === w - 90) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
           ctx.stroke();
         }
 
-        // Navn i liten skrift rett under noden.
-        ctx.font = "500 10px system-ui, sans-serif";
-        ctx.fillStyle = "rgba(226,226,222,0.75)";
-        ctx.textAlign = "center";
-        ctx.fillText(n.agent.name, n.x, n.y + n.r + 13);
+        // Svar-prikker på kjøringer med resultat; siste er lysende hvis ulest.
+        const withOutput = s.runs.filter((r) => r.has_output);
+        withOutput.forEach((r, i) => {
+          const x =
+            PAD_X + ((Date.parse(r.started_at) - (now - WINDOW_MS)) / WINDOW_MS) * (w - PAD_X - 24);
+          if (x < PAD_X) return;
+          const y = strandY(s, x, w, WINDOW_MS, now, t);
+          const unread = s.agent.has_response && i === withOutput.length - 1;
+          ctx.beginPath();
+          ctx.arc(x, y, unread ? 5 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = unread ? "#f2e39a" : s.color;
+          ctx.fill();
+          if (unread) {
+            ctx.beginPath();
+            ctx.arc(x, y, 8 + Math.sin(t * 3) * 1.5, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(242,227,154,0.5)";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.lineWidth = 2;
+          }
+        });
+
+        // Navn ved venstre kant, på trådens bane.
+        ctx.globalAlpha = 1;
+        ctx.font = "500 11px system-ui, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillStyle =
+          selected?.id === s.agent.id ? "#f0f0ec" : "rgba(226,226,222,0.7)";
+        ctx.fillText(s.agent.name, PAD_X - 10, s.laneY + 4);
       }
+      ctx.globalAlpha = 1;
     };
     raf = requestAnimationFrame(draw);
     return () => {
@@ -124,17 +152,17 @@ export default function Hub({
     };
   }, [selected]);
 
-  // Polling av agentene.
+  // Polling: agenter + kjøringshistorikk.
   useEffect(() => {
     let alive = true;
     const load = () => {
       if (document.hidden) return;
-      fetchAgents()
-        .then((list) => {
+      Promise.all([fetchAgents(), fetchAgentRuns(24)])
+        .then(([list, runs]: [AgentInfo[], AgentRunEvent[]]) => {
           if (!alive) return;
           setAgents(list);
-          simRef.current.sync(list);
-          // Hold kortet ferskt hvis den valgte er oppdatert.
+          const canvas = canvasRef.current;
+          strandsRef.current = layoutStrands(list, runs, canvas?.clientHeight ?? 600);
           setSelected((sel) => (sel ? list.find((a) => a.id === sel.id) ?? null : null));
         })
         .catch(swallow);
@@ -160,15 +188,25 @@ export default function Hub({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Klikk: nærmeste tråd innen 14 px (navn ved venstre kant treffer også).
   const pick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const node: Node | null = simRef.current.pick(e.clientX - rect.left, e.clientY - rect.top);
-    setSelected(node?.agent ?? null);
-    if (node) {
+    const y = e.clientY - rect.top;
+    let best: Strand | null = null;
+    let bestD = 14;
+    for (const s of strandsRef.current) {
+      const d = Math.abs(s.laneY - y);
+      if (d < bestD) {
+        bestD = d;
+        best = s;
+      }
+    }
+    setSelected(best?.agent ?? null);
+    if (best) {
       setDraft({
-        name: node.agent.name,
-        personality: node.agent.personality ?? "",
-        category: node.agent.category ?? "",
+        name: best.agent.name,
+        personality: best.agent.personality ?? "",
+        category: best.agent.category ?? "",
       });
     }
   }, []);
@@ -181,9 +219,9 @@ export default function Hub({
         personality: draft.personality,
         category: draft.category,
       });
-      const list = await fetchAgents();
+      const [list, runs] = await Promise.all([fetchAgents(), fetchAgentRuns(24)]);
       setAgents(list);
-      simRef.current.sync(list);
+      strandsRef.current = layoutStrands(list, runs, canvasRef.current?.clientHeight ?? 600);
       setSelected(list.find((a) => a.id === selected.id) ?? null);
     } catch {
       // Ikke kritisk — brukeren kan prøve igjen.
@@ -199,8 +237,7 @@ export default function Hub({
       <div className={styles.topBar}>
         <span className={styles.title}>Agenter</span>
         <span className={styles.count}>
-          {agents.length} {agents.length === 1 ? "agent" : "agenter"}
-          {categories.length > 0 && ` i ${categories.length + (agents.some((a) => !a.category) ? 1 : 0)} klynger`}
+          {agents.length} {agents.length === 1 ? "agent" : "agenter"} - siste døgn
         </span>
         <button className={styles.close} onClick={onClose} title="Lukk (Esc)">
           ✕
