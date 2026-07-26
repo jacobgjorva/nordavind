@@ -3,6 +3,18 @@
 // faktisk gjør. Serveren prøvekjører hvert steg før lagring, så en ødelagt
 // spørring kan ikke lagres.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  ChartLineData01Icon,
+  Database01Icon,
+  FilterIcon,
+  Globe02Icon,
+  Mail01Icon,
+  Message01Icon,
+  PlayCircleIcon,
+  Search01Icon,
+  StopCircleIcon,
+} from "@hugeicons/core-free-icons";
 import {
   fetchAgentPlan,
   rebuildAgentPlan,
@@ -32,6 +44,7 @@ interface FlowNode {
   title: string;
   sub?: string;
   tone: Tone;
+  icon: typeof PlayCircleIcon;
   rows?: string[]; // utganger tegnet som rader i noden
   x: number;
   y: number;
@@ -126,7 +139,15 @@ export default function AgentFlow({
     let col = 0;
     const colX = (c: number) => PAD + c * (NODE_W + GAP_X);
 
-    nodes.push({ key: "start", title: "Start", tone: "start", x: colX(col++), y: midY, h: 52 });
+    nodes.push({
+      key: "start",
+      title: "Start",
+      tone: "start",
+      icon: PlayCircleIcon,
+      x: colX(col++),
+      y: midY,
+      h: 52,
+    });
 
     plan.steps.forEach((s, i) => {
       nodes.push({
@@ -134,6 +155,8 @@ export default function AgentFlow({
         title: s.label || `Steg ${i + 1}`,
         sub: KIND_LABEL[s.kind] ?? s.kind,
         tone: "step",
+        icon:
+          s.kind === "sql" ? Database01Icon : s.kind === "web" ? Search01Icon : Globe02Icon,
         x: colX(col++),
         y: midY,
         h: 62,
@@ -150,6 +173,7 @@ export default function AgentFlow({
       title: "Vurder resultatet",
       sub: "regel",
       tone: "judge",
+      icon: FilterIcon,
       rows: judgeRows,
       x: judgeX,
       y: midY - 20,
@@ -164,8 +188,23 @@ export default function AgentFlow({
     // Funn-grenen: varsel, e-post og graf ligger over hverandre i siste kolonne.
     const lastX = colX(col);
     let branchY = midY - 60;
+    const actIcon: Record<string, typeof PlayCircleIcon> = {
+      notify: Message01Icon,
+      mail: Mail01Icon,
+      chart: ChartLineData01Icon,
+    };
     const act = (key: string, title: string, sub?: string, editable?: boolean) => {
-      nodes.push({ key, title, sub, tone: "act", x: lastX, y: branchY, h: sub ? 62 : 52, editable });
+      nodes.push({
+        key,
+        title,
+        sub,
+        tone: "act",
+        icon: actIcon[key] ?? Message01Icon,
+        x: lastX,
+        y: branchY,
+        h: sub ? 62 : 52,
+        editable,
+      });
       edges.push({ from: "judge", to: key, port: 0 });
       branchY += 78;
     };
@@ -173,7 +212,15 @@ export default function AgentFlow({
     if (plan.mail) act("mail", "Send e-post", plan.mail.to_email, true);
     if (plan.chart) act("chart", "Vis graf", plan.chart.title, true);
 
-    nodes.push({ key: "end", title: "Stille", tone: "end", x: lastX, y: branchY + 12, h: 52 });
+    nodes.push({
+      key: "end",
+      title: "Stille",
+      tone: "end",
+      icon: StopCircleIcon,
+      x: lastX,
+      y: branchY + 12,
+      h: 52,
+    });
     edges.push({ from: "judge", to: "end", port: 1 });
 
     const width = lastX + NODE_W + PAD;
@@ -254,7 +301,8 @@ export default function AgentFlow({
       )}
 
       <div className={styles.canvas}>
-        <div className={styles.stage} style={{ width, height }}>
+        <div className={styles.stageWrap}>
+          <div className={styles.stage} style={{ width, height }}>
           <svg className={styles.wires} width={width} height={height}>
             {edges.map((e, i) => (
               <path key={i} d={path(e)} fill="none" stroke="#34353b" strokeWidth={1.5} />
@@ -271,7 +319,9 @@ export default function AgentFlow({
               onClick={() => n.editable && setSelected(selected === n.key ? null : n.key)}
             >
               <div className={styles.nodeHead}>
-                <span className={`${styles.icon} ${styles[`icon_${n.tone}`]}`} />
+                <span className={`${styles.icon} ${styles[`icon_${n.tone}`]}`}>
+                  <HugeiconsIcon icon={n.icon} size={15} strokeWidth={2} />
+                </span>
                 <span className={styles.nodeText}>
                   <span className={styles.nodeTitle}>{n.title}</span>
                   {n.sub && <span className={styles.nodeSub}>{n.sub}</span>}
@@ -283,7 +333,8 @@ export default function AgentFlow({
                 </div>
               ))}
             </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 

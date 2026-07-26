@@ -93,10 +93,16 @@
   font-size: 14px;
 }
 
-/* Lerretet: horisontal graf, scroller ved behov. */
+/* Lerretet: horisontal graf, sentrert, scroller ved behov. */
 .canvas {
   flex: 1;
   overflow: auto;
+  display: flex;
+}
+
+.stageWrap {
+  margin: auto;
+  padding: 20px;
 }
 
 .stage {
@@ -143,6 +149,10 @@
   height: 26px;
   border-radius: 8px;
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #10110f;
 }
 
 .icon_start,
