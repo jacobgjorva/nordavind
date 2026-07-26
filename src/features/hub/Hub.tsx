@@ -11,12 +11,18 @@ import {
   type AgentState,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
-import { computeSpan, layoutStrands, strandY, timeToX, type Strand } from "./strands";
+import {
+  computeSpan,
+  layoutStrands,
+  predictedRuns,
+  strandY,
+  timeToX,
+  type Strand,
+} from "./strands";
 import styles from "./Hub.module.css";
 
 const POLL_MS = 5000;
 const FPS_CAP = 30;
-const WINDOW_MS = 24 * 3600 * 1000; // vindu: siste døgn
 
 const STATE_LABEL: Record<AgentState, string> = {
   working: "jobber nå",
@@ -73,71 +79,81 @@ export default function Hub({
       ctx.clearRect(0, 0, w, h);
       const span = computeSpan(w);
 
-      // Tidsakse: stiplete markører hver 6. time + «nå» ved høyre kant.
+      // Tidsakse: markører hver 6. time, fortid og fremtid; «nå» i midten.
       ctx.font = "500 10px system-ui, sans-serif";
       ctx.textAlign = "center";
-      for (let back = 24; back >= 0; back -= 6) {
-        const x = timeToX(now - back * 3600 * 1000, span, WINDOW_MS, now);
-        ctx.strokeStyle = "rgba(226,226,222,0.07)";
+      for (let off = -24; off <= 24; off += 6) {
+        const x = timeToX(now + off * 3600 * 1000, span, now);
+        ctx.strokeStyle = off === 0 ? "rgba(226,226,222,0.22)" : "rgba(226,226,222,0.07)";
         ctx.beginPath();
         ctx.moveTo(x, 54);
         ctx.lineTo(x, h - 20);
         ctx.stroke();
-        ctx.fillStyle = "rgba(226,226,222,0.35)";
-        ctx.fillText(back === 0 ? "nå" : `-${back}t`, x, 46);
+        ctx.fillStyle = off === 0 ? "rgba(226,226,222,0.6)" : "rgba(226,226,222,0.35)";
+        ctx.fillText(off === 0 ? "nå" : `${off > 0 ? "+" : ""}${off}t`, x, 46);
       }
+      const nowX = timeToX(now, span, now);
+
+      // Tegner en trådstrekning [fra, til] med gjeldende strokeStyle.
+      const strokeSegment = (s: Strand, from: number, to: number) => {
+        ctx.beginPath();
+        for (let x = from; x <= to; x += 2) {
+          const y = strandY(s, x, span, now, t);
+          if (x === from) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      };
 
       for (const s of strandsRef.current) {
         const state = s.agent.state ?? "sleeping";
         const dim = state === "paused";
-        ctx.strokeStyle = dim ? "#3a3b40" : s.color;
         ctx.lineWidth = 1.25;
         ctx.globalAlpha = dim ? 0.6 : 0.9;
 
-        // Tråden, tett samplet for myke kurver.
-        ctx.beginPath();
-        for (let x = span.x0; x <= span.x1; x += 2) {
-          const y = strandY(s, x, span, WINDOW_MS, now, t);
-          if (x === span.x0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+        // Fortid i kategorifarge, fremtid i grått — prediksjon, ikke fasit.
+        ctx.strokeStyle = dim ? "#3a3b40" : s.color;
+        strokeSegment(s, span.x0, nowX);
+        ctx.strokeStyle = "#55565c";
+        ctx.globalAlpha = dim ? 0.4 : 0.55;
+        strokeSegment(s, nowX, span.x1);
+        ctx.globalAlpha = dim ? 0.6 : 0.9;
+
         if (state === "broken") {
-          // Rød hale ytterst: noe er galt nå.
+          // Rød hale inn mot nå-linja: noe er galt.
           ctx.strokeStyle = "hsla(4, 70%, 58%, 0.9)";
-          ctx.beginPath();
-          for (let x = span.x1 - 70; x <= span.x1; x += 2) {
-            const y = strandY(s, x, span, WINDOW_MS, now, t);
-            if (x === span.x1 - 70) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.stroke();
+          strokeSegment(s, nowX - 70, nowX);
         }
 
-        // Svar: et lysende etterslep på tråden RETT ETTER kjøringen — svaret
-        // følger arbeidet. Ulest svar pulserer varmt til chatten åpnes.
-        const withOutput = s.runs.filter((r) => r.has_output);
-        withOutput.forEach((r, i) => {
-          const runX = timeToX(Date.parse(r.started_at), span, WINDOW_MS, now);
-          if (runX < span.x0 - 30) return;
-          const unread = s.agent.has_response && i === withOutput.length - 1;
+        // Glødende etterslep etter et svar (fortid, kategori-lyst); ulest
+        // pulserer varmt. Predikerte svar får et svakt grått etterslep.
+        const glowTail = (runX: number, rgb: string, peak: number, width: number) => {
           const len = 34;
           const grad = ctx.createLinearGradient(runX, 0, runX + len, 0);
-          const glowColor = unread ? "242,227,154" : "236,238,234";
-          const peak = unread ? 0.75 + Math.sin(t * 3) * 0.2 : 0.5;
-          grad.addColorStop(0, `rgba(${glowColor},${peak})`);
-          grad.addColorStop(1, `rgba(${glowColor},0)`);
+          grad.addColorStop(0, `rgba(${rgb},${peak})`);
+          grad.addColorStop(1, `rgba(${rgb},0)`);
           ctx.strokeStyle = grad;
-          ctx.lineWidth = unread ? 2.4 : 1.8;
-          ctx.beginPath();
-          for (let x = Math.max(span.x0, runX); x <= Math.min(span.x1, runX + len); x += 2) {
-            const y = strandY(s, x, span, WINDOW_MS, now, t);
-            if (x === Math.max(span.x0, runX)) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.stroke();
+          ctx.lineWidth = width;
+          const from = Math.max(span.x0, runX);
+          const to = Math.min(span.x1, runX + len);
+          if (to > from) strokeSegment(s, from, to);
           ctx.lineWidth = 1.25;
+        };
+        const withOutput = s.runs.filter((r) => r.has_output);
+        withOutput.forEach((r, i) => {
+          const runX = timeToX(Date.parse(r.started_at), span, now);
+          if (runX < span.x0 - 30) return;
+          const unread = s.agent.has_response && i === withOutput.length - 1;
+          glowTail(
+            runX,
+            unread ? "242,227,154" : "236,238,234",
+            unread ? 0.75 + Math.sin(t * 3) * 0.2 : 0.5,
+            unread ? 2.4 : 1.8
+          );
         });
+        for (const ms of predictedRuns(s.agent, now)) {
+          glowTail(timeToX(ms, span, now), "150,152,158", 0.35, 1.5);
+        }
 
         // Navn ved venstre kant, på trådens bane.
         ctx.globalAlpha = 1;
