@@ -71,7 +71,6 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   const simRef = useRef<Sim[]>([]);
   const hoverRef = useRef<string | null>(null);
   const dragRef = useRef<string | null>(null);
-  const panRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
   // Verdenstransform: sentrert i (0,0), auto-tilpasses til brukeren tar styring.
   const viewRef = useRef({ x: 0, y: 0, k: 1, user: false });
@@ -411,9 +410,8 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       dragRef.current = hit.id;
       alphaTargetRef.current = 0.3;
       wakeRef.current(0.3);
-    } else {
-      panRef.current = { x: e.clientX, y: e.clientY };
     }
+    // Bakgrunnen er fast: grafen flyttes aldri, kun noder (og zoom).
   }
 
   function onMove(e: React.MouseEvent) {
@@ -430,15 +428,6 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       }
       return;
     }
-    if (panRef.current) {
-      movedRef.current = true;
-      viewRef.current.user = true;
-      viewRef.current.x += e.clientX - panRef.current.x;
-      viewRef.current.y += e.clientY - panRef.current.y;
-      panRef.current = { x: e.clientX, y: e.clientY };
-      wakeRef.current(0);
-      return;
-    }
     const prev = hoverRef.current;
     hoverRef.current = nodeAt(p)?.id ?? null;
     if (hoverRef.current !== prev) wakeRef.current(0);
@@ -447,7 +436,6 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   function onUp(e: React.MouseEvent) {
     const wasDrag = dragRef.current;
     dragRef.current = null;
-    panRef.current = null;
     alphaTargetRef.current = 0;
     if (wasDrag && !movedRef.current) {
       const rect = canvasRef.current!.getBoundingClientRect();
@@ -488,7 +476,6 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         onMouseUp={onUp}
         onMouseLeave={() => {
           dragRef.current = null;
-          panRef.current = null;
           hoverRef.current = null;
           alphaTargetRef.current = 0;
         }}
