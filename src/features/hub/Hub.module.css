@@ -66,15 +66,15 @@
   pointer-events: auto;
   background: #202020;
   border: none;
-  border-radius: 999px;
+  border-radius: 50%;
   color: #ffffff;
-  font-size: 10px;
-  font-weight: 550;
-  padding: 7px 9px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
-  white-space: nowrap;
 }
 
 .pill:hover {
