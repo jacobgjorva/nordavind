@@ -11,6 +11,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Analytics01Icon,
   ChartRelationshipIcon,
+  BubbleChatTemporaryIcon,
   Structure04Icon,
   DashboardSpeed01Icon,
   Database01Icon,
@@ -1401,11 +1402,6 @@ export function Chat({
 
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
-      {showFlow && agent && (
-        <Suspense fallback={null}>
-          <AgentFlow agentId={agent.id} onClose={() => setShowFlow(false)} />
-        </Suspense>
-      )}
     <div className={styles.chatRoot}>
       {dragging && (
         <div className={styles.dropOverlay}>
@@ -1523,11 +1519,15 @@ export function Chat({
           {agent && (
             <button
               className={styles.agentPause}
-              onClick={() => setShowFlow(true)}
-              title="Se og rediger agentens flyt"
-              aria-label="Agentflyt"
+              onClick={() => setShowFlow((v) => !v)}
+              title={showFlow ? "Tilbake til chatten" : "Se og rediger agentens flyt"}
+              aria-label={showFlow ? "Tilbake til chat" : "Agentflyt"}
             >
-              <HugeiconsIcon icon={Structure04Icon} size={18} strokeWidth={1.8} />
+              <HugeiconsIcon
+                icon={showFlow ? BubbleChatTemporaryIcon : Structure04Icon}
+                size={18}
+                strokeWidth={1.8}
+              />
             </button>
           )}
           {agent && (
@@ -1553,7 +1553,11 @@ export function Chat({
           </>
         )}
       </div>
-      {hasMessages ? (
+      {showFlow && agent ? (
+        <Suspense fallback={null}>
+          <AgentFlow agentId={agent.id} onClose={() => setShowFlow(false)} />
+        </Suspense>
+      ) : hasMessages ? (
         <div className={styles.conversation}>
           <div className={styles.messages} ref={messagesRef}>
             <div className={styles.messagesInner}>

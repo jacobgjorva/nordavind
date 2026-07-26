@@ -114,9 +114,10 @@ export default function Hub({
         ctx.stroke();
       }
 
-      // Nå-linja: stiplet, skillet mellom fasit og prediksjon.
-      ctx.strokeStyle = NOW_COLOR;
-      ctx.globalAlpha = 0.5;
+      // Nå-linja: stiplet i samme dempede grå som hjelpelinjene — det er
+      // markøren på linjalen som bærer fargen.
+      ctx.strokeStyle = "rgba(226,226,222,0.05)";
+      ctx.globalAlpha = 1;
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 5]);
       ctx.beginPath();

@@ -1,34 +1,19 @@
 /* Flyt-visningen erstatter chat-innholdet i agent-chatten. */
 .flow {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: 1;
+  min-height: 0;
   background: #08080a;
   display: flex;
   flex-direction: column;
-  z-index: 20;
 }
 
-.topBar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid #17181c;
-}
-
-.title {
-  font-size: 15px;
-  font-weight: 650;
-  color: #e8e8e4;
-}
-
-.sub {
-  font-size: 12.5px;
-  color: #7c7c83;
-}
-
-.actions {
-  margin-left: auto;
+/* Handlingene flyter over lerretet — chatten eier headeren. */
+.floatingActions {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: 3;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -61,15 +46,6 @@
 
 .ghost:hover {
   background: #17181c;
-}
-
-.close {
-  border: none;
-  background: transparent;
-  color: #7c7c83;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 4px 6px;
 }
 
 .problems {
