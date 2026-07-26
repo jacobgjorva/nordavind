@@ -192,8 +192,27 @@ export default function App() {
 
   const openSettings = useCallback(() => setView("settings"), []);
   const closeSettings = useCallback(() => setView("chat"), []);
-  const openHub = useCallback(() => setView("hub"), []);
-  const closeHub = useCallback(() => setView("chat"), []);
+  // /agents er en egen side med egen URL — åpne/lukk synces mot historikken,
+  // og en direkte lastet /agents lander rett i grafen.
+  const openHub = useCallback(() => {
+    setView("hub");
+    if (window.location.pathname !== "/agents") {
+      window.history.pushState({}, "", "/agents");
+    }
+  }, []);
+  const closeHub = useCallback(() => {
+    setView("chat");
+    if (window.location.pathname === "/agents") {
+      window.history.pushState({}, "", "/");
+    }
+  }, []);
+  useEffect(() => {
+    if (window.location.pathname === "/agents") setView("hub");
+    const onPop = () =>
+      setView(window.location.pathname === "/agents" ? "hub" : "chat");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   // Esc lukker settings-overlayet.
   useEffect(() => {
