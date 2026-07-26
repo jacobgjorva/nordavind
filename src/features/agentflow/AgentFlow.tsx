@@ -178,6 +178,10 @@ export default function AgentFlow({
   };
 
   const rebuild = async () => {
+    if (dirty && !confirm("Du har endringer som ikke er lagret. Bygge planen på nytt likevel?")) {
+      return;
+    }
+    setDirty(false);
     await rebuildAgentPlan(agentId).catch(() => {});
     setMeta((m) => ({ ...m, status: "building" }));
     setPlan(null);
@@ -370,15 +374,19 @@ export default function AgentFlow({
               />
             </label>
           )}
-          <button
-            className={styles.remove}
-            onClick={() => {
-              patch({ steps: plan.steps.filter((_, j) => j !== i) });
-              setSelected(null);
-            }}
-          >
-            Fjern steget
-          </button>
+          {plan.steps.length > 1 ? (
+            <button
+              className={styles.remove}
+              onClick={() => {
+                patch({ steps: plan.steps.filter((_, j) => j !== i) });
+                setSelected(null);
+              }}
+            >
+              Fjern steget
+            </button>
+          ) : (
+            <span className={styles.hint}>Planen må ha minst ett steg.</span>
+          )}
         </>
       );
     }
@@ -509,7 +517,13 @@ export default function AgentFlow({
           <button className={styles.ghost} onClick={rebuild}>
             Bygg på nytt
           </button>
-          <button className={styles.close} onClick={onClose}>
+          <button
+            className={styles.close}
+            onClick={() => {
+              if (dirty && !confirm("Lukke uten å lagre endringene?")) return;
+              onClose();
+            }}
+          >
             ✕
           </button>
         </div>
