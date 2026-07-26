@@ -238,7 +238,6 @@
 .user .bubble {
   background: var(--bg-hover);
   color: var(--text);
-  border-bottom-right-radius: var(--radius-sm);
   /* Alltid reservert (usynlig) border så lagre-forslaget kan gjøre den
      stiplet uten reflow eller blink. */
   border: 1.5px solid transparent;
