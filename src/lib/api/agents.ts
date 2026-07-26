@@ -161,3 +161,69 @@ export async function setAgentPersona(
 ): Promise<void> {
   await apiFetch(`/agents/${id}/persona`, { method: "PATCH", body: persona });
 }
+
+// Ett steg i agentens kompilerte plan.
+export interface PlanStep {
+  kind: string;
+  label: string;
+  connection_id?: string;
+  sql?: string;
+  query?: string;
+  url?: string;
+}
+
+export interface PlanChart {
+  type: string;
+  title: string;
+  connection_id?: string;
+  sql: string;
+  x: string;
+  y: string;
+  group?: string;
+}
+
+export interface PlanMail {
+  to_name?: string;
+  to_email: string;
+  subject: string;
+}
+
+// Agentens plan slik flyt-visningen redigerer den.
+export interface AgentPlan {
+  approach?: string;
+  steps: PlanStep[];
+  watch: string;
+  alert_rule: string;
+  chart?: PlanChart | null;
+  chart_slug?: string;
+  mail?: PlanMail | null;
+}
+
+export interface AgentPlanResponse {
+  plan: AgentPlan;
+  status: string;
+  error?: string;
+  schedule_label?: string;
+  task?: string;
+  agent_name?: string;
+  interval_seconds?: number;
+}
+
+// Henter agentens plan (til flyt-visningen).
+export async function fetchAgentPlan(id: string): Promise<AgentPlanResponse> {
+  return apiFetch(`/agents/${id}/plan`);
+}
+
+// Lagrer en redigert plan. Kaster med problemene hvis valideringen avviser.
+export async function saveAgentPlan(id: string, plan: AgentPlan): Promise<AgentPlan> {
+  const res = await apiFetch<{ plan: AgentPlan }>(`/agents/${id}/plan`, {
+    method: "PUT",
+    body: plan,
+  });
+  return res.plan;
+}
+
+// Kaster planen og ber agenten bygge den på nytt.
+export async function rebuildAgentPlan(id: string): Promise<void> {
+  await apiFetch(`/agents/${id}/plan/rebuild`, { method: "POST" });
+}
