@@ -1,8 +1,8 @@
-// Flyt-visningen: agentens kompilerte plan som en node-graf brukeren kan
-// redigere. Planen ER JSON-en agenten kjører — det som endres her, endrer
-// hva agenten faktisk gjør. Serveren prøvekjører hvert steg før lagring, så
-// en ødelagt spørring kan ikke lagres.
-import { useCallback, useEffect, useState } from "react";
+// Flyt-visningen: agentens kompilerte plan som en horisontal node-graf.
+// Planen ER JSON-en agenten kjører — det som endres her, endrer hva agenten
+// faktisk gjør. Serveren prøvekjører hvert steg før lagring, så en ødelagt
+// spørring kan ikke lagres.
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchAgentPlan,
   rebuildAgentPlan,
@@ -19,6 +19,26 @@ const KIND_LABEL: Record<string, string> = {
   fetch: "Hent side",
 };
 
+// Nodegeometri — layouten regnes ut i kode så kurvene kan tegnes i SVG.
+const NODE_W = 210;
+const GAP_X = 72;
+const ROW_H = 34; // høyde på en utgang-rad («Funn» / «Ingen funn»)
+const PAD = 40;
+
+type Tone = "start" | "step" | "judge" | "act" | "end";
+
+interface FlowNode {
+  key: string;
+  title: string;
+  sub?: string;
+  tone: Tone;
+  rows?: string[]; // utganger tegnet som rader i noden
+  x: number;
+  y: number;
+  h: number;
+  editable?: boolean;
+}
+
 export default function AgentFlow({
   agentId,
   onClose,
@@ -30,7 +50,7 @@ export default function AgentFlow({
   const [meta, setMeta] = useState<{ status: string; schedule?: string; name?: string }>({
     status: "",
   });
-  const [open, setOpen] = useState<string | null>(null); // hvilken node er åpen
+  const [selected, setSelected] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -39,18 +59,13 @@ export default function AgentFlow({
     fetchAgentPlan(agentId)
       .then((res) => {
         setPlan(res.plan);
-        setMeta({
-          status: res.status,
-          schedule: res.schedule_label,
-          name: res.agent_name,
-        });
+        setMeta({ status: res.status, schedule: res.schedule_label, name: res.agent_name });
       })
       .catch(() => setPlan(null));
   }, [agentId]);
 
   useEffect(load, [load]);
 
-  // Bygger planen? Poll til den er klar.
   useEffect(() => {
     if (meta.status !== "building") return;
     const iv = setInterval(load, 4000);
@@ -71,12 +86,6 @@ export default function AgentFlow({
     setProblems([]);
   };
 
-  const removeStep = (i: number) => {
-    setPlan((p) => (p ? { ...p, steps: p.steps.filter((_, j) => j !== i) } : p));
-    setDirty(true);
-    setProblems([]);
-  };
-
   const save = async () => {
     if (!plan) return;
     setSaving(true);
@@ -86,8 +95,6 @@ export default function AgentFlow({
       setPlan(saved);
       setDirty(false);
     } catch (err) {
-      // Serveren svarer med {problems:[...]} ved valideringsfeil; meldingen
-      // bærer JSON-en videre gjennom ApiError.
       const msg = err instanceof ApiError ? err.message : "";
       let listed: string[] | null = null;
       try {
@@ -109,6 +116,71 @@ export default function AgentFlow({
     load();
   };
 
+  // Layout: Start → steg → vurdering (to utganger) → handling / slutt.
+  const { nodes, edges, width, height } = useMemo(() => {
+    const nodes: FlowNode[] = [];
+    const edges: { from: string; to: string; port?: number }[] = [];
+    if (!plan) return { nodes, edges, width: 0, height: 0 };
+
+    const midY = PAD + 90;
+    let col = 0;
+    const colX = (c: number) => PAD + c * (NODE_W + GAP_X);
+
+    nodes.push({ key: "start", title: "Start", tone: "start", x: colX(col++), y: midY, h: 52 });
+
+    plan.steps.forEach((s, i) => {
+      nodes.push({
+        key: `step-${i}`,
+        title: s.label || `Steg ${i + 1}`,
+        sub: KIND_LABEL[s.kind] ?? s.kind,
+        tone: "step",
+        x: colX(col++),
+        y: midY,
+        h: 62,
+        editable: true,
+      });
+      edges.push({ from: i === 0 ? "start" : `step-${i - 1}`, to: `step-${i}` });
+    });
+
+    const judgeX = colX(col++);
+    const judgeRows = ["Funn", "Ingen funn"];
+    const judgeH = 62 + judgeRows.length * ROW_H + 10;
+    nodes.push({
+      key: "judge",
+      title: "Vurder resultatet",
+      sub: "regel",
+      tone: "judge",
+      rows: judgeRows,
+      x: judgeX,
+      y: midY - 20,
+      h: judgeH,
+      editable: true,
+    });
+    edges.push({
+      from: plan.steps.length ? `step-${plan.steps.length - 1}` : "start",
+      to: "judge",
+    });
+
+    // Funn-grenen: varsel, e-post og graf ligger over hverandre i siste kolonne.
+    const lastX = colX(col);
+    let branchY = midY - 60;
+    const act = (key: string, title: string, sub?: string, editable?: boolean) => {
+      nodes.push({ key, title, sub, tone: "act", x: lastX, y: branchY, h: sub ? 62 : 52, editable });
+      edges.push({ from: "judge", to: key, port: 0 });
+      branchY += 78;
+    };
+    act("notify", "Varsel i chatten", "melding");
+    if (plan.mail) act("mail", "Send e-post", plan.mail.to_email, true);
+    if (plan.chart) act("chart", "Vis graf", plan.chart.title, true);
+
+    nodes.push({ key: "end", title: "Stille", tone: "end", x: lastX, y: branchY + 12, h: 52 });
+    edges.push({ from: "judge", to: "end", port: 1 });
+
+    const width = lastX + NODE_W + PAD;
+    const height = Math.max(...nodes.map((n) => n.y + n.h)) + PAD;
+    return { nodes, edges, width, height };
+  }, [plan]);
+
   if (!plan || (!plan.steps?.length && meta.status !== "ready")) {
     return (
       <div className={styles.flow}>
@@ -125,7 +197,7 @@ export default function AgentFlow({
               ? "Planen virker ikke. Bygg den på nytt."
               : "Ingen plan ennå."}
           {meta.status !== "building" && (
-            <button className={styles.rebuild} onClick={rebuild}>
+            <button className={styles.ghost} onClick={rebuild}>
               Bygg plan
             </button>
           )}
@@ -134,18 +206,24 @@ export default function AgentFlow({
     );
   }
 
-  const node = (key: string, title: string, sub: string, body: React.ReactNode) => (
-    <div className={`${styles.node} ${open === key ? styles.nodeOpen : ""}`}>
-      <button
-        className={styles.nodeHead}
-        onClick={() => setOpen(open === key ? null : key)}
-      >
-        <span className={styles.nodeTitle}>{title}</span>
-        <span className={styles.nodeSub}>{sub}</span>
-      </button>
-      {open === key && <div className={styles.nodeBody}>{body}</div>}
-    </div>
-  );
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  // Kurvet forbindelse mellom to noder; port peker på en utgang-rad.
+  const path = (e: { from: string; to: string; port?: number }) => {
+    const a = byKey.get(e.from)!;
+    const b = byKey.get(e.to)!;
+    const ax = a.x + NODE_W;
+    const ay =
+      e.port !== undefined && a.rows
+        ? a.y + 62 + e.port * ROW_H + ROW_H / 2
+        : a.y + a.h / 2;
+    const bx = b.x;
+    const by = b.y + b.h / 2;
+    const dx = Math.max(30, (bx - ax) / 2);
+    return `M ${ax} ${ay} C ${ax + dx} ${ay}, ${bx - dx} ${by}, ${bx} ${by}`;
+  };
+
+  const sel = selected ? byKey.get(selected) : null;
+  const stepIndex = sel?.key.startsWith("step-") ? Number(sel.key.slice(5)) : -1;
 
   return (
     <div className={styles.flow}>
@@ -176,70 +254,104 @@ export default function AgentFlow({
       )}
 
       <div className={styles.canvas}>
-        <div className={styles.chain}>
-          <div className={styles.start}>Start</div>
-          <div className={styles.arrow} />
+        <div className={styles.stage} style={{ width, height }}>
+          <svg className={styles.wires} width={width} height={height}>
+            {edges.map((e, i) => (
+              <path key={i} d={path(e)} fill="none" stroke="#34353b" strokeWidth={1.5} />
+            ))}
+          </svg>
 
-          {plan.steps.map((s, i) => (
-            <div key={i} className={styles.chainItem}>
-              {node(
-                `step-${i}`,
-                s.label || `Steg ${i + 1}`,
-                KIND_LABEL[s.kind] ?? s.kind,
-                <>
-                  <label className={styles.field}>
-                    Navn
-                    <input
-                      value={s.label}
-                      onChange={(e) => patchStep(i, { label: e.target.value })}
-                    />
-                  </label>
-                  {s.kind === "sql" && (
-                    <label className={styles.field}>
-                      Spørring
-                      <textarea
-                        rows={5}
-                        value={s.sql ?? ""}
-                        onChange={(e) => patchStep(i, { sql: e.target.value })}
-                      />
-                    </label>
-                  )}
-                  {s.kind === "web" && (
-                    <label className={styles.field}>
-                      Søk
-                      <input
-                        value={s.query ?? ""}
-                        onChange={(e) => patchStep(i, { query: e.target.value })}
-                      />
-                    </label>
-                  )}
-                  {s.kind === "fetch" && (
-                    <label className={styles.field}>
-                      URL
-                      <input
-                        value={s.url ?? ""}
-                        onChange={(e) => patchStep(i, { url: e.target.value })}
-                      />
-                    </label>
-                  )}
-                  <button className={styles.remove} onClick={() => removeStep(i)}>
-                    Fjern steget
-                  </button>
-                </>
-              )}
-              <div className={styles.arrow} />
+          {nodes.map((n) => (
+            <div
+              key={n.key}
+              className={`${styles.node} ${styles[n.tone]} ${
+                selected === n.key ? styles.nodeSelected : ""
+              } ${n.editable ? styles.nodeEditable : ""}`}
+              style={{ left: n.x, top: n.y, width: NODE_W }}
+              onClick={() => n.editable && setSelected(selected === n.key ? null : n.key)}
+            >
+              <div className={styles.nodeHead}>
+                <span className={`${styles.icon} ${styles[`icon_${n.tone}`]}`} />
+                <span className={styles.nodeText}>
+                  <span className={styles.nodeTitle}>{n.title}</span>
+                  {n.sub && <span className={styles.nodeSub}>{n.sub}</span>}
+                </span>
+              </div>
+              {n.rows?.map((r) => (
+                <div key={r} className={styles.row}>
+                  {r}
+                </div>
+              ))}
             </div>
           ))}
+        </div>
+      </div>
 
-          {node(
-            "watch",
-            "Vurder resultatet",
-            "regel",
+      {/* Redigeringspanelet for valgt node. */}
+      {sel && (
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            {sel.title}
+            <button className={styles.close} onClick={() => setSelected(null)}>
+              ✕
+            </button>
+          </div>
+
+          {stepIndex >= 0 && plan.steps[stepIndex] && (
+            <>
+              <label className={styles.field}>
+                Navn
+                <input
+                  value={plan.steps[stepIndex].label}
+                  onChange={(e) => patchStep(stepIndex, { label: e.target.value })}
+                />
+              </label>
+              {plan.steps[stepIndex].kind === "sql" && (
+                <label className={styles.field}>
+                  Spørring
+                  <textarea
+                    rows={7}
+                    value={plan.steps[stepIndex].sql ?? ""}
+                    onChange={(e) => patchStep(stepIndex, { sql: e.target.value })}
+                  />
+                </label>
+              )}
+              {plan.steps[stepIndex].kind === "web" && (
+                <label className={styles.field}>
+                  Søk
+                  <input
+                    value={plan.steps[stepIndex].query ?? ""}
+                    onChange={(e) => patchStep(stepIndex, { query: e.target.value })}
+                  />
+                </label>
+              )}
+              {plan.steps[stepIndex].kind === "fetch" && (
+                <label className={styles.field}>
+                  URL
+                  <input
+                    value={plan.steps[stepIndex].url ?? ""}
+                    onChange={(e) => patchStep(stepIndex, { url: e.target.value })}
+                  />
+                </label>
+              )}
+              <button
+                className={styles.remove}
+                onClick={() => {
+                  patch({ steps: plan.steps.filter((_, j) => j !== stepIndex) });
+                  setSelected(null);
+                }}
+              >
+                Fjern steget
+              </button>
+            </>
+          )}
+
+          {sel.key === "judge" && (
             <>
               <label className={styles.field}>
                 Dette følges med på
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={plan.watch}
                   onChange={(e) => patch({ watch: e.target.value })}
                 />
@@ -247,7 +359,7 @@ export default function AgentFlow({
               <label className={styles.field}>
                 Si fra når
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={plan.alert_rule}
                   onChange={(e) => patch({ alert_rule: e.target.value })}
                 />
@@ -255,85 +367,64 @@ export default function AgentFlow({
             </>
           )}
 
-          {/* Forgreningen: funn eller ikke. */}
-          <div className={styles.branch}>
-            <div className={styles.branchArm}>
-              <span className={styles.branchLabel}>Funn</span>
-              <div className={styles.leaf}>
-                Varsel i chatten
-                {plan.mail && ` + e-post til ${plan.mail.to_email}`}
-              </div>
-            </div>
-            <div className={styles.branchArm}>
-              <span className={styles.branchLabel}>Ingen funn</span>
-              <div className={styles.leafQuiet}>Stille</div>
-            </div>
-          </div>
+          {sel.key === "mail" && plan.mail && (
+            <>
+              <label className={styles.field}>
+                Mottaker
+                <input
+                  value={plan.mail.to_email}
+                  onChange={(e) => patch({ mail: { ...plan.mail!, to_email: e.target.value } })}
+                />
+              </label>
+              <label className={styles.field}>
+                Emne
+                <input
+                  value={plan.mail.subject}
+                  onChange={(e) => patch({ mail: { ...plan.mail!, subject: e.target.value } })}
+                />
+              </label>
+              <button
+                className={styles.remove}
+                onClick={() => {
+                  patch({ mail: null });
+                  setSelected(null);
+                }}
+              >
+                Slutt å sende e-post
+              </button>
+            </>
+          )}
 
-          {plan.mail &&
-            node(
-              "mail",
-              "E-post",
-              plan.mail.to_email,
-              <>
-                <label className={styles.field}>
-                  Mottaker
-                  <input
-                    value={plan.mail.to_email}
-                    onChange={(e) =>
-                      patch({ mail: { ...plan.mail!, to_email: e.target.value } })
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  Emne
-                  <input
-                    value={plan.mail.subject}
-                    onChange={(e) =>
-                      patch({ mail: { ...plan.mail!, subject: e.target.value } })
-                    }
-                  />
-                </label>
-                <button className={styles.remove} onClick={() => patch({ mail: null })}>
-                  Slutt å sende e-post
-                </button>
-              </>
-            )}
-
-          {plan.chart &&
-            node(
-              "chart",
-              "Graf",
-              plan.chart.title,
-              <>
-                <label className={styles.field}>
-                  Tittel
-                  <input
-                    value={plan.chart.title}
-                    onChange={(e) =>
-                      patch({ chart: { ...plan.chart!, title: e.target.value } })
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  Spørring
-                  <textarea
-                    rows={4}
-                    value={plan.chart.sql}
-                    onChange={(e) =>
-                      patch({ chart: { ...plan.chart!, sql: e.target.value } })
-                    }
-                  />
-                </label>
-                <button className={styles.remove} onClick={() => patch({ chart: null })}>
-                  Fjern grafen
-                </button>
-              </>
-            )}
+          {sel.key === "chart" && plan.chart && (
+            <>
+              <label className={styles.field}>
+                Tittel
+                <input
+                  value={plan.chart.title}
+                  onChange={(e) => patch({ chart: { ...plan.chart!, title: e.target.value } })}
+                />
+              </label>
+              <label className={styles.field}>
+                Spørring
+                <textarea
+                  rows={6}
+                  value={plan.chart.sql}
+                  onChange={(e) => patch({ chart: { ...plan.chart!, sql: e.target.value } })}
+                />
+              </label>
+              <button
+                className={styles.remove}
+                onClick={() => {
+                  patch({ chart: null });
+                  setSelected(null);
+                }}
+              >
+                Fjern grafen
+              </button>
+            </>
+          )}
         </div>
-
-        {plan.approach && <p className={styles.approach}>{plan.approach}</p>}
-      </div>
+      )}
     </div>
   );
 }
