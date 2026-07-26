@@ -5,15 +5,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  BellIcon,
+  BellOffIcon,
+  BlueskyIcon,
   ChartLineData01Icon,
   Database01Icon,
-  FilterIcon,
   Globe02Icon,
   Mail01Icon,
-  Message01Icon,
-  PlayCircleIcon,
+  PlayIcon,
   Search01Icon,
-  StopCircleIcon,
 } from "@hugeicons/core-free-icons";
 import {
   fetchAgentPlan,
@@ -80,7 +80,7 @@ interface FlowNode {
   title: string;
   sub?: string;
   tone: Tone;
-  icon: typeof PlayCircleIcon;
+  icon: typeof PlayIcon;
   kind?: string; // stegtype, styrer hvilke felt som redigeres
   rows?: string[]; // utganger tegnet som rader i noden
   x: number;
@@ -199,7 +199,7 @@ export default function AgentFlow({
       title: "Start",
       sub: INTERVALS.find((i) => i.s === interval)?.label ?? "fast frekvens",
       tone: "start",
-      icon: PlayCircleIcon,
+      icon: PlayIcon,
       x: colX(col++),
       y: midY,
       h: 56 + (selected === "start" ? editorHeight({ key: "start" }) : 0),
@@ -232,7 +232,7 @@ export default function AgentFlow({
       title: "Vurder resultatet",
       sub: "regel",
       tone: "judge",
-      icon: FilterIcon,
+      icon: BlueskyIcon,
       rows: judgeRows,
       x: judgeX,
       y: midY - 20,
@@ -247,8 +247,8 @@ export default function AgentFlow({
     // Funn-grenen: varsel, e-post og graf ligger over hverandre i siste kolonne.
     const lastX = colX(col);
     let branchY = midY - 60;
-    const actIcon: Record<string, typeof PlayCircleIcon> = {
-      notify: Message01Icon,
+    const actIcon: Record<string, typeof PlayIcon> = {
+      notify: BellIcon,
       mail: Mail01Icon,
       chart: ChartLineData01Icon,
     };
@@ -258,7 +258,7 @@ export default function AgentFlow({
         title,
         sub,
         tone: "act",
-        icon: actIcon[key] ?? Message01Icon,
+        icon: actIcon[key] ?? BellIcon,
         x: lastX,
         y: branchY,
         h: (sub ? 56 : 46) + (selected === key ? editorHeight({ key }) : 0),
@@ -275,7 +275,7 @@ export default function AgentFlow({
       key: "end",
       title: "Stille",
       tone: "end",
-      icon: StopCircleIcon,
+      icon: BellOffIcon,
       x: lastX,
       y: branchY + 10,
       h: 46,
