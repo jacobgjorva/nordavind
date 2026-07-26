@@ -1,6 +1,5 @@
 import { BASE_URL, API_KEY, authHeaders, apiFetch } from "./client";
 import type { ApiMessage, Role } from "./client";
-import { swallow } from "../log";
 
 export interface ChatSummary {
   id: string;
@@ -74,16 +73,35 @@ export async function appendChatMessage(
 }
 
 // Starter passivt kunnskaps-uttrekk fra en utveksling (fyr og glem).
-export function extractKnowledge(payload: {
+// Kunnskapsforslag fra en utveksling — lagres først når kilden bekrefter.
+export interface KnowledgeProposal {
+  type: string;
+  title: string;
+  summary: string;
+}
+
+export async function extractKnowledge(payload: {
   chat_id?: string;
   question: string;
   answer: string;
-}): void {
-  fetch(`${BASE_URL}/knowledge/extract`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
-  }).catch(swallow);
+}): Promise<KnowledgeProposal[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/knowledge/extract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok || res.status === 204) return [];
+    const data = (await res.json()) as { proposals?: KnowledgeProposal[] };
+    return data.proposals ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Kilden bekreftet: lagre kunnskapen (accepted, med automatisk dublettvakt).
+export async function confirmKnowledge(p: KnowledgeProposal & { chat_id?: string }): Promise<void> {
+  await apiFetch(`/knowledge/confirm`, { method: "POST", body: p });
 }
 
 // Logger neste brukermelding som korrigering på et AI-svar (opptrening senere).

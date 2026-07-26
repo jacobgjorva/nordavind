@@ -57,6 +57,8 @@ import {
   type Widget,
   deleteAgent,
   extractKnowledge,
+  confirmKnowledge,
+  type KnowledgeProposal,
   fetchChatAgent,
   generateChatTitle,
   logCorrection,
@@ -544,6 +546,13 @@ export function Chat({
   // Forslag om å lagre et vedlagt dokument i kunnskapsbasen, knyttet til
   // brukermeldingen det gjelder.
   const [trainOffer, setTrainOffer] = useState<{ id: string; docs: Attachment[] } | null>(null);
+  // Kunnskapsforslag fra siste utveksling: kilden bekrefter med ett klikk
+  // (governance v2) — «Notert.» vises kort etter bekreftelse.
+  const [knowOffer, setKnowOffer] = useState<{
+    id: string;
+    proposals: KnowledgeProposal[];
+    done?: boolean;
+  } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Armert svar: neste brukermelding logges som korrigering på dette svaret.
   const [correctionTarget, setCorrectionTarget] = useState<{
@@ -710,6 +719,23 @@ export function Chat({
         content: "Kunne ikke lagre: " + (e instanceof Error ? e.message : "ukjent feil"),
       });
     }
+  }
+
+  // Kilden bekreftet kunnskapsforslagene: lagre og kvitter kort.
+  async function acceptKnowledge() {
+    const offer = knowOffer;
+    if (!offer || offer.done) return;
+    setKnowOffer({ ...offer, done: true });
+    try {
+      await Promise.all(
+        offer.proposals.map((p) =>
+          confirmKnowledge({ ...p, chat_id: chatIdRef.current ?? undefined })
+        )
+      );
+    } catch {
+      /* stille — forslaget kan gis på nytt senere */
+    }
+    setTimeout(() => setKnowOffer(null), 2500);
   }
 
   function dismissTrain() {
@@ -1261,11 +1287,13 @@ export function Chat({
       // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
       // Hopp over korte meldinger uten substans; backend gater videre på
       // bedriftsinterne markører før den bruker et LLM-kall.
-      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current && !deckTurn) {
+      if (acc && text.trim().length >= 12 && !agentModeRef.current && !widgetEditRef.current && !deckTurn) {
         extractKnowledge({
           chat_id: chatIdRef.current ?? undefined,
           question: text,
           answer: acc,
+        }).then((proposals) => {
+          if (proposals.length > 0) setKnowOffer({ id: replyId, proposals });
         });
       }
 
@@ -1806,6 +1834,34 @@ export function Chat({
                     ) : null}
                   </TableQueryContext.Provider>
                   </div>
+                  {knowOffer?.id === m.id && (
+                    <div className={styles.trainOffer}>
+                      {knowOffer.done ? (
+                        <span className={styles.trainOfferText}>Notert.</span>
+                      ) : (
+                        <>
+                          <span className={styles.trainOfferText}>
+                            Skal jeg huske dette?{" "}
+                            {knowOffer.proposals.map((p) => `«${p.title}»`).join(", ")}
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.trainYes}
+                            onClick={acceptKnowledge}
+                          >
+                            Ja
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.trainNo}
+                            onClick={() => setKnowOffer(null)}
+                          >
+                            Nei
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {trainOffer?.id === m.id && (
                     <div className={styles.trainOffer}>
                       <span className={styles.trainOfferText}>
