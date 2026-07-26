@@ -6,6 +6,7 @@ const Hub = lazy(() => import("../features/hub/Hub"));
 import { Login } from "../features/auth/Login";
 import { M365Onboarding } from "../features/auth/M365Onboarding";
 import { Settings } from "../features/settings/Settings";
+import { KnowledgeGraph } from "../features/settings/KnowledgeGraph";
 import { Sidebar } from "../layout/Sidebar";
 import { AdminUserContext } from "../tools/admin";
 import {
@@ -29,7 +30,7 @@ import { swallow } from "../lib/log";
 import styles from "./App.module.css";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "settings" | "hub">("chat");
+  const [view, setView] = useState<"chat" | "settings" | "hub" | "graph">("chat");
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
   // remonter komponenten og dreper streamen.
@@ -206,10 +207,22 @@ export default function App() {
       window.history.pushState({}, "", "/");
     }
   }, []);
+  // /graf er kunnskapsgrafens egen side, samme mønster som /agents.
+  const openGraph = useCallback(() => {
+    setView("graph");
+    if (window.location.pathname !== "/graf") {
+      window.history.pushState({}, "", "/graf");
+    }
+  }, []);
   useEffect(() => {
-    if (window.location.pathname === "/agents") setView("hub");
-    const onPop = () =>
-      setView(window.location.pathname === "/agents" ? "hub" : "chat");
+    const fromPath = () =>
+      window.location.pathname === "/agents"
+        ? "hub"
+        : window.location.pathname === "/graf"
+          ? "graph"
+          : "chat";
+    setView((v) => (fromPath() === "chat" ? v : fromPath()));
+    const onPop = () => setView(fromPath());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -238,6 +251,7 @@ export default function App() {
         onNewChat={newChat}
         onOpenSettings={openSettings}
         onOpenHub={openHub}
+        onOpenGraph={openGraph}
         onOpenChat={openChat}
         onDeleteChat={onDeleteChat}
         folders={folders}
@@ -253,7 +267,9 @@ export default function App() {
             stream skal ikke dø av navigasjon. Sidebaren er global. */}
         <div
           className={
-            view === "hub" ? styles.chatWrapHidden : styles.chatWrap
+            view === "hub" || view === "graph"
+              ? styles.chatWrapHidden
+              : styles.chatWrap
           }
         >
           <Chat
@@ -276,6 +292,11 @@ export default function App() {
           <Suspense fallback={null}>
             <Hub onClose={closeHub} onOpenChat={openChat} />
           </Suspense>
+        )}
+        {view === "graph" && (
+          <div className={styles.graphPage}>
+            <KnowledgeGraph fill />
+          </div>
         )}
       </div>
       {view === "settings" && (

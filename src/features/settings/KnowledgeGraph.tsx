@@ -19,6 +19,7 @@ interface Sim {
   vx: number;
   vy: number;
   deg: number;
+  bucket: number; // fargetrinn 0..DEG_STEPS-1 fra koblingsgrad
 }
 
 const HEIGHT = 440;
@@ -26,8 +27,18 @@ const HEIGHT = 440;
 // Fargespråket: mørk flate, kanter i en lilla→rosa→krem-gradient (varmest mot
 // sentrum), noder som små lyse mint-punkter med glød. Dokument-noder gull.
 const BG = "#050507";
-const NODE_MINT = "#8df0c6";
-const NODE_DOC = "#f4c15a";
+// Nodefargen følger koblingsgraden: få/ingen koblinger = mint (dagens grønne),
+// mange koblinger = lilla. Interpolert i faste trinn (sprites).
+const DEG_LOW: [number, number, number] = [141, 240, 198]; // mint
+const DEG_HIGH: [number, number, number] = [160, 107, 240]; // lilla
+const DEG_STEPS = 6;
+function degMix(t: number): [number, number, number] {
+  return [
+    Math.round(DEG_LOW[0] + (DEG_HIGH[0] - DEG_LOW[0]) * t),
+    Math.round(DEG_LOW[1] + (DEG_HIGH[1] - DEG_LOW[1]) * t),
+    Math.round(DEG_LOW[2] + (DEG_HIGH[2] - DEG_LOW[2]) * t),
+  ];
+}
 const EDGE_STOPS: [number, number, number][] = [
   [244, 205, 160], // sentrum: varm krem
   [224, 139, 208], // midt: rosa
@@ -58,7 +69,8 @@ function hash01(s: string): number {
 
 // Organisk kunnskapsgraf på canvas: kraft-simulering med romlig rutenett for
 // frastøtning (tåler tusenvis av noder), additiv glød, zoom/pan og redigering.
-export function KnowledgeGraph() {
+// fill: fyll forelderens høyde (/graf-siden) i stedet for panel-høyden.
+export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   const [data, setData] = useState<GraphData | null>(null);
   const [selId, setSelId] = useState<string | null>(null);
   const [cardPos, setCardPos] = useState<{ x: number; y: number } | null>(null);
@@ -70,13 +82,22 @@ export function KnowledgeGraph() {
   const simRef = useRef<Sim[]>([]);
   const hoverRef = useRef<string | null>(null);
   const dragRef = useRef<string | null>(null);
-  const panRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
   // Verdenstransform: sentrert i (0,0), auto-tilpasses til brukeren tar styring.
   const viewRef = useRef({ x: 0, y: 0, k: 1, user: false });
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
+  // Vekker den frosne rAF-løkka (heat > 0 varmer opp fysikken igjen).
+  const wakeRef = useRef<(heat: number) => void>(() => {});
+  // d3-aktig alphaTarget: holdes på 0.3 under dra så nabolaget følger
+  // elastisk etter (Obsidian-følelsen); 0 ellers.
+  const alphaTargetRef = useRef(0);
+  const selRef = useRef<string | null>(null);
 
   const selected = data?.nodes.find((n) => n.id === selId) ?? null;
+  useEffect(() => {
+    selRef.current = selId;
+    wakeRef.current(0);
+  }, [selId]);
 
   useEffect(() => {
     if (selected) {
@@ -132,9 +153,16 @@ export function KnowledgeGraph() {
       deg.set(e.from_id, (deg.get(e.from_id) ?? 0) + 1);
       deg.set(e.to_id, (deg.get(e.to_id) ?? 0) + 1);
     }
+    let maxDeg = 1;
+    for (const d of deg.values()) {
+      if (d > maxDeg) maxDeg = d;
+    }
     simRef.current = data.nodes.map((node, i) => {
       const a = i * 2.399963; // gullvinkel — jevn spiral uansett antall
       const r = 14 * Math.sqrt(i + 1);
+      const dg = deg.get(node.id) ?? 0;
+      // Kvadratrot løfter mellomsjiktet — ellers blir alt unntatt hubene mint.
+      const t = Math.sqrt(dg / maxDeg);
       return {
         id: node.id,
         title: node.title,
@@ -143,13 +171,16 @@ export function KnowledgeGraph() {
         y: Math.sin(a) * r,
         vx: 0,
         vy: 0,
-        deg: deg.get(node.id) ?? 0,
+        deg: dg,
+        bucket: Math.min(DEG_STEPS - 1, Math.round(t * (DEG_STEPS - 1))),
       };
     });
     viewRef.current.user = false;
   }, [data]);
 
   // Simulering + tegning i samme rAF-løkke — React røres aldri per frame.
+  // Nedkjøling: kreftene skaleres med en alfa som dør ut; når grafen har satt
+  // seg STOPPER løkka helt (null CPU i ro) og vekkes av interaksjon.
   useEffect(() => {
     if (!data) return;
     const canvas = canvasRef.current;
@@ -159,12 +190,38 @@ export function KnowledgeGraph() {
     if (!ctx) return;
 
     let raf = 0;
+    let alpha = 1;
+    const alphaDecay = 0.028; // eksponentiell, som d3-force
+    const alphaMin = 0.002;
     const dpr = window.devicePixelRatio || 1;
+
+    // Glød-sprites: radial gradient rendret ÉN gang per farge — shadowBlur på
+    // hver node hver frame var det som spiste GPU-en.
+    function makeSprite(color: string): HTMLCanvasElement {
+      const s = document.createElement("canvas");
+      s.width = s.height = 64;
+      const c = s.getContext("2d")!;
+      const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, color);
+      g.addColorStop(0.25, color);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = g;
+      c.fillRect(0, 0, 64, 64);
+      return s;
+    }
+    const sprites: HTMLCanvasElement[] = [];
+    const cores: string[] = [];
+    for (let i = 0; i < DEG_STEPS; i++) {
+      const [r, g, b] = degMix(i / (DEG_STEPS - 1));
+      sprites.push(makeSprite(`rgb(${r},${g},${b})`));
+      // Kjernen er en lysere utgave av glødfargen — de skarpe punktene.
+      cores.push(`rgb(${Math.min(255, r + 70)},${Math.min(255, g + 70)},${Math.min(255, b + 70)})`);
+    }
 
     function step() {
       const nodes = simRef.current;
       const w = wrap!.clientWidth;
-      const h = HEIGHT;
+      const h = fill ? wrap!.clientHeight : HEIGHT;
       if (canvas!.width !== w * dpr || canvas!.height !== h * dpr) {
         canvas!.width = w * dpr;
         canvas!.height = h * dpr;
@@ -172,7 +229,7 @@ export function KnowledgeGraph() {
       }
 
       // --- Krefter. Frastøtning via romlig rutenett: O(n · naboceller). ---
-      const cell = 60;
+      const cell = 150;
       const grid = new Map<string, number[]>();
       for (let i = 0; i < nodes.length; i++) {
         const key = `${Math.floor(nodes[i].x / cell)}:${Math.floor(nodes[i].y / cell)}`;
@@ -195,8 +252,8 @@ export function KnowledgeGraph() {
               const dx = a.x - b.x;
               const dy = a.y - b.y;
               const d2 = dx * dx + dy * dy || 0.01;
-              if (d2 > cell * cell * 4) continue;
-              const f = 900 / d2;
+              if (d2 > cell * cell * 9) continue;
+              const f = (1600 / d2) * alpha;
               const d = Math.sqrt(d2);
               a.vx += (dx / d) * f;
               a.vy += (dy / d) * f;
@@ -204,8 +261,8 @@ export function KnowledgeGraph() {
           }
         }
         // Sentrering mot origo — svakere for hub-noder så de får bre seg.
-        a.vx += -a.x * 0.004;
-        a.vy += -a.y * 0.004;
+        a.vx += -a.x * 0.0015 * alpha;
+        a.vy += -a.y * 0.0015 * alpha;
       }
       const idx = new Map(nodes.map((n, i) => [n.id, i]));
       for (const e of data!.edges) {
@@ -217,29 +274,38 @@ export function KnowledgeGraph() {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        const f = (d - 70) * 0.015;
-        const fx = (dx / d) * f;
-        const fy = (dy / d) * f;
-        if (a.id !== dragRef.current) {
-          a.vx += fx;
-          a.vy += fy;
-        }
+        const degA = a.deg || 1;
+        const degB = b.deg || 1;
+        const strength = 1 / Math.min(degA, degB);
+        const l = ((d - 60) / d) * alpha * strength;
+        const bias = degA / (degA + degB);
         if (b.id !== dragRef.current) {
-          b.vx -= fx;
-          b.vy -= fy;
+          b.vx -= dx * l * bias;
+          b.vy -= dy * l * bias;
+        }
+        if (a.id !== dragRef.current) {
+          a.vx += dx * l * (1 - bias);
+          a.vy += dy * l * (1 - bias);
         }
       }
       let maxR = 1;
       for (const n of nodes) {
         if (n.id !== dragRef.current) {
-          n.vx *= 0.8;
-          n.vy *= 0.8;
+          n.vx *= 0.6;
+          n.vy *= 0.6;
+          // Sikkerhetsventil mot eksplosjoner, aldri i normal drift.
+          const v = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+          if (v > 30) {
+            n.vx = (n.vx / v) * 30;
+            n.vy = (n.vy / v) * 30;
+          }
           n.x += n.vx;
           n.y += n.vy;
         }
         const r = Math.sqrt(n.x * n.x + n.y * n.y);
         if (r > maxR) maxR = r;
       }
+      alpha += (alphaTargetRef.current - alpha) * alphaDecay;
 
       // --- Auto-tilpass utsnittet til brukeren zoomer/panner selv. ---
       const view = viewRef.current;
@@ -257,8 +323,10 @@ export function KnowledgeGraph() {
       ctx!.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.x, dpr * view.y);
       ctx!.globalCompositeOperation = "lighter";
 
-      const big = nodes.length > 400;
-      ctx!.lineWidth = big ? 0.5 : 0.8;
+      const big = nodes.length > 900;
+      // Konstant strektykkelse på SKJERMEN uansett zoom — kantene er selve
+      // uttrykket og skal aldri forsvinne ved utzooming.
+      ctx!.lineWidth = (big ? 0.9 : 1.3) / view.k;
       for (const e of data!.edges) {
         const ia = idx.get(e.from_id);
         const ib = idx.get(e.to_id);
@@ -268,7 +336,7 @@ export function KnowledgeGraph() {
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
         const t = Math.min(1, Math.sqrt(mx * mx + my * my) / maxR);
-        ctx!.strokeStyle = edgeColor(t, big ? 0.28 : 0.45);
+        ctx!.strokeStyle = edgeColor(t, big ? 0.4 : 0.62);
         // Svak, stabil bue gir det organiske nervetråd-uttrykket.
         const bend = (hash01(e.from_id + e.to_id) - 0.5) * 0.5;
         ctx!.beginPath();
@@ -283,22 +351,22 @@ export function KnowledgeGraph() {
       }
 
       const hover = hoverRef.current;
+      const sel = selRef.current;
       for (const n of nodes) {
-        const doc = n.type === "dokument";
-        const active = n.id === hover || n.id === selId;
-        const r = (doc ? 3 : 2 + Math.min(2, n.deg * 0.4)) * (active ? 1.8 : 1);
-        ctx!.fillStyle = doc ? NODE_DOC : NODE_MINT;
-        ctx!.shadowColor = doc ? NODE_DOC : NODE_MINT;
-        ctx!.shadowBlur = big ? 4 : 8;
+        const active = n.id === hover || n.id === sel;
+        const r = (2 + Math.min(2.5, n.deg * 0.3)) * (active ? 1.8 : 1);
+        const g = r * 4.5;
+        ctx!.drawImage(sprites[n.bucket], n.x - g, n.y - g, g * 2, g * 2);
+        // Liten solid kjerne over gløden gir de skarpe lyspunktene.
+        ctx!.fillStyle = cores[n.bucket];
         ctx!.beginPath();
-        ctx!.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx!.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2);
         ctx!.fill();
       }
-      ctx!.shadowBlur = 0;
       ctx!.globalCompositeOperation = "source-over";
 
       // Etikett for hover/valgt node — tegnes i skjermrom for jevn størrelse.
-      const labelFor = hover ?? selId;
+      const labelFor = hover ?? sel;
       if (labelFor) {
         const n = nodes[idx.get(labelFor) ?? -1];
         if (n) {
@@ -311,11 +379,28 @@ export function KnowledgeGraph() {
         }
       }
 
-      raf = requestAnimationFrame(step);
+      // Frossen og i ro: stopp løkka helt. Interaksjoner vekker den igjen.
+      if (alpha > alphaMin || alphaTargetRef.current > 0 || dragRef.current) {
+        raf = requestAnimationFrame(step);
+      } else {
+        running = false;
+      }
     }
+
+    let running = true;
+    wakeRef.current = (heat: number) => {
+      alpha = Math.max(alpha, heat);
+      if (!running) {
+        running = true;
+        raf = requestAnimationFrame(step);
+      }
+    };
     raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [data, selId]);
+    return () => {
+      cancelAnimationFrame(raf);
+      wakeRef.current = () => {};
+    };
+  }, [data]);
 
   function toWorld(e: React.MouseEvent): { x: number; y: number } {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -347,9 +432,10 @@ export function KnowledgeGraph() {
     movedRef.current = false;
     if (hit) {
       dragRef.current = hit.id;
-    } else {
-      panRef.current = { x: e.clientX, y: e.clientY };
+      alphaTargetRef.current = 0.3;
+      wakeRef.current(0.3);
     }
+    // Bakgrunnen er fast: grafen flyttes aldri, kun noder (og zoom).
   }
 
   function onMove(e: React.MouseEvent) {
@@ -366,21 +452,15 @@ export function KnowledgeGraph() {
       }
       return;
     }
-    if (panRef.current) {
-      movedRef.current = true;
-      viewRef.current.user = true;
-      viewRef.current.x += e.clientX - panRef.current.x;
-      viewRef.current.y += e.clientY - panRef.current.y;
-      panRef.current = { x: e.clientX, y: e.clientY };
-      return;
-    }
+    const prev = hoverRef.current;
     hoverRef.current = nodeAt(p)?.id ?? null;
+    if (hoverRef.current !== prev) wakeRef.current(0);
   }
 
   function onUp(e: React.MouseEvent) {
     const wasDrag = dragRef.current;
     dragRef.current = null;
-    panRef.current = null;
+    alphaTargetRef.current = 0;
     if (wasDrag && !movedRef.current) {
       const rect = canvasRef.current!.getBoundingClientRect();
       setSelId(wasDrag);
@@ -402,6 +482,7 @@ export function KnowledgeGraph() {
     view.x = mx - ((mx - view.x) / view.k) * k;
     view.y = my - ((my - view.y) / view.k) * k;
     view.k = k;
+    wakeRef.current(0);
   }
 
   if (!data) return null;
@@ -410,7 +491,7 @@ export function KnowledgeGraph() {
   }
 
   return (
-    <div className={styles.wrap} ref={wrapRef}>
+    <div className={fill ? styles.wrapFill : styles.wrap} ref={wrapRef}>
       <canvas
         ref={canvasRef}
         className={styles.canvas}
@@ -419,8 +500,8 @@ export function KnowledgeGraph() {
         onMouseUp={onUp}
         onMouseLeave={() => {
           dragRef.current = null;
-          panRef.current = null;
           hoverRef.current = null;
+          alphaTargetRef.current = 0;
         }}
         onWheel={onWheel}
       />

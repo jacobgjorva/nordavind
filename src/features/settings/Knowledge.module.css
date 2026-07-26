@@ -151,3 +151,45 @@
   color: var(--text-faint);
   text-align: center;
 }
+
+/* Dublettvakten: valget mellom å erstatte den lignende lappen eller beholde begge. */
+.dupBox {
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(255, 200, 90, 0.06);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dupText {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.dupActions {
+  display: flex;
+  gap: 8px;
+}
+
+.dupReplace,
+.dupKeep {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dupReplace {
+  background: #047aff;
+  color: #fff;
+}
+
+.dupKeep {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}

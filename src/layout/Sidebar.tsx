@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AnonymousIcon,
+  ChartRelationshipIcon,
   Folder01Icon,
   Folder02Icon,
 } from "@hugeicons/core-free-icons";
@@ -19,6 +20,7 @@ type SidebarProps = {
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenHub: () => void;
+  onOpenGraph: () => void;
   onOpenChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
   onNewFolder: () => void;
@@ -59,6 +61,7 @@ export function Sidebar({
   onNewChat,
   onOpenSettings,
   onOpenHub,
+  onOpenGraph,
   onOpenChat,
   onDeleteChat,
   onNewFolder,
@@ -165,6 +168,13 @@ export function Sidebar({
         <span className={styles.newChatLabel}>
           <HugeiconsIcon icon={AnonymousIcon} size={15} strokeWidth={1.8} />
           Agenter
+        </span>
+      </button>
+
+      <button className={styles.navLink} onClick={onOpenGraph}>
+        <span className={styles.newChatLabel}>
+          <HugeiconsIcon icon={ChartRelationshipIcon} size={15} strokeWidth={1.8} />
+          Kunnskapsgraf
         </span>
       </button>
 

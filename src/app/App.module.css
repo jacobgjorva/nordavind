@@ -74,3 +74,12 @@
   to { opacity: 1; }
 }
 
+
+/* Kunnskapsgrafens egen side: fyller hovedflaten ved siden av sidebaren. */
+.graphPage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #050507;
+}
