@@ -179,6 +179,12 @@ const SLASH_ACTIONS: {
     desc: "Bygg en widget med AI",
     icon: BorderNone02Icon,
   },
+  {
+    cmd: "presentasjon",
+    label: "Ny presentasjon",
+    desc: "Bygg en presentasjon med live data",
+    icon: BorderNone02Icon,
+  },
 ];
 
 // Kontekst-ring: fylles etter hvor mye av samtalens kontekstvindu som er
@@ -927,6 +933,26 @@ export function Chat({
       if (textareaRef.current) textareaRef.current.style.height = "auto";
       onStartAgent?.();
       return;
+    }
+
+    // /presentasjon [beskrivelse]: åpne lerretet med en gang og hopp over
+    // intent-rutingen. Uten beskrivelse står lerretet tomt og venter på
+    // første instruks. Naturlig språk («lag en presentasjon om …») havner
+    // samme sted via intent-motoren.
+    if (/^\/(presentasjon|presentation)\b/i.test(raw) && !deckCanvasRef.current) {
+      setInput("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      const rest = raw.replace(/^\/(presentasjon|presentation)\s*/i, "").trim();
+      try {
+        const wg = await createWidget(rest.slice(0, 60) || "Presentasjon");
+        deckCanvasRef.current = wg.slug;
+      } catch {
+        deckCanvasRef.current = slugify(rest.slice(0, 60) || "presentasjon");
+      }
+      setDeckCanvas(deckCanvasRef.current);
+      reloadWidgets();
+      if (!rest) return; // tomt lerret — vent på instruks
+      return send(rest);
     }
 
     // /widget [beskrivelse]: gå i widget-editor. Uten beskrivelse venter vi
