@@ -293,6 +293,8 @@ export async function streamChat(
     widget?: string;
     connector?: boolean;
     deck?: string;
+    chatId?: string;
+    clipped?: boolean;
   }
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -319,6 +321,10 @@ export async function streamChat(
       ...(opts?.connector ? { nordavind_connector: true } : {}),
       // Åpent presentasjons-lerret: modellen patcher slides på dette decket.
       ...(opts?.deck ? { nordavind_deck: opts.deck } : {}),
+      // Samtale-id + klipp-flagg: når historikken er kuttet mot tegnbudsjettet,
+      // injiserer backend det rullerende samtalesammendraget som kontekst.
+      ...(opts?.chatId ? { nordavind_chat: opts.chatId } : {}),
+      ...(opts?.clipped ? { nordavind_clipped: true } : {}),
     }),
   });
 
