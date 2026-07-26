@@ -102,6 +102,7 @@ export default function Hub({
 
       // Tynne loddrette hjelpelinjer i selve grafen — diskrete, linjalen
       // nederst bærer tidsavlesningen.
+      const NOW_COLOR = "#FCE540";
       const majorH = { 1: 0.25, 6: 1, 12: 3, 24: 6 }[hours] ?? 6;
       for (let off = -hours; off <= hours + 0.001; off += majorH) {
         const x = timeToX(now + off * 3600 * 1000, span, now, hours);
@@ -111,6 +112,16 @@ export default function Hub({
         ctx.lineTo(x, h - RULER_H - RULER_BOTTOM_GAP - 46);
         ctx.stroke();
       }
+
+      // Nå-linja: skillet mellom fasit og prediksjon.
+      ctx.strokeStyle = NOW_COLOR;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(nowX, 104);
+      ctx.lineTo(nowX, h - RULER_H - RULER_BOTTOM_GAP - 46);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
 
       // Tidslinjalen nederst: bånd med fine og grove hakk, klokkeslett, og
       // «nå» som et varmt segment — inspirert av en filmstrip-scrubber.
@@ -158,9 +169,9 @@ export default function Hub({
 
       // «Nå»: varmt segment i båndet med etikett.
       const nowW = 7;
-      ctx.fillStyle = "#f2e39a";
+      ctx.fillStyle = NOW_COLOR;
       ctx.fillRect(nowX - nowW / 2, barY - 3, nowW, barH + 6);
-      ctx.fillStyle = "#f2e39a";
+      ctx.fillStyle = NOW_COLOR;
       ctx.font = "600 10px system-ui, sans-serif";
       ctx.fillText("nå", nowX, barY + barH + 18);
       ctx.lineWidth = 1;
