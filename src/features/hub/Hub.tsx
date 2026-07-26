@@ -18,6 +18,7 @@ import {
   computeSpan,
   layoutStrands,
   predictedRuns,
+  RULER_BOTTOM_GAP,
   RULER_H,
   strandY,
   timeToX,
@@ -53,6 +54,7 @@ export default function Hub({
   // Ekspandert svar-pille (agentId + started_at); null = alle kollapset.
   const [expanded, setExpanded] = useState<string | null>(null);
   const [, setTick] = useState(0); // re-render ved poll så pillene følger tiden
+  const [rangeOpen, setRangeOpen] = useState(false);
   // Tidsvindu (±timer), husket mellom økter.
   const [windowHours, setWindowHours] = useState(() => {
     const saved = Number(localStorage.getItem("hub-window") ?? 24);
@@ -101,19 +103,32 @@ export default function Hub({
 
       // Tynne loddrette hjelpelinjer i selve grafen — diskrete, linjalen
       // nederst bærer tidsavlesningen.
+      const NOW_COLOR = "#FCE540";
       const majorH = { 1: 0.25, 6: 1, 12: 3, 24: 6 }[hours] ?? 6;
       for (let off = -hours; off <= hours + 0.001; off += majorH) {
         const x = timeToX(now + off * 3600 * 1000, span, now, hours);
         ctx.strokeStyle = "rgba(226,226,222,0.05)";
         ctx.beginPath();
-        ctx.moveTo(x, 30);
-        ctx.lineTo(x, h - RULER_H - 16);
+        ctx.moveTo(x, 104);
+        ctx.lineTo(x, h - RULER_H - RULER_BOTTOM_GAP - 46);
         ctx.stroke();
       }
 
+      // Nå-linja: stiplet, skillet mellom fasit og prediksjon.
+      ctx.strokeStyle = NOW_COLOR;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.moveTo(nowX, 104);
+      ctx.lineTo(nowX, h - RULER_H - RULER_BOTTOM_GAP - 46);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
       // Tidslinjalen nederst: bånd med fine og grove hakk, klokkeslett, og
       // «nå» som et varmt segment — inspirert av en filmstrip-scrubber.
-      const rulerTop = h - RULER_H;
+      const rulerTop = h - RULER_H - RULER_BOTTOM_GAP;
       const barY = rulerTop + 16;
       const barH = 15;
       const bar = ctx.createLinearGradient(span.x0, 0, span.x1, 0);
@@ -157,9 +172,11 @@ export default function Hub({
 
       // «Nå»: varmt segment i båndet med etikett.
       const nowW = 7;
-      ctx.fillStyle = "#f2e39a";
-      ctx.fillRect(nowX - nowW / 2, barY - 3, nowW, barH + 6);
-      ctx.fillStyle = "#f2e39a";
+      ctx.fillStyle = NOW_COLOR;
+      ctx.beginPath();
+      ctx.roundRect(nowX - nowW / 2, barY - 3, nowW, barH + 6, nowW / 2);
+      ctx.fill();
+      ctx.fillStyle = NOW_COLOR;
       ctx.font = "600 10px system-ui, sans-serif";
       ctx.fillText("nå", nowX, barY + barH + 18);
       ctx.lineWidth = 1;
@@ -262,6 +279,7 @@ export default function Hub({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      setRangeOpen(false);
       setSelected((s) => {
         if (s) return null;
         onClose();
@@ -408,21 +426,33 @@ export default function Hub({
         <span className={styles.count}>
           {agents.length} {agents.length === 1 ? "agent" : "agenter"}
         </span>
-        <div className={styles.rangePicker}>
-          {WINDOW_CHOICES.map((hrs) => (
-            <button
-              key={hrs}
-              className={`${styles.rangeBtn} ${
-                windowHours === hrs ? styles.rangeBtnActive : ""
-              }`}
-              onClick={() => {
-                setWindowHours(hrs);
-                localStorage.setItem("hub-window", String(hrs));
-              }}
-            >
-              ±{hrs}t
-            </button>
-          ))}
+        <div className={styles.rangeWrap}>
+          <button
+            className={styles.rangeToggle}
+            onClick={() => setRangeOpen((v) => !v)}
+          >
+            Siste {windowHours} {windowHours === 1 ? "time" : "timer"}
+            <span className={styles.caret}>▾</span>
+          </button>
+          {rangeOpen && (
+            <div className={styles.rangeMenu}>
+              {WINDOW_CHOICES.map((hrs) => (
+                <button
+                  key={hrs}
+                  className={`${styles.rangeItem} ${
+                    windowHours === hrs ? styles.rangeItemActive : ""
+                  }`}
+                  onClick={() => {
+                    setWindowHours(hrs);
+                    localStorage.setItem("hub-window", String(hrs));
+                    setRangeOpen(false);
+                  }}
+                >
+                  Siste {hrs} {hrs === 1 ? "time" : "timer"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
