@@ -3,34 +3,19 @@
   margin-top: 8px;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.015);
+  background: #050507;
   overflow: hidden;
 }
 
-.svg {
+.canvas {
   display: block;
   width: 100%;
-  height: auto;
   user-select: none;
-}
-
-.edge {
-  stroke: rgba(255, 255, 255, 0.14);
-  stroke-width: 1;
-}
-
-.node {
   cursor: grab;
 }
 
-.node:active {
+.canvas:active {
   cursor: grabbing;
-}
-
-.nodeLabel {
-  fill: var(--text-muted);
-  font-size: 10px;
-  pointer-events: none;
 }
 
 .empty {
