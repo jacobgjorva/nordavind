@@ -1,0 +1,255 @@
+/* Flyt-visningen erstatter chat-innholdet i agent-chatten. */
+.flow {
+  position: absolute;
+  inset: 0;
+  background: #08080a;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #17181c;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 650;
+  color: #e8e8e4;
+}
+
+.sub {
+  font-size: 12.5px;
+  color: #7c7c83;
+}
+
+.actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.save {
+  border: none;
+  background: #3d5a80;
+  color: #eaeae6;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ghost {
+  border: 1px solid #26272c;
+  background: transparent;
+  color: #b0b0aa;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.ghost:hover {
+  background: #17181c;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: #7c7c83;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.problems {
+  margin: 12px 18px 0;
+  background: #241a1a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #e0aca4;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  color: #7c7c83;
+  font-size: 14px;
+}
+
+/* Lerretet: horisontal graf, sentrert, scroller ved behov. */
+.canvas {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+}
+
+.stageWrap {
+  margin: auto;
+  padding: 20px;
+}
+
+.stage {
+  position: relative;
+}
+
+.wires {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Nodene. */
+.node {
+  position: absolute;
+  background: #16171a;
+  border: 1px solid #232429;
+  border-radius: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+}
+
+.nodeEditable {
+  cursor: pointer;
+}
+
+.nodeEditable:hover {
+  border-color: #35363d;
+}
+
+.nodeSelected {
+  border-color: #5a7fb0;
+}
+
+.nodeHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nodeText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nodeTitle {
+  font-size: 12px;
+  color: #eaeae6;
+  font-weight: 550;
+  line-height: 1.3;
+  /* To linjer: ellers ser steg med lang, lik forstavelse identiske ut. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nodeSub {
+  font-size: 10.5px;
+  color: #6f6f76;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Utgang-rader i vurderingsnoden. */
+.row {
+  margin-top: 6px;
+  background: #0e0f11;
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 11.5px;
+  color: #a6a6ab;
+  text-align: right;
+}
+
+/* Redigeringen inne i noden. */
+.editor {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #232429;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: default;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #7c7c83;
+}
+
+.field input,
+.field textarea {
+  background: #0e0f11;
+  border: 1px solid #26272c;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #eaeae6;
+  font-size: 12.5px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #43536b;
+}
+
+.remove {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: #a86a63;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.field select {
+  background: #0e0f11;
+  border: 1px solid #26272c;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #eaeae6;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.field select:focus {
+  outline: none;
+  border-color: #43536b;
+}

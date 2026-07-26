@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
 import { TableQueryContext } from "./blocks/core";
+
+// Flyt-visningen lazy-lastes: den er kun for agent-chatter.
+const AgentFlow = lazy(() => import("../agentflow/AgentFlow"));
 import { Logo } from "../../ui/Logo";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Analytics01Icon,
   ChartRelationshipIcon,
+  WorkflowSquare01Icon,
   DashboardSpeed01Icon,
   Database01Icon,
   AnonymousIcon,
@@ -303,6 +307,8 @@ export function Chat({
   );
   // Inline-redigering av tittel (dobbeltklikk).
   const [editingTitle, setEditingTitle] = useState(false);
+  // Flyt-visningen: agentens plan som redigerbar node-graf.
+  const [showFlow, setShowFlow] = useState(false);
   const chatIdRef = useRef<string | null>(chatId);
   // Brukerens widgets — fyller slash-menyen (/<slug>) og kalles inline.
   const [widgets, setWidgets] = useState<Widget[]>([]);
@@ -1395,6 +1401,11 @@ export function Chat({
 
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
+      {showFlow && agent && (
+        <Suspense fallback={null}>
+          <AgentFlow agentId={agent.id} onClose={() => setShowFlow(false)} />
+        </Suspense>
+      )}
     <div className={styles.chatRoot}>
       {dragging && (
         <div className={styles.dropOverlay}>
@@ -1447,6 +1458,16 @@ export function Chat({
             >
               {title}
             </span>
+          )}
+          {agent && (
+            <button
+              className={styles.agentPause}
+              onClick={() => setShowFlow(true)}
+              title="Se og rediger agentens flyt"
+              aria-label="Agentflyt"
+            >
+              <HugeiconsIcon icon={WorkflowSquare01Icon} size={19} strokeWidth={1.8} />
+            </button>
           )}
           {agent && (
             <button
