@@ -79,8 +79,8 @@
   background: #2a2a2a;
 }
 
+/* Ulest funn skilles ikke lenger med ring — ingen border på noen piller. */
 .pillUnread {
-  box-shadow: 0 0 0 1px #8a7d45;
 }
 
 .pillOpen {
