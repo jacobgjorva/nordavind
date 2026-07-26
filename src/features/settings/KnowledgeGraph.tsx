@@ -78,6 +78,9 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   // Vekker den frosne rAF-løkka (heat > 0 varmer opp fysikken igjen).
   const wakeRef = useRef<(heat: number) => void>(() => {});
+  // d3-aktig alphaTarget: holdes på 0.3 under dra så nabolaget følger
+  // elastisk etter (Obsidian-følelsen); 0 ellers.
+  const alphaTargetRef = useRef(0);
   const selRef = useRef<string | null>(null);
 
   const selected = data?.nodes.find((n) => n.id === selId) ?? null;
@@ -170,6 +173,8 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
 
     let raf = 0;
     let alpha = 1;
+    const alphaDecay = 0.028; // eksponentiell, som d3-force
+    const alphaMin = 0.002;
     const dpr = window.devicePixelRatio || 1;
 
     // Glød-sprites: radial gradient rendret ÉN gang per farge — shadowBlur på
@@ -245,28 +250,30 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        const f = (d - 46) * 0.03 * alpha;
-        const fx = (dx / d) * f;
-        const fy = (dy / d) * f;
-        if (a.id !== dragRef.current) {
-          a.vx += fx;
-          a.vy += fy;
-        }
+        const degA = a.deg || 1;
+        const degB = b.deg || 1;
+        const strength = 1 / Math.min(degA, degB);
+        const l = ((d - 60) / d) * alpha * strength;
+        const bias = degA / (degA + degB);
         if (b.id !== dragRef.current) {
-          b.vx -= fx;
-          b.vy -= fy;
+          b.vx -= dx * l * bias;
+          b.vy -= dy * l * bias;
+        }
+        if (a.id !== dragRef.current) {
+          a.vx += dx * l * (1 - bias);
+          a.vy += dy * l * (1 - bias);
         }
       }
       let maxR = 1;
       for (const n of nodes) {
         if (n.id !== dragRef.current) {
-          n.vx *= 0.8;
-          n.vy *= 0.8;
-          // Fartsgrense dreper oscillasjon mellom fjær og frastøtning.
+          n.vx *= 0.6;
+          n.vy *= 0.6;
+          // Sikkerhetsventil mot eksplosjoner, aldri i normal drift.
           const v = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
-          if (v > 6) {
-            n.vx = (n.vx / v) * 6;
-            n.vy = (n.vy / v) * 6;
+          if (v > 30) {
+            n.vx = (n.vx / v) * 30;
+            n.vy = (n.vy / v) * 30;
           }
           n.x += n.vx;
           n.y += n.vy;
@@ -274,7 +281,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         const r = Math.sqrt(n.x * n.x + n.y * n.y);
         if (r > maxR) maxR = r;
       }
-      alpha = Math.max(0, alpha - 0.004);
+      alpha += (alphaTargetRef.current - alpha) * alphaDecay;
 
       // --- Auto-tilpass utsnittet til brukeren zoomer/panner selv. ---
       const view = viewRef.current;
@@ -350,7 +357,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       }
 
       // Frossen og i ro: stopp løkka helt. Interaksjoner vekker den igjen.
-      if (alpha > 0 || dragRef.current) {
+      if (alpha > alphaMin || alphaTargetRef.current > 0 || dragRef.current) {
         raf = requestAnimationFrame(step);
       } else {
         running = false;
@@ -402,7 +409,8 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
     movedRef.current = false;
     if (hit) {
       dragRef.current = hit.id;
-      wakeRef.current(0.25);
+      alphaTargetRef.current = 0.3;
+      wakeRef.current(0.3);
     } else {
       panRef.current = { x: e.clientX, y: e.clientY };
     }
@@ -440,6 +448,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
     const wasDrag = dragRef.current;
     dragRef.current = null;
     panRef.current = null;
+    alphaTargetRef.current = 0;
     if (wasDrag && !movedRef.current) {
       const rect = canvasRef.current!.getBoundingClientRect();
       setSelId(wasDrag);
@@ -481,6 +490,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
           dragRef.current = null;
           panRef.current = null;
           hoverRef.current = null;
+          alphaTargetRef.current = 0;
         }}
         onWheel={onWheel}
       />
