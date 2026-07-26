@@ -240,36 +240,12 @@
      farge, og gjennomsiktig bakgrunn ville gitt dobbel alpha i overlappen. */
   background: #1f1f1f;
   color: var(--text);
-  /* iOS-form: jevn stor radius + hale nederst til høyre. */
+  /* iOS-form: jevn stor radius på alle fire hjørner, ingen hale. */
   border-radius: 18px;
   padding: 8px 14px;
-  position: relative;
   /* Alltid reservert (usynlig) border så lagre-forslaget kan gjøre den
      stiplet uten reflow eller blink. */
   border: 1.5px solid transparent;
-}
-
-/* Halen: en fylt kurve i boblefargen, skåret til med en maske i sidebakgrunnen. */
-.user .bubble::before {
-  content: "";
-  position: absolute;
-  right: -7px;
-  bottom: 0;
-  width: 19px;
-  height: 19px;
-  background: #1f1f1f;
-  border-bottom-left-radius: 15px;
-}
-
-.user .bubble::after {
-  content: "";
-  position: absolute;
-  right: -7px;
-  bottom: 0;
-  width: 7px;
-  height: 21px;
-  background: var(--bg);
-  border-bottom-left-radius: 10px;
 }
 
 .assistant .bubble {
