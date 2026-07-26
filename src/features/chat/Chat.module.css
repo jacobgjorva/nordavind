@@ -1231,3 +1231,11 @@
     background-position: 0% 0;
   }
 }
+
+/* Minnekortet under brukerens melding: samme uttrykk som handlingsraden. */
+.userActions {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}

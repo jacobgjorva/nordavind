@@ -38,6 +38,7 @@ import {
   Xls01Icon,
   Upload05Icon,
   Zip01Icon,
+  SdCardIcon,
 } from "@hugeicons/core-free-icons";
 import { SearchIcon } from "../../ui/Icons";
 import {
@@ -56,9 +57,7 @@ import {
   listWidgets,
   type Widget,
   deleteAgent,
-  extractKnowledge,
-  confirmKnowledge,
-  type KnowledgeProposal,
+  rememberMessage,
   fetchChatAgent,
   generateChatTitle,
   logCorrection,
@@ -546,13 +545,8 @@ export function Chat({
   // Forslag om å lagre et vedlagt dokument i kunnskapsbasen, knyttet til
   // brukermeldingen det gjelder.
   const [trainOffer, setTrainOffer] = useState<{ id: string; docs: Attachment[] } | null>(null);
-  // Kunnskapsforslag fra siste utveksling: kilden bekrefter med ett klikk
-  // (governance v2) — «Notert.» vises kort etter bekreftelse.
-  const [knowOffer, setKnowOffer] = useState<{
-    id: string;
-    proposals: KnowledgeProposal[];
-    done?: boolean;
-  } | null>(null);
+  // Minnekortet: meldings-id-er brukeren har lagret til minnet denne økten.
+  const [remembered, setRemembered] = useState<Set<string>>(new Set());
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Armert svar: neste brukermelding logges som korrigering på dette svaret.
   const [correctionTarget, setCorrectionTarget] = useState<{
@@ -721,21 +715,19 @@ export function Chat({
     }
   }
 
-  // Kilden bekreftet kunnskapsforslagene: lagre og kvitter kort.
-  async function acceptKnowledge() {
-    const offer = knowOffer;
-    if (!offer || offer.done) return;
-    setKnowOffer({ ...offer, done: true });
-    try {
-      await Promise.all(
-        offer.proposals.map((p) =>
-          confirmKnowledge({ ...p, chat_id: chatIdRef.current ?? undefined })
-        )
-      );
-    } catch {
-      /* stille — forslaget kan gis på nytt senere */
-    }
-    setTimeout(() => setKnowOffer(null), 2500);
+  // Minnekortet: lagre meldingen som bedriftskunnskap med ett klikk.
+  function rememberMsg(id: string, content: string) {
+    setRemembered((prev) => new Set(prev).add(id));
+    rememberMessage({
+      text: content,
+      chat_id: chatIdRef.current ?? undefined,
+    }).catch(() => {
+      setRemembered((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    });
   }
 
   function dismissTrain() {
@@ -1284,19 +1276,6 @@ export function Chat({
         emit("agents-changed");
       }
 
-      // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
-      // Hopp over korte meldinger uten substans; backend gater videre på
-      // bedriftsinterne markører før den bruker et LLM-kall.
-      if (acc && text.trim().length >= 12 && !agentModeRef.current && !widgetEditRef.current && !deckTurn) {
-        extractKnowledge({
-          chat_id: chatIdRef.current ?? undefined,
-          question: text,
-          answer: acc,
-        }).then((proposals) => {
-          if (proposals.length > 0) setKnowOffer({ id: replyId, proposals });
-        });
-      }
-
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
       if (chatIdRef.current && acc && !deckTurn) {
         const displayContent =
@@ -1792,6 +1771,8 @@ export function Chat({
                                     : { id: m.id, content }
                                 )
                               }
+                              remembered={remembered.has(m.id)}
+                              onRemember={(content) => rememberMsg(m.id, content)}
                             />
                           )}
                         </div>
@@ -1834,32 +1815,16 @@ export function Chat({
                     ) : null}
                   </TableQueryContext.Provider>
                   </div>
-                  {knowOffer?.id === m.id && (
-                    <div className={styles.trainOffer}>
-                      {knowOffer.done ? (
-                        <span className={styles.trainOfferText}>Notert.</span>
-                      ) : (
-                        <>
-                          <span className={styles.trainOfferText}>
-                            Skal jeg huske dette?{" "}
-                            {knowOffer.proposals.map((p) => `«${p.title}»`).join(", ")}
-                          </span>
-                          <button
-                            type="button"
-                            className={styles.trainYes}
-                            onClick={acceptKnowledge}
-                          >
-                            Ja
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.trainNo}
-                            onClick={() => setKnowOffer(null)}
-                          >
-                            Nei
-                          </button>
-                        </>
-                      )}
+                  {m.role === "user" && !m.loading && (
+                    <div className={styles.userActions}>
+                      <button
+                        className={`${styles.actionBtn} ${remembered.has(m.id) ? styles.actionBtnActive : ""}`}
+                        onClick={() => !remembered.has(m.id) && rememberMsg(m.id, m.content)}
+                        title={remembered.has(m.id) ? "Lagret i minnet" : "Lagre til minnet"}
+                        aria-label="Lagre til minnet"
+                      >
+                        <HugeiconsIcon icon={SdCardIcon} size={15} strokeWidth={2} />
+                      </button>
                     </div>
                   )}
                   {trainOffer?.id === m.id && (

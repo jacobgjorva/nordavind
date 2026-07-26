@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Copy01Icon, FastWindIcon } from "@hugeicons/core-free-icons";
+import { Copy01Icon, FastWindIcon, SdCardIcon } from "@hugeicons/core-free-icons";
 import { CodeBlock } from "./blocks/core";
 import { renderBlock } from "./blocks/registry";
 import type { SourceRef } from "../../lib/api";
@@ -75,17 +75,23 @@ export function StreamingText({
   );
 }
 
-// Handlingsrad under hvert assistentsvar: kopier, korriger, kilder.
+// Handlingsrad under hvert assistentsvar: kopier, lagre til minne, korriger,
+// kilder. Minnekortet lagrer meldingen som bedriftskunnskap med ett klikk —
+// ingen spørsmål, brukeren bestemmer selv hva som er verdt å huske.
 export function MessageActions({
   content,
   sources = [],
   armed = false,
   onArm,
+  remembered = false,
+  onRemember,
 }: {
   content: string;
   sources?: SourceRef[];
   armed?: boolean;
   onArm?: (content: string) => void;
+  remembered?: boolean;
+  onRemember?: (content: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -98,6 +104,17 @@ export function MessageActions({
       <button className={styles.actionBtn} onClick={copy} title="Kopier" aria-label="Kopier">
         <HugeiconsIcon icon={Copy01Icon} size={15} strokeWidth={2} />
       </button>
+      {onRemember && (
+        <button
+          className={`${styles.actionBtn} ${remembered ? styles.actionBtnActive : ""}`}
+          onClick={() => !remembered && onRemember(content)}
+          title={remembered ? "Lagret i minnet" : "Lagre til minnet"}
+          aria-label="Lagre til minnet"
+          aria-pressed={remembered}
+        >
+          <HugeiconsIcon icon={SdCardIcon} size={15} strokeWidth={2} />
+        </button>
+      )}
       <button
         className={`${styles.actionBtn} ${armed ? styles.actionBtnActive : ""}`}
         onClick={() => onArm?.(content)}
