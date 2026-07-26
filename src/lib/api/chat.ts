@@ -99,6 +99,14 @@ export async function extractKnowledge(payload: {
   }
 }
 
+// Eksplisitt minne: brukeren klikket minnekortet på en melding.
+export async function rememberMessage(payload: {
+  text: string;
+  chat_id?: string;
+}): Promise<void> {
+  await apiFetch(`/knowledge/remember`, { method: "POST", body: payload });
+}
+
 // Kilden bekreftet: lagre kunnskapen (accepted, med automatisk dublettvakt).
 export async function confirmKnowledge(p: KnowledgeProposal & { chat_id?: string }): Promise<void> {
   await apiFetch(`/knowledge/confirm`, { method: "POST", body: p });
