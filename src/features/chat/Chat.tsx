@@ -1052,7 +1052,13 @@ export function Chat({
         ]
       : textContent;
 
-    const history = buildHistory(messages, { role: "user", content: apiContent });
+    const deckTurn = deckCanvasRef.current;
+    // Presentasjons-tur: instruksen står aldri i chat-tråden. Modellen får kun
+    // instruksen — hva som allerede ligger på lerretet henter backend fra
+    // specen (deterministisk), ikke fra meldingshistorikken.
+    const history = deckTurn
+      ? [{ role: "user" as const, content: apiContent }]
+      : buildHistory(messages, { role: "user", content: apiContent });
 
     // Widget-tur: svaret ER widgeten. På skapelsesturen settes blokka med én
     // gang så vind-animasjonen starter umiddelbart. Senere turer kan være ren
@@ -1063,28 +1069,29 @@ export function Chat({
       ? "```widget\n" + widgetTurnSlug + "\n```"
       : "";
     const presetWidget = !!widgetTurnSlug && buildingWidget;
-    // Presentasjons-tur: lerretet ER svaret. Instruksen utføres stille, uten
-    // assistentboble i chatten.
-    const deckTurn = deckCanvasRef.current;
-    if (deckTurn) emit("deck-working", deckTurn);
 
     const userMsgId = nextId();
     const replyId = nextId();
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: userMsgId,
-        role: "user",
-        content: textContent,
-        apiContent,
-        display: text,
-        attachmentNames: files.filter((a) => !a.image).map((a) => a.name),
-        images: images.map((a) => a.image!),
-      },
-      presetWidget
-        ? { id: replyId, role: "assistant", content: widgetBlock, revealed: true }
-        : { id: replyId, role: "assistant", content: "", loading: true },
-    ]);
+    if (deckTurn) {
+      // Lerretet ER samtalen: ingen bobler, kun arbeids-puls på slidene.
+      emit("deck-working", deckTurn);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: userMsgId,
+          role: "user",
+          content: textContent,
+          apiContent,
+          display: text,
+          attachmentNames: files.filter((a) => !a.image).map((a) => a.name),
+          images: images.map((a) => a.image!),
+        },
+        presetWidget
+          ? { id: replyId, role: "assistant", content: widgetBlock, revealed: true }
+          : { id: replyId, role: "assistant", content: "", loading: true },
+      ]);
+    }
 
     // Vanlig dokument-vedlegg (ikke widget/agent): la agenten billig vurdere om
     // dette er verdifull, gjenbrukbar kunnskap før vi tilbyr lagring — så
@@ -1197,8 +1204,8 @@ export function Chat({
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
       // Ren prat («Takk») får modellens tekstsvar i stedet for en ny widget.
       if (deckTurn) {
-        // Lerretet viser resultatet; chatten holder kun en kort kvittering.
-        update(replyId, { loading: false, streaming: false, content: acc || "Ok." });
+        // Lerretet viser resultatet — ingenting skal legges i chat-tråden.
+        reloadWidgets();
       } else if (widgetTurnSlug) {
         if (presetWidget || widgetTouched) {
           acc = widgetBlock;
@@ -1222,7 +1229,7 @@ export function Chat({
       // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
       // Hopp over korte meldinger uten substans; backend gater videre på
       // bedriftsinterne markører før den bruker et LLM-kall.
-      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current) {
+      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current && !deckTurn) {
         extractKnowledge({
           chat_id: chatIdRef.current ?? undefined,
           question: text,
@@ -1231,7 +1238,7 @@ export function Chat({
       }
 
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
-      if (chatIdRef.current && acc) {
+      if (chatIdRef.current && acc && !deckTurn) {
         const displayContent =
           files.length > 0
             ? `${text}\n\n[Vedlegg: ${files.map((a) => a.name).join(", ")}]`
@@ -1259,6 +1266,11 @@ export function Chat({
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "Ukjent feil";
+      if (deckTurn) {
+        // Ingen boble å feile i: stopp pulsen og la lerretet stå som det var.
+        emit("deck-updated", deckTurn);
+        return;
+      }
       update(replyId, {
         loading: false,
         error: true,
