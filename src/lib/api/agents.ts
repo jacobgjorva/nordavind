@@ -207,6 +207,15 @@ export interface AgentPlanResponse {
   task?: string;
   agent_name?: string;
   interval_seconds?: number;
+  run_time?: string;
+}
+
+// Setter agentens frekvens fra Start-noden i flyt-visningen.
+export async function setAgentSchedule(
+  id: string,
+  schedule: { interval_seconds: number; run_time?: string; schedule_label?: string }
+): Promise<void> {
+  await apiFetch(`/agents/${id}/schedule`, { method: "PUT", body: schedule });
 }
 
 // Henter agentens plan (til flyt-visningen).

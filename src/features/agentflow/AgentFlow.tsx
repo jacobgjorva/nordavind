@@ -19,11 +19,24 @@ import {
   fetchAgentPlan,
   rebuildAgentPlan,
   saveAgentPlan,
+  setAgentSchedule,
   type AgentPlan,
   type PlanStep,
 } from "../../lib/api";
 import { ApiError } from "../../lib/api/client";
 import styles from "./AgentFlow.module.css";
+
+// Frekvensene Start-noden tilbyr. Minimum er 15 min, som i backend.
+const INTERVALS: { s: number; label: string }[] = [
+  { s: 900, label: "Hvert 15. minutt" },
+  { s: 1800, label: "Hver halvtime" },
+  { s: 3600, label: "Hver time" },
+  { s: 10800, label: "Hver 3. time" },
+  { s: 21600, label: "Hver 6. time" },
+  { s: 43200, label: "To ganger daglig" },
+  { s: 86400, label: "Daglig" },
+  { s: 604800, label: "Ukentlig" },
+];
 
 const KIND_LABEL: Record<string, string> = {
   sql: "Database",
@@ -45,6 +58,7 @@ function editorHeight(node: { key: string; kind?: string }): number {
   if (node.key === "judge") return 236;
   if (node.key === "mail") return 196;
   if (node.key === "chart") return 262;
+  if (node.key === "start") return 132;
   return 0;
 }
 
@@ -75,6 +89,9 @@ export default function AgentFlow({
   const [meta, setMeta] = useState<{ status: string; schedule?: string; name?: string }>({
     status: "",
   });
+  // Frekvens (Start-noden) — lagres direkte, ikke via plan-lagringen.
+  const [interval, setIntervalSec] = useState(86400);
+  const [runTime, setRunTime] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -85,6 +102,8 @@ export default function AgentFlow({
       .then((res) => {
         setPlan(res.plan);
         setMeta({ status: res.status, schedule: res.schedule_label, name: res.agent_name });
+        setIntervalSec(res.interval_seconds ?? 86400);
+        setRunTime(res.run_time ?? "");
       })
       .catch(() => setPlan(null));
   }, [agentId]);
@@ -134,6 +153,19 @@ export default function AgentFlow({
     }
   };
 
+  // Frekvensen lagres med en gang — den er agent-config, ikke del av planen.
+  const saveSchedule = async (secs: number, time: string) => {
+    const label = INTERVALS.find((i) => i.s === secs)?.label ?? "";
+    setIntervalSec(secs);
+    setRunTime(time);
+    setMeta((m) => ({ ...m, schedule: label }));
+    await setAgentSchedule(agentId, {
+      interval_seconds: secs,
+      run_time: time,
+      schedule_label: label + (secs >= 86400 && time ? ` kl ${time}` : ""),
+    }).catch(() => setProblems(["Kunne ikke lagre frekvensen."]));
+  };
+
   const rebuild = async () => {
     await rebuildAgentPlan(agentId).catch(() => {});
     setMeta((m) => ({ ...m, status: "building" }));
@@ -154,11 +186,13 @@ export default function AgentFlow({
     nodes.push({
       key: "start",
       title: "Start",
+      sub: INTERVALS.find((i) => i.s === interval)?.label ?? "fast frekvens",
       tone: "start",
       icon: PlayCircleIcon,
       x: colX(col++),
       y: midY,
-      h: 52,
+      h: 62 + (selected === "start" ? editorHeight({ key: "start" }) : 0),
+      editable: true,
     });
 
     plan.steps.forEach((s, i) => {
@@ -242,7 +276,7 @@ export default function AgentFlow({
     if (minY < PAD) for (const n of nodes) n.y += PAD - minY;
     const height = Math.max(...nodes.map((n) => n.y + n.h)) + PAD;
     return { nodes, edges, width, height };
-  }, [plan, selected]);
+  }, [plan, selected, interval]);
 
   if (!plan || (!plan.steps?.length && meta.status !== "ready")) {
     return (
@@ -334,6 +368,35 @@ export default function AgentFlow({
           >
             Fjern steget
           </button>
+        </>
+      );
+    }
+    if (n.key === "start") {
+      return (
+        <>
+          <label className={styles.field}>
+            Kjører
+            <select
+              value={interval}
+              onChange={(e) => saveSchedule(Number(e.target.value), runTime)}
+            >
+              {INTERVALS.map((i) => (
+                <option key={i.s} value={i.s}>
+                  {i.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {interval >= 86400 && (
+            <label className={styles.field}>
+              Klokkeslett
+              <input
+                type="time"
+                value={runTime}
+                onChange={(e) => saveSchedule(interval, e.target.value)}
+              />
+            </label>
+          )}
         </>
       );
     }
