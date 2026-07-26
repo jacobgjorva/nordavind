@@ -6,6 +6,8 @@ interface EventMap {
   "agents-changed": void;
   "chat-deleted": string;
   "widgets-changed": void;
+  // E-post sendt fra compose-kortet — chatten kvitterer med vanlig melding.
+  "mail-sent": void;
   // Tilkoblingslisten er endret — paneler bør laste på nytt.
   "connections-changed": void;
   // Send en melding i chatten på brukerens vegne. Med reply satt rendres
