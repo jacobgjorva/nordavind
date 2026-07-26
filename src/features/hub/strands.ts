@@ -98,21 +98,22 @@ export function strandY(
   const phase = (hash(s.agent.id) % 628) / 100;
   let y = s.laneY;
 
-  // Bølgepakke rundt hver kjøring: gaussisk konvolutt over en sinus.
+  // Bølgepakke rundt hver kjøring: gaussisk konvolutt over en LAV frekvens —
+  // lange, myke svulmer, ikke pigger.
   for (const r of s.runs) {
     const runX =
       PAD_X + ((Date.parse(r.started_at) - (now - windowMs)) / windowMs) * (width - PAD_X - 24);
     const d = x - runX;
-    const env = Math.exp(-(d * d) / (2 * 14 * 14));
-    if (env > 0.01) y += Math.sin(d * 0.55 + phase) * 7 * env;
+    const env = Math.exp(-(d * d) / (2 * 26 * 26));
+    if (env > 0.01) y += Math.sin(d * 0.14 + phase) * 8 * env;
   }
 
-  // Kjører akkurat nå: levende bølge ved høyrekanten.
+  // Kjører akkurat nå: rolig rullende bølge ved høyrekanten.
   const state = s.agent.state;
   if (state === "working" || state === "thinking") {
     const d = x - (width - 24);
-    const env = Math.exp(-(d * d) / (2 * 30 * 30));
-    y += Math.sin(x * 0.3 - t * 6 + phase) * 6 * env;
+    const env = Math.exp(-(d * d) / (2 * 48 * 48));
+    y += Math.sin(x * 0.09 - t * 2.4 + phase) * 7 * env;
   }
   void timeAt;
   return y;

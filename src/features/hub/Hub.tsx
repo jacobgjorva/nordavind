@@ -95,7 +95,7 @@ export default function Hub({
 
         // Tråden, samplet i 6 px-steg.
         ctx.beginPath();
-        for (let x = PAD_X; x <= w - 24; x += 6) {
+        for (let x = PAD_X; x <= w - 24; x += 2) {
           const y = strandY(s, x, w, WINDOW_MS, now, t);
           if (x === PAD_X) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
@@ -105,7 +105,7 @@ export default function Hub({
           // Rød hale ytterst: noe er galt nå.
           ctx.strokeStyle = "hsla(4, 70%, 58%, 0.9)";
           ctx.beginPath();
-          for (let x = w - 90; x <= w - 24; x += 6) {
+          for (let x = w - 90; x <= w - 24; x += 2) {
             const y = strandY(s, x, w, WINDOW_MS, now, t);
             if (x === w - 90) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
