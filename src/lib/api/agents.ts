@@ -149,6 +149,11 @@ export async function fetchAgentRuns(hours = 24): Promise<AgentRunEvent[]> {
   return data.runs ?? [];
 }
 
+// Kvitterer ut et ulest agent-svar (pillen i grafen er lest).
+export async function markAgentSeen(id: string): Promise<void> {
+  await apiFetch(`/agents/${id}/seen`, { method: "POST" });
+}
+
 // Setter navn og/eller personlighet på en agent fra farmen.
 export async function setAgentPersona(
   id: string,

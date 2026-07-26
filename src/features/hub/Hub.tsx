@@ -7,6 +7,7 @@ import { BellIcon } from "@hugeicons/core-free-icons";
 import {
   fetchAgentRuns,
   fetchAgents,
+  markAgentSeen,
   setAgentPersona,
   type AgentInfo,
   type AgentRunEvent,
@@ -262,6 +263,7 @@ export default function Hub({
             const key = `${s.agent.id}:${r.started_at}`;
             return {
               key,
+              agentId: s.agent.id,
               x,
               y: s.laneY,
               found: !!r.alert,
@@ -271,6 +273,7 @@ export default function Hub({
           })
           .filter(Boolean) as {
           key: string;
+          agentId: string;
           x: number;
           y: number;
           found: boolean;
@@ -300,7 +303,18 @@ export default function Hub({
               key={p.key}
               className={`${styles.pill} ${p.unread ? styles.pillUnread : ""}`}
               style={{ left: p.x, top: p.y - 14 }}
-              onClick={() => setExpanded(p.key)}
+              onClick={() => {
+                setExpanded(p.key);
+                // Å lese pillen kvitterer ut ulest-markeringen.
+                if (p.unread) {
+                  markAgentSeen(p.agentId).catch(swallow);
+                  setAgents((list) =>
+                    list.map((a) =>
+                      a.id === p.agentId ? { ...a, has_response: false } : a
+                    )
+                  );
+                }
+              }}
               title="Funn"
             >
               <HugeiconsIcon icon={BellIcon} size={13} strokeWidth={1.8} />

@@ -74,6 +74,9 @@ export function layoutStrands(
 ): Strand[] {
   const byAgent = new Map<string, AgentRunEvent[]>();
   for (const r of runs) {
+    // Kun kjøringer der agenten faktisk jobbet lager bølger — hoppet over
+    // (token-grense) og feilede kjøringer skal ikke se ut som arbeid.
+    if (r.status !== "ok" && r.status !== "unchanged") continue;
     const list = byAgent.get(r.agent_id) ?? [];
     list.push(r);
     byAgent.set(r.agent_id, list);
