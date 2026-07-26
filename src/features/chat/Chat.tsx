@@ -319,6 +319,19 @@ export function Chat({
   }, []);
   // Lagret widget-utkast → /-menyen oppdateres med en gang.
   useEffect(() => on("widgets-changed", reloadWidgets), []);
+  // Sendt e-post kvitteres som vanlig chatmelding i stedet for kort-tilstand.
+  useEffect(
+    () =>
+      on("mail-sent", () => {
+        setMessages((prev) => [
+          ...prev,
+          { id: nextId(), role: "assistant", content: "Epost sendt :)", revealed: true },
+        ]);
+        const cid = chatIdRef.current;
+        if (cid) appendChatMessage(cid, { role: "assistant", content: "Epost sendt :)" }).catch(swallow);
+      }),
+    []
+  );
   // Paneler kan sende en melding på brukerens vegne. Fast reply rendres
   // deterministisk — modellen er ikke involvert, så flyten er alltid lik.
   useEffect(

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { BASE_URL, getToken, sendMail, type MailPerson } from "../../lib/api";
+import { emit } from "../../lib/events";
 import { avatarColor, initials as avatarInitials } from "../../ui/avatar";
 import { FileTag } from "../../ui/FileTag";
 import styles from "./MailCompose.module.css";
@@ -120,6 +121,7 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
         attachment_ids: (spec.attachments ?? []).map((a) => a.id),
       });
       setSent(true);
+      emit("mail-sent");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sending feilet");
     } finally {
@@ -128,11 +130,9 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
   }
 
   if (sent) {
-    return (
-      <div className={styles.replyCard}>
-        <div className={styles.sentBox}>Sendt ✓</div>
-      </div>
-    );
+    // Kvitteringen kommer som vanlig chatmelding («Epost sendt :)») — kortet
+    // forsvinner.
+    return null;
   }
 
   return (
