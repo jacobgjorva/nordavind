@@ -41,10 +41,27 @@ export async function createDraftAgent(): Promise<{
   return apiFetch("/agents/draft", { method: "POST" });
 }
 
+// Live-tilstanden trollet viser i farmen.
+export type AgentState =
+  | "working"
+  | "thinking"
+  | "broken"
+  | "paused"
+  | "sleeping";
+
 export interface AgentInfo {
   id: string;
   name: string;
   enabled: boolean;
+  personality?: string;
+  category?: string;
+  state?: AgentState;
+  chat_id?: string;
+  plan_status?: string;
+  last_run_at?: string;
+  next_run_at?: string;
+  created_at?: string;
+  has_response?: boolean;
   task?: string;
   connection_id?: string;
   schedule_label?: string;
@@ -108,4 +125,39 @@ export async function setAgentPush(id: string, on: boolean): Promise<void> {
 // Deaktiverer (sletter) en agent.
 export async function deleteAgent(id: string): Promise<void> {
   await apiFetch(`/agents/${id}`, { method: "DELETE" });
+}
+
+// Henter alle agentene med live-tilstand (til farmen).
+export async function fetchAgents(): Promise<AgentInfo[]> {
+  const data = await apiFetch<{ agents?: AgentInfo[] }>("/agents");
+  return data.agents ?? [];
+}
+
+// Én kjøring i historikken (til trådgrafen).
+export interface AgentRunEvent {
+  agent_id: string;
+  started_at: string;
+  status: string;
+  has_output: boolean;
+  alert?: boolean;
+  output?: string;
+}
+
+// Henter kjøringshistorikken for brukerens agenter.
+export async function fetchAgentRuns(hours = 24): Promise<AgentRunEvent[]> {
+  const data = await apiFetch<{ runs?: AgentRunEvent[] }>(`/agents/runs?hours=${hours}`);
+  return data.runs ?? [];
+}
+
+// Kvitterer ut et ulest agent-svar (pillen i grafen er lest).
+export async function markAgentSeen(id: string): Promise<void> {
+  await apiFetch(`/agents/${id}/seen`, { method: "POST" });
+}
+
+// Setter navn og/eller personlighet på en agent fra farmen.
+export async function setAgentPersona(
+  id: string,
+  persona: { name?: string; personality?: string; category?: string }
+): Promise<void> {
+  await apiFetch(`/agents/${id}/persona`, { method: "PATCH", body: persona });
 }

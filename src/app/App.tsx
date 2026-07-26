@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Chat } from "../features/chat/Chat";
+
+// Agent-grafen lazy-lastes så den ikke belaster chat-bundelen.
+const Hub = lazy(() => import("../features/hub/Hub"));
 import { Login } from "../features/auth/Login";
 import { M365Onboarding } from "../features/auth/M365Onboarding";
 import { Settings } from "../features/settings/Settings";
@@ -26,7 +29,7 @@ import { swallow } from "../lib/log";
 import styles from "./App.module.css";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "settings">("chat");
+  const [view, setView] = useState<"chat" | "settings" | "hub">("chat");
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
   // remonter komponenten og dreper streamen.
@@ -189,6 +192,27 @@ export default function App() {
 
   const openSettings = useCallback(() => setView("settings"), []);
   const closeSettings = useCallback(() => setView("chat"), []);
+  // /agents er en egen side med egen URL — åpne/lukk synces mot historikken,
+  // og en direkte lastet /agents lander rett i grafen.
+  const openHub = useCallback(() => {
+    setView("hub");
+    if (window.location.pathname !== "/agents") {
+      window.history.pushState({}, "", "/agents");
+    }
+  }, []);
+  const closeHub = useCallback(() => {
+    setView("chat");
+    if (window.location.pathname === "/agents") {
+      window.history.pushState({}, "", "/");
+    }
+  }, []);
+  useEffect(() => {
+    if (window.location.pathname === "/agents") setView("hub");
+    const onPop = () =>
+      setView(window.location.pathname === "/agents" ? "hub" : "chat");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   // Esc lukker settings-overlayet.
   useEffect(() => {
@@ -213,6 +237,7 @@ export default function App() {
         userEmail={user.email}
         onNewChat={newChat}
         onOpenSettings={openSettings}
+        onOpenHub={openHub}
         onOpenChat={openChat}
         onDeleteChat={onDeleteChat}
         folders={folders}
@@ -240,6 +265,13 @@ export default function App() {
           }}
         />
       </div>
+      {view === "hub" && (
+        <Suspense fallback={null}>
+          {/* Overlay, ikke bytte av hovedvisning: en pågående chat-stream
+              under skal ikke dø. */}
+          <Hub onClose={closeHub} onOpenChat={openChat} />
+        </Suspense>
+      )}
       {view === "settings" && (
         <div className={styles.settingsOverlay} onClick={closeSettings}>
           <div
