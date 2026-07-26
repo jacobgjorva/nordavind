@@ -157,7 +157,12 @@ export default function Hub({
         ctx.textAlign = "right";
         ctx.fillStyle =
           selected?.id === s.agent.id ? "#f0f0ec" : "rgba(226,226,222,0.7)";
-        ctx.fillText(s.agent.name, span.x0 - 12, s.laneY + 4);
+        let label = s.agent.name;
+        while (label.length > 3 && ctx.measureText(label).width > 118) {
+          label = label.slice(0, -2);
+        }
+        if (label !== s.agent.name) label += "…";
+        ctx.fillText(label, span.x0 - 12, s.laneY + 4);
       }
       ctx.globalAlpha = 1;
     };
@@ -286,6 +291,13 @@ export default function Hub({
   return (
     <div className={styles.hub}>
       <canvas ref={canvasRef} className={styles.canvas} onClick={pick} />
+
+      {agents.length === 0 && (
+        <div className={styles.empty}>
+          Ingen agenter ennå. Skriv <code>/agent</code> i chatten for å lage din
+          første.
+        </div>
+      )}
 
       <div className={styles.pillLayer}>
         {pills.map((p) =>

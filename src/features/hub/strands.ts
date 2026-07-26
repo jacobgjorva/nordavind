@@ -19,7 +19,9 @@ export function computeSpan(width: number): XSpan {
   const maxContent = 980;
   const nameGutter = 130;
   const margin = Math.max(32, (width - maxContent - nameGutter) / 2);
-  return { x0: margin + nameGutter, x1: width - margin };
+  const x0 = margin + nameGutter;
+  // Smale vinduer: sørg for at spennet aldri kollapser eller snur.
+  return { x0, x1: Math.max(x0 + 120, width - margin) };
 }
 
 // Tidsvindu: 24 timer bakover og 24 timer frem — «nå» står i midten.
