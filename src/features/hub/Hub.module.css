@@ -64,35 +64,31 @@
   position: absolute;
   transform: translate(0, -100%);
   pointer-events: auto;
-  background: #1c1d22;
-  border: 1px solid #34353c;
+  background: #202020;
+  border: none;
   border-radius: 999px;
-  color: #b9b9b3;
+  color: #f2e39a;
   font-size: 10px;
   font-weight: 550;
-  padding: 2px 8px;
+  padding: 7px 10px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .pill:hover {
-  border-color: #4a4b52;
-}
-
-.pillFunn {
-  color: #f2e39a;
+  background: #2a2a2a;
 }
 
 .pillUnread {
-  border-color: #8a7d45;
+  box-shadow: 0 0 0 1px #8a7d45;
 }
 
 .pillOpen {
   position: absolute;
   transform: translate(0, -100%);
   pointer-events: auto;
-  background: #1c1d22;
-  border: 1px solid #4a4b52;
+  background: #202020;
+  border: none;
   border-radius: 10px;
   color: #e2e2de;
   font-size: 12px;

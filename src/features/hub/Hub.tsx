@@ -254,6 +254,7 @@ export default function Hub({
         const lastOutput = withOutput[withOutput.length - 1];
         return s.runs
           .map((r) => {
+            if (!r.alert) return null; // kun funn vises som pille
             const x = timeToX(Date.parse(r.started_at), pillSpan, pillNow) + 10;
             if (x < pillSpan.x0 + 10 || x > pillSpan.x1 - 10) return null;
             const key = `${s.agent.id}:${r.started_at}`;
@@ -295,13 +296,11 @@ export default function Hub({
           ) : (
             <button
               key={p.key}
-              className={`${styles.pill} ${p.found ? styles.pillFunn : ""} ${
-                p.unread ? styles.pillUnread : ""
-              }`}
+              className={`${styles.pill} ${p.unread ? styles.pillUnread : ""}`}
               style={{ left: p.x, top: p.y - 14 }}
               onClick={() => setExpanded(p.key)}
             >
-              {p.found ? "Funn!" : "Ingen funn"}
+              Funn!
             </button>
           )
         )}
