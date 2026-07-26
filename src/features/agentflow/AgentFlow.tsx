@@ -89,13 +89,7 @@ interface FlowNode {
   editable?: boolean;
 }
 
-export default function AgentFlow({
-  agentId,
-  onClose,
-}: {
-  agentId: string;
-  onClose: () => void;
-}) {
+export default function AgentFlow({ agentId }: { agentId: string; onClose?: () => void }) {
   const [plan, setPlan] = useState<AgentPlan | null>(null);
   const [meta, setMeta] = useState<{ status: string; schedule?: string; name?: string }>({
     status: "",
@@ -296,12 +290,6 @@ export default function AgentFlow({
   if (!plan || (!plan.steps?.length && meta.status !== "ready")) {
     return (
       <div className={styles.flow}>
-        <div className={styles.topBar}>
-          <span className={styles.title}>Flyt</span>
-          <button className={styles.close} onClick={onClose}>
-            ✕
-          </button>
-        </div>
         <div className={styles.placeholder}>
           {meta.status === "building"
             ? "Agenten finner ut hvordan oppgaven løses best …"
@@ -505,28 +493,15 @@ export default function AgentFlow({
 
   return (
     <div className={styles.flow}>
-      <div className={styles.topBar}>
-        <span className={styles.title}>{meta.name ?? "Flyt"}</span>
-        <span className={styles.sub}>{meta.schedule}</span>
-        <div className={styles.actions}>
-          {dirty && (
-            <button className={styles.save} onClick={save} disabled={saving}>
-              {saving ? "Prøvekjører …" : "Lagre"}
-            </button>
-          )}
-          <button className={styles.ghost} onClick={rebuild}>
-            Bygg på nytt
+      <div className={styles.floatingActions}>
+        {dirty && (
+          <button className={styles.save} onClick={save} disabled={saving}>
+            {saving ? "Prøvekjører …" : "Lagre"}
           </button>
-          <button
-            className={styles.close}
-            onClick={() => {
-              if (dirty && !confirm("Lukke uten å lagre endringene?")) return;
-              onClose();
-            }}
-          >
-            ✕
-          </button>
-        </div>
+        )}
+        <button className={styles.ghost} onClick={rebuild}>
+          Bygg på nytt
+        </button>
       </div>
 
       {problems.length > 0 && (
