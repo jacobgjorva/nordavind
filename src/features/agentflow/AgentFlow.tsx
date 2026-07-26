@@ -46,9 +46,9 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 // Nodegeometri — layouten regnes ut i kode så kurvene kan tegnes i SVG.
-const NODE_W = 230;
-const GAP_X = 76;
-const ROW_H = 34; // høyde på en utgang-rad («Funn» / «Ingen funn»)
+const NODE_W = 196;
+const GAP_X = 68;
+const ROW_H = 30; // høyde på en utgang-rad («Funn» / «Ingen funn»)
 const PAD = 40;
 const WIRE_GAP = 9; // luft mellom node og forbindelseslinje
 
@@ -202,7 +202,7 @@ export default function AgentFlow({
       icon: PlayCircleIcon,
       x: colX(col++),
       y: midY,
-      h: 62 + (selected === "start" ? editorHeight({ key: "start" }) : 0),
+      h: 56 + (selected === "start" ? editorHeight({ key: "start" }) : 0),
       editable: true,
     });
 
@@ -217,7 +217,7 @@ export default function AgentFlow({
         kind: s.kind,
         x: colX(col++),
         y: midY,
-        h: 78 + (selected === `step-${i}` ? editorHeight({ key: `step-${i}`, kind: s.kind }) : 0),
+        h: 70 + (selected === `step-${i}` ? editorHeight({ key: `step-${i}`, kind: s.kind }) : 0),
         editable: true,
       });
       edges.push({ from: i === 0 ? "start" : `step-${i - 1}`, to: `step-${i}` });
@@ -226,7 +226,7 @@ export default function AgentFlow({
     const judgeX = colX(col++);
     const judgeRows = ["Funn", "Ingen funn"];
     const judgeH =
-      66 + judgeRows.length * ROW_H + 10 + (selected === "judge" ? editorHeight({ key: "judge" }) : 0);
+      58 + judgeRows.length * ROW_H + 10 + (selected === "judge" ? editorHeight({ key: "judge" }) : 0);
     nodes.push({
       key: "judge",
       title: "Vurder resultatet",
@@ -261,11 +261,11 @@ export default function AgentFlow({
         icon: actIcon[key] ?? Message01Icon,
         x: lastX,
         y: branchY,
-        h: (sub ? 62 : 52) + (selected === key ? editorHeight({ key }) : 0),
+        h: (sub ? 56 : 46) + (selected === key ? editorHeight({ key }) : 0),
         editable,
       });
       edges.push({ from: "judge", to: key, port: 0 });
-      branchY += (sub ? 62 : 52) + 16 + (selected === key ? editorHeight({ key }) : 0);
+      branchY += (sub ? 56 : 46) + 14 + (selected === key ? editorHeight({ key }) : 0);
     };
     act("notify", "Varsel i chatten", "melding");
     if (plan.mail) act("mail", "Send e-post", plan.mail.to_email, true);
@@ -277,8 +277,8 @@ export default function AgentFlow({
       tone: "end",
       icon: StopCircleIcon,
       x: lastX,
-      y: branchY + 12,
-      h: 52,
+      y: branchY + 10,
+      h: 46,
     });
     edges.push({ from: "judge", to: "end", port: 1 });
 
@@ -322,7 +322,7 @@ export default function AgentFlow({
     const ax = a.x + NODE_W + WIRE_GAP;
     const ay =
       e.port !== undefined && a.rows
-        ? a.y + 66 + e.port * ROW_H + ROW_H / 2
+        ? a.y + 58 + e.port * ROW_H + ROW_H / 2
         : a.y + a.h / 2;
     const bx = b.x - WIRE_GAP;
     const by = b.y + b.h / 2;
@@ -549,7 +549,7 @@ export default function AgentFlow({
                     color: TONE_COLOR[n.tone][1],
                   }}
                 >
-                  <HugeiconsIcon icon={n.icon} size={15} strokeWidth={2} />
+                  <HugeiconsIcon icon={n.icon} size={13} strokeWidth={2} />
                 </span>
                 <span className={styles.nodeText}>
                   <span className={styles.nodeTitle}>{n.title}</span>
