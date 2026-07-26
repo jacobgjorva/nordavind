@@ -18,6 +18,7 @@ import {
   computeSpan,
   layoutStrands,
   predictedRuns,
+  RULER_BOTTOM_GAP,
   RULER_H,
   strandY,
   timeToX,
@@ -106,14 +107,14 @@ export default function Hub({
         const x = timeToX(now + off * 3600 * 1000, span, now, hours);
         ctx.strokeStyle = "rgba(226,226,222,0.05)";
         ctx.beginPath();
-        ctx.moveTo(x, 30);
-        ctx.lineTo(x, h - RULER_H - 16);
+        ctx.moveTo(x, 62);
+        ctx.lineTo(x, h - RULER_H - RULER_BOTTOM_GAP - 18);
         ctx.stroke();
       }
 
       // Tidslinjalen nederst: bånd med fine og grove hakk, klokkeslett, og
       // «nå» som et varmt segment — inspirert av en filmstrip-scrubber.
-      const rulerTop = h - RULER_H;
+      const rulerTop = h - RULER_H - RULER_BOTTOM_GAP;
       const barY = rulerTop + 16;
       const barH = 15;
       const bar = ctx.createLinearGradient(span.x0, 0, span.x1, 0);
