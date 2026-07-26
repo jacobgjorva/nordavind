@@ -174,16 +174,6 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
       )}
       {error && <div className={styles.error}>{error}</div>}
       <div className={styles.toolbar}>
-        <span className={styles.toolFont}>Inter</span>
-        <select
-          className={styles.toolSize}
-          defaultValue="3"
-          onChange={(e) => document.execCommand("fontSize", false, e.target.value)}
-        >
-          <option value="2">12px</option>
-          <option value="3">14px</option>
-          <option value="4">16px</option>
-        </select>
         <label className={styles.toolColor} title="Tekstfarge">
           <input
             type="color"
