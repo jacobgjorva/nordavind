@@ -341,6 +341,13 @@ export default function Hub({
                       a.id === p.agentId ? { ...a, has_response: false } : a
                     )
                   );
+                  // Tegnede tråder leser agenten fra sin egen ref — oppdater
+                  // den også, ellers lyser pillen til neste poll.
+                  for (const s of strandsRef.current) {
+                    if (s.agent.id === p.agentId) {
+                      s.agent = { ...s.agent, has_response: false };
+                    }
+                  }
                 }
               }}
               title="Funn"
