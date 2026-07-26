@@ -11,7 +11,7 @@ import {
   type AgentState,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
-import { layoutStrands, PAD_X, strandY, type Strand } from "./strands";
+import { computeSpan, layoutStrands, strandY, timeToX, type Strand } from "./strands";
 import styles from "./Hub.module.css";
 
 const POLL_MS = 5000;
@@ -71,12 +71,13 @@ export default function Hub({
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
+      const span = computeSpan(w);
 
       // Tidsakse: stiplete markører hver 6. time + «nå» ved høyre kant.
       ctx.font = "500 10px system-ui, sans-serif";
       ctx.textAlign = "center";
       for (let back = 24; back >= 0; back -= 6) {
-        const x = PAD_X + ((WINDOW_MS - back * 3600 * 1000) / WINDOW_MS) * (w - PAD_X - 24);
+        const x = timeToX(now - back * 3600 * 1000, span, WINDOW_MS, now);
         ctx.strokeStyle = "rgba(226,226,222,0.07)";
         ctx.beginPath();
         ctx.moveTo(x, 54);
@@ -90,14 +91,14 @@ export default function Hub({
         const state = s.agent.state ?? "sleeping";
         const dim = state === "paused";
         ctx.strokeStyle = dim ? "#3a3b40" : s.color;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = dim ? 0.6 : 0.92;
+        ctx.lineWidth = 1.25;
+        ctx.globalAlpha = dim ? 0.6 : 0.9;
 
-        // Tråden, samplet i 6 px-steg.
+        // Tråden, tett samplet for myke kurver.
         ctx.beginPath();
-        for (let x = PAD_X; x <= w - 24; x += 2) {
-          const y = strandY(s, x, w, WINDOW_MS, now, t);
-          if (x === PAD_X) ctx.moveTo(x, y);
+        for (let x = span.x0; x <= span.x1; x += 2) {
+          const y = strandY(s, x, span, WINDOW_MS, now, t);
+          if (x === span.x0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
@@ -105,34 +106,37 @@ export default function Hub({
           // Rød hale ytterst: noe er galt nå.
           ctx.strokeStyle = "hsla(4, 70%, 58%, 0.9)";
           ctx.beginPath();
-          for (let x = w - 90; x <= w - 24; x += 2) {
-            const y = strandY(s, x, w, WINDOW_MS, now, t);
-            if (x === w - 90) ctx.moveTo(x, y);
+          for (let x = span.x1 - 70; x <= span.x1; x += 2) {
+            const y = strandY(s, x, span, WINDOW_MS, now, t);
+            if (x === span.x1 - 70) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
         }
 
-        // Svar-prikker på kjøringer med resultat; siste er lysende hvis ulest.
+        // Svar: et lysende etterslep på tråden RETT ETTER kjøringen — svaret
+        // følger arbeidet. Ulest svar pulserer varmt til chatten åpnes.
         const withOutput = s.runs.filter((r) => r.has_output);
         withOutput.forEach((r, i) => {
-          const x =
-            PAD_X + ((Date.parse(r.started_at) - (now - WINDOW_MS)) / WINDOW_MS) * (w - PAD_X - 24);
-          if (x < PAD_X) return;
-          const y = strandY(s, x, w, WINDOW_MS, now, t);
+          const runX = timeToX(Date.parse(r.started_at), span, WINDOW_MS, now);
+          if (runX < span.x0 - 30) return;
           const unread = s.agent.has_response && i === withOutput.length - 1;
+          const len = 34;
+          const grad = ctx.createLinearGradient(runX, 0, runX + len, 0);
+          const glowColor = unread ? "242,227,154" : "236,238,234";
+          const peak = unread ? 0.75 + Math.sin(t * 3) * 0.2 : 0.5;
+          grad.addColorStop(0, `rgba(${glowColor},${peak})`);
+          grad.addColorStop(1, `rgba(${glowColor},0)`);
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = unread ? 2.4 : 1.8;
           ctx.beginPath();
-          ctx.arc(x, y, unread ? 5 : 3, 0, Math.PI * 2);
-          ctx.fillStyle = unread ? "#f2e39a" : s.color;
-          ctx.fill();
-          if (unread) {
-            ctx.beginPath();
-            ctx.arc(x, y, 8 + Math.sin(t * 3) * 1.5, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(242,227,154,0.5)";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.lineWidth = 2;
+          for (let x = Math.max(span.x0, runX); x <= Math.min(span.x1, runX + len); x += 2) {
+            const y = strandY(s, x, span, WINDOW_MS, now, t);
+            if (x === Math.max(span.x0, runX)) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
           }
+          ctx.stroke();
+          ctx.lineWidth = 1.25;
         });
 
         // Navn ved venstre kant, på trådens bane.
@@ -141,7 +145,7 @@ export default function Hub({
         ctx.textAlign = "right";
         ctx.fillStyle =
           selected?.id === s.agent.id ? "#f0f0ec" : "rgba(226,226,222,0.7)";
-        ctx.fillText(s.agent.name, PAD_X - 10, s.laneY + 4);
+        ctx.fillText(s.agent.name, span.x0 - 12, s.laneY + 4);
       }
       ctx.globalAlpha = 1;
     };

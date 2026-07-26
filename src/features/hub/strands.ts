@@ -5,9 +5,27 @@
 import type { AgentInfo, AgentRunEvent } from "../../lib/api";
 import { avatarColor } from "../../ui/avatar";
 
-export const PAD_X = 140; // plass til navn ved venstre kant
 export const PAD_TOP = 64;
 export const PAD_BOTTOM = 32;
+
+// XSpan er grafens horisontale utstrekning — en sentrert kolonne, ikke full
+// bredde. Navnene står rett til venstre for x0.
+export interface XSpan {
+  x0: number;
+  x1: number;
+}
+
+export function computeSpan(width: number): XSpan {
+  const maxContent = 980;
+  const nameGutter = 130;
+  const margin = Math.max(32, (width - maxContent - nameGutter) / 2);
+  return { x0: margin + nameGutter, x1: width - margin };
+}
+
+// timeToX mapper et tidspunkt inn i spennet.
+export function timeToX(ms: number, span: XSpan, windowMs: number, now: number): number {
+  return span.x0 + ((ms - (now - windowMs)) / windowMs) * (span.x1 - span.x0);
+}
 
 export interface Strand {
   agent: AgentInfo;
@@ -83,38 +101,32 @@ export function layoutStrands(
   return strands;
 }
 
-// strandY: trådens y ved en gitt x — flat bane pluss bølger rundt kjøringene
-// og en levende bølge i høyrekanten når agenten kjører akkurat nå.
+// strandY: trådens y ved en gitt x — flat bane pluss en kort, myk krusning
+// rundt hver kjøring (en kjøring varer minutter, så avtrykket i et
+// døgnvindu skal være smalt) og en rullende bølge ytterst når den kjører nå.
 export function strandY(
   s: Strand,
   x: number,
-  width: number,
+  span: XSpan,
   windowMs: number,
   now: number,
   t: number
 ): number {
-  const timeAt = (px: number) =>
-    now - windowMs + ((px - PAD_X) / (width - PAD_X - 24)) * windowMs;
   const phase = (hash(s.agent.id) % 628) / 100;
   let y = s.laneY;
 
-  // Bølgepakke rundt hver kjøring: gaussisk konvolutt over en LAV frekvens —
-  // lange, myke svulmer, ikke pigger.
   for (const r of s.runs) {
-    const runX =
-      PAD_X + ((Date.parse(r.started_at) - (now - windowMs)) / windowMs) * (width - PAD_X - 24);
+    const runX = timeToX(Date.parse(r.started_at), span, windowMs, now);
     const d = x - runX;
-    const env = Math.exp(-(d * d) / (2 * 26 * 26));
-    if (env > 0.01) y += Math.sin(d * 0.14 + phase) * 8 * env;
+    const env = Math.exp(-(d * d) / (2 * 8 * 8));
+    if (env > 0.02) y += Math.sin(d * 0.38 + phase) * 5.5 * env;
   }
 
-  // Kjører akkurat nå: rolig rullende bølge ved høyrekanten.
   const state = s.agent.state;
   if (state === "working" || state === "thinking") {
-    const d = x - (width - 24);
-    const env = Math.exp(-(d * d) / (2 * 48 * 48));
-    y += Math.sin(x * 0.09 - t * 2.4 + phase) * 7 * env;
+    const d = x - span.x1;
+    const env = Math.exp(-(d * d) / (2 * 34 * 34));
+    y += Math.sin(x * 0.12 - t * 2.4 + phase) * 6 * env;
   }
-  void timeAt;
   return y;
 }
