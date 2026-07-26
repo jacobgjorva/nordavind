@@ -195,3 +195,217 @@
   background: #050507;
   overflow: hidden;
 }
+
+/* Graf-editoren: søk, verktøy og sidepanel over canvasen. */
+.toolbar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 280px;
+  z-index: 6;
+}
+
+.search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(18, 18, 22, 0.85);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.search:focus {
+  border-color: rgba(160, 107, 240, 0.6);
+}
+
+.searchResults {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  background: rgba(18, 18, 22, 0.95);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.searchHit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.searchHit:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.searchHitTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.searchHitText {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.newBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(18, 18, 22, 0.85);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.newBtn:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.newForm {
+  position: absolute;
+  top: 52px;
+  right: 14px;
+  z-index: 6;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(18, 18, 22, 0.95);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.newSelect,
+.newInput,
+.newTextarea {
+  padding: 7px 10px;
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #101114;
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+}
+
+.newSave {
+  align-self: flex-end;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #047aff;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.linkHint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(160, 107, 240, 0.16);
+  color: #cdb2f5;
+  font-size: 12.5px;
+}
+
+.panel {
+  position: absolute;
+  top: 52px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 5;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(16, 16, 20, 0.94);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+}
+
+.panelMeta {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.neighbors {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+}
+
+.neighborRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neighborLink {
+  border: none;
+  background: transparent;
+  color: #a8d8f0;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  padding: 3px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.neighborLink:hover {
+  color: #d3ecf9;
+}
+
+.neighborRel {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.neighborDel {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.neighborDel:hover {
+  color: #e8888d;
+}
