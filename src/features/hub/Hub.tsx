@@ -44,6 +44,10 @@ export default function Hub({
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [selected, setSelected] = useState<AgentInfo | null>(null);
   const [draft, setDraft] = useState({ name: "", personality: "", category: "" });
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  // Ekspandert svar-pille (agentId + started_at); null = alle kollapset.
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [, setTick] = useState(0); // re-render ved poll så pillene følger tiden
 
   // Render-løkke: FPS-tak, stopp når fanen er skjult.
   useEffect(() => {
@@ -58,6 +62,7 @@ export default function Hub({
     const resize = () => {
       canvas.width = canvas.clientWidth * dpr;
       canvas.height = canvas.clientHeight * dpr;
+      setSize({ w: canvas.clientWidth, h: canvas.clientHeight });
     };
     resize();
     window.addEventListener("resize", resize);
@@ -139,18 +144,6 @@ export default function Hub({
           if (to > from) strokeSegment(s, from, to);
           ctx.lineWidth = 0.8;
         };
-        const withOutput = s.runs.filter((r) => r.has_output);
-        withOutput.forEach((r, i) => {
-          const runX = timeToX(Date.parse(r.started_at), span, now);
-          if (runX < span.x0 - 30) return;
-          const unread = s.agent.has_response && i === withOutput.length - 1;
-          glowTail(
-            runX,
-            unread ? "242,227,154" : "236,238,234",
-            unread ? 0.75 + Math.sin(t * 3) * 0.2 : 0.5,
-            unread ? 1.6 : 1.2
-          );
-        });
         for (const ms of predictedRuns(s.agent, now)) {
           glowTail(timeToX(ms, span, now), "150,152,158", 0.35, 1);
         }
@@ -183,6 +176,7 @@ export default function Hub({
           setAgents(list);
           const canvas = canvasRef.current;
           strandsRef.current = layoutStrands(list, runs, canvas?.clientHeight ?? 600);
+          setTick((n) => n + 1);
           setSelected((sel) => (sel ? list.find((a) => a.id === sel.id) ?? null : null));
         })
         .catch(swallow);
@@ -250,9 +244,68 @@ export default function Hub({
 
   const categories = [...new Set(agents.map((a) => a.category).filter(Boolean))] as string[];
 
+  // Svar-piller: én per kjøring i vinduet. «Funn!» når kjøringen fant noe
+  // med verdi, ellers «Ingen funn». Klikk ekspanderer til hele meldingen.
+  const pillNow = Date.now();
+  const pillSpan = size.w ? computeSpan(size.w) : null;
+  const pills = pillSpan
+    ? strandsRef.current.flatMap((s) => {
+        const withOutput = s.runs.filter((r) => r.has_output);
+        const lastOutput = withOutput[withOutput.length - 1];
+        return s.runs
+          .map((r) => {
+            const x = timeToX(Date.parse(r.started_at), pillSpan, pillNow) + 10;
+            if (x < pillSpan.x0 + 10 || x > pillSpan.x1 - 10) return null;
+            const key = `${s.agent.id}:${r.started_at}`;
+            return {
+              key,
+              x,
+              y: s.laneY,
+              found: !!r.alert,
+              unread: !!s.agent.has_response && r === lastOutput,
+              output: r.output ?? "",
+            };
+          })
+          .filter(Boolean) as {
+          key: string;
+          x: number;
+          y: number;
+          found: boolean;
+          unread: boolean;
+          output: string;
+        }[];
+      })
+    : [];
+
   return (
     <div className={styles.hub}>
       <canvas ref={canvasRef} className={styles.canvas} onClick={pick} />
+
+      <div className={styles.pillLayer}>
+        {pills.map((p) =>
+          expanded === p.key ? (
+            <div
+              key={p.key}
+              className={styles.pillOpen}
+              style={{ left: p.x, top: p.y - 14 }}
+              onClick={() => setExpanded(null)}
+            >
+              {p.output || "Ingen endring siden forrige kjøring."}
+            </div>
+          ) : (
+            <button
+              key={p.key}
+              className={`${styles.pill} ${p.found ? styles.pillFunn : ""} ${
+                p.unread ? styles.pillUnread : ""
+              }`}
+              style={{ left: p.x, top: p.y - 14 }}
+              onClick={() => setExpanded(p.key)}
+            >
+              {p.found ? "Funn!" : "Ingen funn"}
+            </button>
+          )
+        )}
+      </div>
 
       <div className={styles.topBar}>
         <span className={styles.title}>Agenter</span>

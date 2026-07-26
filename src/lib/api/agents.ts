@@ -139,6 +139,8 @@ export interface AgentRunEvent {
   started_at: string;
   status: string;
   has_output: boolean;
+  alert?: boolean;
+  output?: string;
 }
 
 // Henter kjøringshistorikken for brukerens agenter.
