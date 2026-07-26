@@ -2,6 +2,8 @@
 // Flat tråd = sover, bølgepakke = en kjøring, prikk = svar (lysende = ulest),
 // levende bølge i høyrekanten = kjører akkurat nå. Ren Canvas 2D.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { BellIcon } from "@hugeicons/core-free-icons";
 import {
   fetchAgentRuns,
   fetchAgents,
@@ -299,8 +301,9 @@ export default function Hub({
               className={`${styles.pill} ${p.unread ? styles.pillUnread : ""}`}
               style={{ left: p.x, top: p.y - 14 }}
               onClick={() => setExpanded(p.key)}
+              title="Funn"
             >
-              Funn!
+              <HugeiconsIcon icon={BellIcon} size={13} strokeWidth={1.8} />
             </button>
           )
         )}

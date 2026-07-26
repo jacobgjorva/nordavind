@@ -70,7 +70,9 @@
   color: #ffffff;
   font-size: 10px;
   font-weight: 550;
-  padding: 7px 10px;
+  padding: 7px 9px;
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
   white-space: nowrap;
 }
