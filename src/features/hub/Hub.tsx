@@ -54,6 +54,7 @@ export default function Hub({
   // Ekspandert svar-pille (agentId + started_at); null = alle kollapset.
   const [expanded, setExpanded] = useState<string | null>(null);
   const [, setTick] = useState(0); // re-render ved poll så pillene følger tiden
+  const [rangeOpen, setRangeOpen] = useState(false);
   // Tidsvindu (±timer), husket mellom økter.
   const [windowHours, setWindowHours] = useState(() => {
     const saved = Number(localStorage.getItem("hub-window") ?? 24);
@@ -276,6 +277,7 @@ export default function Hub({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      setRangeOpen(false);
       setSelected((s) => {
         if (s) return null;
         onClose();
@@ -422,21 +424,33 @@ export default function Hub({
         <span className={styles.count}>
           {agents.length} {agents.length === 1 ? "agent" : "agenter"}
         </span>
-        <div className={styles.rangePicker}>
-          {WINDOW_CHOICES.map((hrs) => (
-            <button
-              key={hrs}
-              className={`${styles.rangeBtn} ${
-                windowHours === hrs ? styles.rangeBtnActive : ""
-              }`}
-              onClick={() => {
-                setWindowHours(hrs);
-                localStorage.setItem("hub-window", String(hrs));
-              }}
-            >
-              ±{hrs}t
-            </button>
-          ))}
+        <div className={styles.rangeWrap}>
+          <button
+            className={styles.rangeToggle}
+            onClick={() => setRangeOpen((v) => !v)}
+          >
+            Siste {windowHours} {windowHours === 1 ? "time" : "timer"}
+            <span className={styles.caret}>▾</span>
+          </button>
+          {rangeOpen && (
+            <div className={styles.rangeMenu}>
+              {WINDOW_CHOICES.map((hrs) => (
+                <button
+                  key={hrs}
+                  className={`${styles.rangeItem} ${
+                    windowHours === hrs ? styles.rangeItemActive : ""
+                  }`}
+                  onClick={() => {
+                    setWindowHours(hrs);
+                    localStorage.setItem("hub-window", String(hrs));
+                    setRangeOpen(false);
+                  }}
+                >
+                  Siste {hrs} {hrs === 1 ? "time" : "timer"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
