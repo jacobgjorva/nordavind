@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { BASE_URL, getToken, sendMail, type MailPerson } from "../../lib/api";
 import { avatarColor, initials as avatarInitials } from "../../ui/avatar";
+import { FileTag } from "../../ui/FileTag";
 import styles from "./MailCompose.module.css";
 
 function initials(p: MailPerson): string {
@@ -161,10 +162,13 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
       {(spec.attachments ?? []).length > 0 && (
         <div className={styles.attachRow}>
           {(spec.attachments ?? []).map((a) => (
-            <button key={a.id} className={styles.attachChip} onClick={() => downloadAttachment(a.id, a.name)} title="Klikk for å laste ned og sjekke fila">
-              📎 {a.name}
-              {a.rows ? <span className={styles.attachMeta}> — {a.rows} rader</span> : null}
-            </button>
+            <FileTag
+              key={a.id}
+              name={a.name}
+              meta={a.rows ? `${a.rows} rader` : undefined}
+              onClick={() => downloadAttachment(a.id, a.name)}
+              title="Klikk for å laste ned og sjekke fila"
+            />
           ))}
         </div>
       )}

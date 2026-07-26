@@ -81,6 +81,7 @@ import { DEFAULT_MODEL, modelAlias, modelDesc, modelGlow } from "../../lib/model
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
 import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
+import { FileTag } from "../../ui/FileTag";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
 
@@ -1277,33 +1278,27 @@ export function Chat({
       {/* Vedlegg som tags OVER composeren — fil-ikon + navn + fjern. */}
       {(attachments.length > 0 || uploadError) && (
         <div className={styles.attachTagRow}>
-          {attachments.map((a) => (
-            <span key={a.name} className={styles.attachTag}>
-              {a.image ? (
+          {attachments.map((a) =>
+            a.image ? (
+              <span key={a.name} className={styles.attachTag}>
                 <img src={a.image} alt="" className={styles.attachTagIcon} />
-              ) : (
-                <span
-                  className={styles.attachTagIconBox}
-                  style={{
-                    background: fileTagColor(a.name)[0],
-                    color: fileTagColor(a.name)[1],
-                  }}
+                <span className={styles.attachTagName}>{a.name}</span>
+                <button
+                  className={styles.attachRemove}
+                  onClick={() => setAttachments((prev) => prev.filter((x) => x !== a))}
+                  aria-label={`Fjern ${a.name}`}
                 >
-                  <HugeiconsIcon icon={fileIcon(a.name)} size={14} strokeWidth={2} />
-                </span>
-              )}
-              <span className={styles.attachTagName}>{a.name}</span>
-              <button
-                className={styles.attachRemove}
-                onClick={() =>
-                  setAttachments((prev) => prev.filter((x) => x !== a))
-                }
-                aria-label={`Fjern ${a.name}`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
+                  ×
+                </button>
+              </span>
+            ) : (
+              <FileTag
+                key={a.name}
+                name={a.name}
+                onRemove={() => setAttachments((prev) => prev.filter((x) => x !== a))}
+              />
+            )
+          )}
           {uploadError && (
             <span className={styles.attachError}>{uploadError}</span>
           )}
