@@ -135,11 +135,11 @@ export function resolveImage(t: DeckTheme, image?: string): string | undefined {
   if (!image) return undefined;
   if (image.startsWith("/") || image.startsWith("http") || image.startsWith("data:"))
     return image;
-  if (!image.includes(".")) {
-    const hit = t.images.find((f) => f === image || f.startsWith(image + "."));
-    return `/themes/${t.name}/${hit ?? image + ".png"}`;
-  }
-  return `/themes/${t.name}/${image}`;
+  // Slå alltid opp mot temaets faktiske filer på stammen («bg-1»): bytter man
+  // ut et motiv med en annen filtype, skal gamle decks fortsatt vise bilde.
+  const stem = image.replace(/\.[a-z0-9]+$/i, "");
+  const hit = t.images.find((f) => f === image || f.replace(/\.[a-z0-9]+$/i, "") === stem);
+  return `/themes/${t.name}/${hit ?? image}`;
 }
 
 // CSS-variabler for slide-rota (--dk-<token>).
