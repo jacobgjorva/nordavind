@@ -58,7 +58,8 @@ function hash01(s: string): number {
 
 // Organisk kunnskapsgraf på canvas: kraft-simulering med romlig rutenett for
 // frastøtning (tåler tusenvis av noder), additiv glød, zoom/pan og redigering.
-export function KnowledgeGraph() {
+// fill: fyll forelderens høyde (/graf-siden) i stedet for panel-høyden.
+export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   const [data, setData] = useState<GraphData | null>(null);
   const [selId, setSelId] = useState<string | null>(null);
   const [cardPos, setCardPos] = useState<{ x: number; y: number } | null>(null);
@@ -191,7 +192,7 @@ export function KnowledgeGraph() {
     function step() {
       const nodes = simRef.current;
       const w = wrap!.clientWidth;
-      const h = HEIGHT;
+      const h = fill ? wrap!.clientHeight : HEIGHT;
       if (canvas!.width !== w * dpr || canvas!.height !== h * dpr) {
         canvas!.width = w * dpr;
         canvas!.height = h * dpr;
@@ -469,7 +470,7 @@ export function KnowledgeGraph() {
   }
 
   return (
-    <div className={styles.wrap} ref={wrapRef}>
+    <div className={fill ? styles.wrapFill : styles.wrap} ref={wrapRef}>
       <canvas
         ref={canvasRef}
         className={styles.canvas}
