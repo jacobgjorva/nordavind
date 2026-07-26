@@ -943,13 +943,29 @@ export function Chat({
       setInput("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
       const rest = raw.replace(/^\/(presentasjon|presentation)\s*/i, "").trim();
+      // Alltid en fersk slug: uten suffikset kolliderte «presentasjon» med
+      // forrige deck, og lerretet åpnet den gamle presentasjonen i stedet.
+      const name = `${rest.slice(0, 48) || "presentasjon"}-${Date.now().toString(36)}`;
+      let slug: string;
       try {
-        const wg = await createWidget(rest.slice(0, 60) || "Presentasjon");
-        deckCanvasRef.current = wg.slug;
+        slug = (await createWidget(name)).slug;
       } catch {
-        deckCanvasRef.current = slugify(rest.slice(0, 60) || "presentasjon");
+        // Opprettelsen feilet: ikke gjett på en slug som kan tilhøre et annet
+        // deck — la brukeren få vite det i stedet.
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: "assistant",
+            content: "Klarte ikke opprette presentasjonen. Prøv en gang til.",
+            error: true,
+            revealed: true,
+          },
+        ]);
+        return;
       }
-      setDeckCanvas(deckCanvasRef.current);
+      deckCanvasRef.current = slug;
+      setDeckCanvas(slug);
       reloadWidgets();
       if (!rest) return; // tomt lerret — vent på instruks
       return send(rest);
