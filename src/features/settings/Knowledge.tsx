@@ -8,6 +8,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import {
   acceptNode,
+  type DuplicateInfo,
   fetchPendingNodes,
   rejectNode,
   type KnowledgeNode,
@@ -38,16 +39,25 @@ export function Knowledge() {
     }
   }, [current?.id]);
 
+  const [dup, setDup] = useState<DuplicateInfo | null>(null);
+
   function next() {
+    setDup(null);
     setQueue((q) => (q ? q.slice(1) : q));
   }
 
-  async function accept() {
+  async function accept(opts: { replaceId?: string; keepBoth?: boolean } = {}) {
     if (!current || busy) return;
     setBusy(true);
     setError(null);
     try {
-      await acceptNode(current.id, title.trim(), summary.trim());
+      const res = await acceptNode(current.id, title.trim(), summary.trim(), opts);
+      if (res.duplicate) {
+        // Dublettvakten: la admin velge — aldri auto.
+        setDup(res.duplicate);
+        return;
+      }
+      setDup(null);
       next();
     } catch {
       setError("Kunne ikke godkjenne.");
@@ -106,6 +116,38 @@ export function Knowledge() {
 
           {error && <div className={styles.error}>{error}</div>}
 
+          {dup && (
+            <div className={styles.dupBox}>
+              <div className={styles.dupText}>
+                Ligner på «{dup.title}» ({Math.round(dup.similarity * 100)} %):{" "}
+                {dup.text}
+              </div>
+              <div className={styles.dupActions}>
+                <button
+                  className={styles.dupReplace}
+                  disabled={busy}
+                  onClick={() => accept({ replaceId: dup.id })}
+                >
+                  Erstatt den gamle
+                </button>
+                <button
+                  className={styles.dupKeep}
+                  disabled={busy}
+                  onClick={() => accept({ keepBoth: true })}
+                >
+                  Behold begge
+                </button>
+                <button
+                  className={styles.dupKeep}
+                  disabled={busy}
+                  onClick={() => setDup(null)}
+                >
+                  Avbryt
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className={styles.actions}>
             <div className={styles.actionCol}>
               <button
@@ -127,7 +169,7 @@ export function Knowledge() {
             <div className={styles.actionCol}>
               <button
                 className={styles.accept}
-                onClick={accept}
+                onClick={() => accept()}
                 disabled={busy || !title.trim() || !summary.trim()}
                 aria-label="Godkjenn"
               >

@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, ApiError } from "./client";
 
 export interface KnowledgeNode {
   id: string;
@@ -34,16 +34,44 @@ export async function updateNode(
   await apiFetch(`/knowledge/${id}`, { method: "PUT", body: { title, summary } });
 }
 
-// Godkjenner en node (med evt. redigert tekst).
+// Dublettvakten: den lignende lappen backend fant ved godkjenning.
+export interface DuplicateInfo {
+  id: string;
+  title: string;
+  text: string;
+  similarity: number;
+}
+
+// Godkjenner en node (med evt. redigert tekst). Ligner forslaget for mye på
+// en eksisterende lapp, stopper backend med 409 og vi returnerer kandidaten
+// så panelet kan la admin velge erstatt/behold.
 export async function acceptNode(
   id: string,
   title: string,
-  summary: string
-): Promise<void> {
-  await apiFetch(`/knowledge/${id}/accept`, {
-    method: "POST",
-    body: { title, summary },
-  });
+  summary: string,
+  opts: { replaceId?: string; keepBoth?: boolean } = {}
+): Promise<{ duplicate?: DuplicateInfo }> {
+  try {
+    await apiFetch(`/knowledge/${id}/accept`, {
+      method: "POST",
+      body: {
+        title,
+        summary,
+        replace_id: opts.replaceId ?? "",
+        keep_both: opts.keepBoth ?? false,
+      },
+    });
+    return {};
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) {
+      try {
+        return { duplicate: JSON.parse(e.message).duplicate as DuplicateInfo };
+      } catch {
+        /* faller til vanlig feil */
+      }
+    }
+    throw e;
+  }
 }
 
 // Sletter en akseptert node fra grafen.
