@@ -19,6 +19,7 @@ interface Sim {
   vx: number;
   vy: number;
   deg: number;
+  bucket: number; // fargetrinn 0..DEG_STEPS-1 fra koblingsgrad
 }
 
 const HEIGHT = 440;
@@ -26,8 +27,18 @@ const HEIGHT = 440;
 // Fargespråket: mørk flate, kanter i en lilla→rosa→krem-gradient (varmest mot
 // sentrum), noder som små lyse mint-punkter med glød. Dokument-noder gull.
 const BG = "#050507";
-const NODE_MINT = "#8df0c6";
-const NODE_DOC = "#f4c15a";
+// Nodefargen følger koblingsgraden: få/ingen koblinger = mint (dagens grønne),
+// mange koblinger = lilla. Interpolert i faste trinn (sprites).
+const DEG_LOW: [number, number, number] = [141, 240, 198]; // mint
+const DEG_HIGH: [number, number, number] = [160, 107, 240]; // lilla
+const DEG_STEPS = 6;
+function degMix(t: number): [number, number, number] {
+  return [
+    Math.round(DEG_LOW[0] + (DEG_HIGH[0] - DEG_LOW[0]) * t),
+    Math.round(DEG_LOW[1] + (DEG_HIGH[1] - DEG_LOW[1]) * t),
+    Math.round(DEG_LOW[2] + (DEG_HIGH[2] - DEG_LOW[2]) * t),
+  ];
+}
 const EDGE_STOPS: [number, number, number][] = [
   [244, 205, 160], // sentrum: varm krem
   [224, 139, 208], // midt: rosa
@@ -142,9 +153,16 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       deg.set(e.from_id, (deg.get(e.from_id) ?? 0) + 1);
       deg.set(e.to_id, (deg.get(e.to_id) ?? 0) + 1);
     }
+    let maxDeg = 1;
+    for (const d of deg.values()) {
+      if (d > maxDeg) maxDeg = d;
+    }
     simRef.current = data.nodes.map((node, i) => {
       const a = i * 2.399963; // gullvinkel — jevn spiral uansett antall
       const r = 14 * Math.sqrt(i + 1);
+      const dg = deg.get(node.id) ?? 0;
+      // Kvadratrot løfter mellomsjiktet — ellers blir alt unntatt hubene mint.
+      const t = Math.sqrt(dg / maxDeg);
       return {
         id: node.id,
         title: node.title,
@@ -153,7 +171,8 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         y: Math.sin(a) * r,
         vx: 0,
         vy: 0,
-        deg: deg.get(node.id) ?? 0,
+        deg: dg,
+        bucket: Math.min(DEG_STEPS - 1, Math.round(t * (DEG_STEPS - 1))),
       };
     });
     viewRef.current.user = false;
@@ -190,8 +209,14 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       c.fillRect(0, 0, 64, 64);
       return s;
     }
-    const spriteMint = makeSprite(NODE_MINT);
-    const spriteDoc = makeSprite(NODE_DOC);
+    const sprites: HTMLCanvasElement[] = [];
+    const cores: string[] = [];
+    for (let i = 0; i < DEG_STEPS; i++) {
+      const [r, g, b] = degMix(i / (DEG_STEPS - 1));
+      sprites.push(makeSprite(`rgb(${r},${g},${b})`));
+      // Kjernen er en lysere utgave av glødfargen — de skarpe punktene.
+      cores.push(`rgb(${Math.min(255, r + 70)},${Math.min(255, g + 70)},${Math.min(255, b + 70)})`);
+    }
 
     function step() {
       const nodes = simRef.current;
@@ -328,13 +353,12 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       const hover = hoverRef.current;
       const sel = selRef.current;
       for (const n of nodes) {
-        const doc = n.type === "dokument";
         const active = n.id === hover || n.id === sel;
-        const r = (doc ? 3 : 2 + Math.min(2, n.deg * 0.4)) * (active ? 1.8 : 1);
+        const r = (2 + Math.min(2.5, n.deg * 0.3)) * (active ? 1.8 : 1);
         const g = r * 4.5;
-        ctx!.drawImage(doc ? spriteDoc : spriteMint, n.x - g, n.y - g, g * 2, g * 2);
+        ctx!.drawImage(sprites[n.bucket], n.x - g, n.y - g, g * 2, g * 2);
         // Liten solid kjerne over gløden gir de skarpe lyspunktene.
-        ctx!.fillStyle = doc ? NODE_DOC : "#d8fff0";
+        ctx!.fillStyle = cores[n.bucket];
         ctx!.beginPath();
         ctx!.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2);
         ctx!.fill();
