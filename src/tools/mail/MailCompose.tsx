@@ -1,6 +1,4 @@
 import { useRef, useState } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { TelegramIcon } from "@hugeicons/core-free-icons";
 import { sendMail, type MailPerson } from "../../lib/api";
 import { avatarColor, initials as avatarInitials } from "../../ui/avatar";
 import styles from "./MailCompose.module.css";
@@ -119,12 +117,15 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
           onAdd={(a) => setCc((v) => [...v, { name: "", address: a }])}
         />
       </div>
-      <input
-        className={styles.subject}
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        placeholder="Emne"
-      />
+      <div className={styles.recipRow}>
+        <span className={styles.recipLabel}>Emne</span>
+        <input
+          className={styles.subjectInput}
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Emne …"
+        />
+      </div>
       <div
         ref={bodyRef}
         className={styles.editor}
@@ -158,20 +159,12 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
           <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("italic"); }}><i>I</i></button>
           <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("underline"); }}><u>U</u></button>
         </span>
-        <span className={styles.toolGroup}>
-          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("justifyLeft"); }}>⯇</button>
-          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("justifyCenter"); }}>☰</button>
-          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("justifyRight"); }}>⯈</button>
-        </span>
-        <span className={styles.sigNote}>Signatur legges til automatisk</span>
         <button
           className={styles.sendBtn}
           onClick={send}
           disabled={sending || to.length === 0 || empty}
-          title="Send"
-          aria-label="Send"
         >
-          <HugeiconsIcon icon={TelegramIcon} size={18} />
+          {sending ? "Sender …" : "Send"}
         </button>
       </div>
     </div>
