@@ -108,7 +108,7 @@ export default function Hub({
       for (const s of strandsRef.current) {
         const state = s.agent.state ?? "sleeping";
         const dim = state === "paused";
-        ctx.lineWidth = 1.25;
+        ctx.lineWidth = 0.8;
         ctx.globalAlpha = dim ? 0.6 : 0.9;
 
         // Fortid i kategorifarge, fremtid i grått — prediksjon, ikke fasit.
@@ -137,7 +137,7 @@ export default function Hub({
           const from = Math.max(span.x0, runX);
           const to = Math.min(span.x1, runX + len);
           if (to > from) strokeSegment(s, from, to);
-          ctx.lineWidth = 1.25;
+          ctx.lineWidth = 0.8;
         };
         const withOutput = s.runs.filter((r) => r.has_output);
         withOutput.forEach((r, i) => {
@@ -148,11 +148,11 @@ export default function Hub({
             runX,
             unread ? "242,227,154" : "236,238,234",
             unread ? 0.75 + Math.sin(t * 3) * 0.2 : 0.5,
-            unread ? 2.4 : 1.8
+            unread ? 1.6 : 1.2
           );
         });
         for (const ms of predictedRuns(s.agent, now)) {
-          glowTail(timeToX(ms, span, now), "150,152,158", 0.35, 1.5);
+          glowTail(timeToX(ms, span, now), "150,152,158", 0.35, 1);
         }
 
         // Navn ved venstre kant, på trådens bane.
