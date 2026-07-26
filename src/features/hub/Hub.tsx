@@ -107,8 +107,8 @@ export default function Hub({
         const x = timeToX(now + off * 3600 * 1000, span, now, hours);
         ctx.strokeStyle = "rgba(226,226,222,0.05)";
         ctx.beginPath();
-        ctx.moveTo(x, 62);
-        ctx.lineTo(x, h - RULER_H - RULER_BOTTOM_GAP - 18);
+        ctx.moveTo(x, 104);
+        ctx.lineTo(x, h - RULER_H - RULER_BOTTOM_GAP - 46);
         ctx.stroke();
       }
 
