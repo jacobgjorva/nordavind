@@ -32,10 +32,21 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 // Nodegeometri — layouten regnes ut i kode så kurvene kan tegnes i SVG.
-const NODE_W = 210;
-const GAP_X = 72;
+const NODE_W = 230;
+const GAP_X = 76;
 const ROW_H = 34; // høyde på en utgang-rad («Funn» / «Ingen funn»)
 const PAD = 40;
+const WIRE_GAP = 9; // luft mellom node og forbindelseslinje
+
+// editorHeight: plassen redigeringen tar inne i noden når den er åpen.
+// Layouten er beregnet, så høyden må være kjent på forhånd.
+function editorHeight(node: { key: string; kind?: string }): number {
+  if (node.key.startsWith("step-")) return node.kind === "sql" ? 268 : 160;
+  if (node.key === "judge") return 236;
+  if (node.key === "mail") return 196;
+  if (node.key === "chart") return 262;
+  return 0;
+}
 
 type Tone = "start" | "step" | "judge" | "act" | "end";
 
@@ -45,6 +56,7 @@ interface FlowNode {
   sub?: string;
   tone: Tone;
   icon: typeof PlayCircleIcon;
+  kind?: string; // stegtype, styrer hvilke felt som redigeres
   rows?: string[]; // utganger tegnet som rader i noden
   x: number;
   y: number;
@@ -157,9 +169,10 @@ export default function AgentFlow({
         tone: "step",
         icon:
           s.kind === "sql" ? Database01Icon : s.kind === "web" ? Search01Icon : Globe02Icon,
+        kind: s.kind,
         x: colX(col++),
         y: midY,
-        h: 62,
+        h: 62 + (selected === `step-${i}` ? editorHeight({ key: `step-${i}`, kind: s.kind }) : 0),
         editable: true,
       });
       edges.push({ from: i === 0 ? "start" : `step-${i - 1}`, to: `step-${i}` });
@@ -167,7 +180,8 @@ export default function AgentFlow({
 
     const judgeX = colX(col++);
     const judgeRows = ["Funn", "Ingen funn"];
-    const judgeH = 62 + judgeRows.length * ROW_H + 10;
+    const judgeH =
+      62 + judgeRows.length * ROW_H + 10 + (selected === "judge" ? editorHeight({ key: "judge" }) : 0);
     nodes.push({
       key: "judge",
       title: "Vurder resultatet",
@@ -202,11 +216,11 @@ export default function AgentFlow({
         icon: actIcon[key] ?? Message01Icon,
         x: lastX,
         y: branchY,
-        h: sub ? 62 : 52,
+        h: (sub ? 62 : 52) + (selected === key ? editorHeight({ key }) : 0),
         editable,
       });
       edges.push({ from: "judge", to: key, port: 0 });
-      branchY += 78;
+      branchY += (sub ? 62 : 52) + 16 + (selected === key ? editorHeight({ key }) : 0);
     };
     act("notify", "Varsel i chatten", "melding");
     if (plan.mail) act("mail", "Send e-post", plan.mail.to_email, true);
@@ -224,9 +238,11 @@ export default function AgentFlow({
     edges.push({ from: "judge", to: "end", port: 1 });
 
     const width = lastX + NODE_W + PAD;
+    const minY = Math.min(...nodes.map((n) => n.y));
+    if (minY < PAD) for (const n of nodes) n.y += PAD - minY;
     const height = Math.max(...nodes.map((n) => n.y + n.h)) + PAD;
     return { nodes, edges, width, height };
-  }, [plan]);
+  }, [plan, selected]);
 
   if (!plan || (!plan.steps?.length && meta.status !== "ready")) {
     return (
@@ -258,19 +274,152 @@ export default function AgentFlow({
   const path = (e: { from: string; to: string; port?: number }) => {
     const a = byKey.get(e.from)!;
     const b = byKey.get(e.to)!;
-    const ax = a.x + NODE_W;
+    const ax = a.x + NODE_W + WIRE_GAP;
     const ay =
       e.port !== undefined && a.rows
         ? a.y + 62 + e.port * ROW_H + ROW_H / 2
         : a.y + a.h / 2;
-    const bx = b.x;
+    const bx = b.x - WIRE_GAP;
     const by = b.y + b.h / 2;
     const dx = Math.max(30, (bx - ax) / 2);
     return `M ${ax} ${ay} C ${ax + dx} ${ay}, ${bx - dx} ${by}, ${bx} ${by}`;
   };
 
-  const sel = selected ? byKey.get(selected) : null;
-  const stepIndex = sel?.key.startsWith("step-") ? Number(sel.key.slice(5)) : -1;
+  // nodeEditor: feltene som vises inne i noden når den er åpen.
+  const nodeEditor = (n: FlowNode) => {
+    if (n.key.startsWith("step-")) {
+      const i = Number(n.key.slice(5));
+      const s = plan.steps[i];
+      if (!s) return null;
+      return (
+        <>
+          <label className={styles.field}>
+            Navn
+            <input value={s.label} onChange={(e) => patchStep(i, { label: e.target.value })} />
+          </label>
+          {s.kind === "sql" && (
+            <label className={styles.field}>
+              Spørring
+              <textarea
+                rows={7}
+                value={s.sql ?? ""}
+                onChange={(e) => patchStep(i, { sql: e.target.value })}
+              />
+            </label>
+          )}
+          {s.kind === "web" && (
+            <label className={styles.field}>
+              Søk
+              <input
+                value={s.query ?? ""}
+                onChange={(e) => patchStep(i, { query: e.target.value })}
+              />
+            </label>
+          )}
+          {s.kind === "fetch" && (
+            <label className={styles.field}>
+              URL
+              <input
+                value={s.url ?? ""}
+                onChange={(e) => patchStep(i, { url: e.target.value })}
+              />
+            </label>
+          )}
+          <button
+            className={styles.remove}
+            onClick={() => {
+              patch({ steps: plan.steps.filter((_, j) => j !== i) });
+              setSelected(null);
+            }}
+          >
+            Fjern steget
+          </button>
+        </>
+      );
+    }
+    if (n.key === "judge") {
+      return (
+        <>
+          <label className={styles.field}>
+            Dette følges med på
+            <textarea
+              rows={3}
+              value={plan.watch}
+              onChange={(e) => patch({ watch: e.target.value })}
+            />
+          </label>
+          <label className={styles.field}>
+            Si fra når
+            <textarea
+              rows={3}
+              value={plan.alert_rule}
+              onChange={(e) => patch({ alert_rule: e.target.value })}
+            />
+          </label>
+        </>
+      );
+    }
+    if (n.key === "mail" && plan.mail) {
+      return (
+        <>
+          <label className={styles.field}>
+            Mottaker
+            <input
+              value={plan.mail.to_email}
+              onChange={(e) => patch({ mail: { ...plan.mail!, to_email: e.target.value } })}
+            />
+          </label>
+          <label className={styles.field}>
+            Emne
+            <input
+              value={plan.mail.subject}
+              onChange={(e) => patch({ mail: { ...plan.mail!, subject: e.target.value } })}
+            />
+          </label>
+          <button
+            className={styles.remove}
+            onClick={() => {
+              patch({ mail: null });
+              setSelected(null);
+            }}
+          >
+            Slutt å sende e-post
+          </button>
+        </>
+      );
+    }
+    if (n.key === "chart" && plan.chart) {
+      return (
+        <>
+          <label className={styles.field}>
+            Tittel
+            <input
+              value={plan.chart.title}
+              onChange={(e) => patch({ chart: { ...plan.chart!, title: e.target.value } })}
+            />
+          </label>
+          <label className={styles.field}>
+            Spørring
+            <textarea
+              rows={6}
+              value={plan.chart.sql}
+              onChange={(e) => patch({ chart: { ...plan.chart!, sql: e.target.value } })}
+            />
+          </label>
+          <button
+            className={styles.remove}
+            onClick={() => {
+              patch({ chart: null });
+              setSelected(null);
+            }}
+          >
+            Fjern grafen
+          </button>
+        </>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className={styles.flow}>
@@ -332,150 +481,17 @@ export default function AgentFlow({
                   {r}
                 </div>
               ))}
+              {selected === n.key && (
+                <div className={styles.editor} onClick={(e) => e.stopPropagation()}>
+                  {nodeEditor(n)}
+                </div>
+              )}
             </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Redigeringspanelet for valgt node. */}
-      {sel && (
-        <div className={styles.panel}>
-          <div className={styles.panelHead}>
-            {sel.title}
-            <button className={styles.close} onClick={() => setSelected(null)}>
-              ✕
-            </button>
-          </div>
-
-          {stepIndex >= 0 && plan.steps[stepIndex] && (
-            <>
-              <label className={styles.field}>
-                Navn
-                <input
-                  value={plan.steps[stepIndex].label}
-                  onChange={(e) => patchStep(stepIndex, { label: e.target.value })}
-                />
-              </label>
-              {plan.steps[stepIndex].kind === "sql" && (
-                <label className={styles.field}>
-                  Spørring
-                  <textarea
-                    rows={7}
-                    value={plan.steps[stepIndex].sql ?? ""}
-                    onChange={(e) => patchStep(stepIndex, { sql: e.target.value })}
-                  />
-                </label>
-              )}
-              {plan.steps[stepIndex].kind === "web" && (
-                <label className={styles.field}>
-                  Søk
-                  <input
-                    value={plan.steps[stepIndex].query ?? ""}
-                    onChange={(e) => patchStep(stepIndex, { query: e.target.value })}
-                  />
-                </label>
-              )}
-              {plan.steps[stepIndex].kind === "fetch" && (
-                <label className={styles.field}>
-                  URL
-                  <input
-                    value={plan.steps[stepIndex].url ?? ""}
-                    onChange={(e) => patchStep(stepIndex, { url: e.target.value })}
-                  />
-                </label>
-              )}
-              <button
-                className={styles.remove}
-                onClick={() => {
-                  patch({ steps: plan.steps.filter((_, j) => j !== stepIndex) });
-                  setSelected(null);
-                }}
-              >
-                Fjern steget
-              </button>
-            </>
-          )}
-
-          {sel.key === "judge" && (
-            <>
-              <label className={styles.field}>
-                Dette følges med på
-                <textarea
-                  rows={3}
-                  value={plan.watch}
-                  onChange={(e) => patch({ watch: e.target.value })}
-                />
-              </label>
-              <label className={styles.field}>
-                Si fra når
-                <textarea
-                  rows={3}
-                  value={plan.alert_rule}
-                  onChange={(e) => patch({ alert_rule: e.target.value })}
-                />
-              </label>
-            </>
-          )}
-
-          {sel.key === "mail" && plan.mail && (
-            <>
-              <label className={styles.field}>
-                Mottaker
-                <input
-                  value={plan.mail.to_email}
-                  onChange={(e) => patch({ mail: { ...plan.mail!, to_email: e.target.value } })}
-                />
-              </label>
-              <label className={styles.field}>
-                Emne
-                <input
-                  value={plan.mail.subject}
-                  onChange={(e) => patch({ mail: { ...plan.mail!, subject: e.target.value } })}
-                />
-              </label>
-              <button
-                className={styles.remove}
-                onClick={() => {
-                  patch({ mail: null });
-                  setSelected(null);
-                }}
-              >
-                Slutt å sende e-post
-              </button>
-            </>
-          )}
-
-          {sel.key === "chart" && plan.chart && (
-            <>
-              <label className={styles.field}>
-                Tittel
-                <input
-                  value={plan.chart.title}
-                  onChange={(e) => patch({ chart: { ...plan.chart!, title: e.target.value } })}
-                />
-              </label>
-              <label className={styles.field}>
-                Spørring
-                <textarea
-                  rows={6}
-                  value={plan.chart.sql}
-                  onChange={(e) => patch({ chart: { ...plan.chart!, sql: e.target.value } })}
-                />
-              </label>
-              <button
-                className={styles.remove}
-                onClick={() => {
-                  patch({ chart: null });
-                  setSelected(null);
-                }}
-              >
-                Fjern grafen
-              </button>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
