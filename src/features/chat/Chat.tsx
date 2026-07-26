@@ -191,18 +191,27 @@ const SLASH_ACTIONS: {
 // sendes per tur) som er i bruk — ikke hele samtalen, den klippes uansett.
 // Full ring = eldre historikk dekkes nå av samtalesammendraget.
 function ContextRing({ messages }: { messages: { content: string }[] }) {
+  // Klikk på ringen viser tokentallet ved siden av; nytt klikk skjuler det.
+  const [showCount, setShowCount] = useState(false);
   const chars = messages
     .slice(-HISTORY_WINDOW)
     .reduce((n, m) => n + m.content.length, 0);
   const frac = Math.min(1, chars / HISTORY_CHAR_BUDGET);
+  // Samme tommelfingerregel som resten av appen: ~3,5 tegn per token.
+  const tokens = Math.round(chars / 3.5);
   const R = 6;
   const C = 2 * Math.PI * R;
   const warn = frac > 0.8;
   return (
-    <span
+    <button
+      type="button"
       className={styles.ctxRing}
+      onClick={() => setShowCount((v) => !v)}
       title={`~${Math.round(frac * 100)} % av kontekstbudsjettet brukt${frac >= 1 ? " — eldre historikk dekkes av sammendraget" : ""}`}
     >
+      {showCount && (
+        <span className={styles.ctxCount}>~{formatTokens(tokens)} tokens</span>
+      )}
       <svg width="16" height="16" viewBox="0 0 16 16">
         <circle cx="8" cy="8" r={R} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
         <circle
@@ -213,7 +222,7 @@ function ContextRing({ messages }: { messages: { content: string }[] }) {
           transform="rotate(-90 8 8)"
         />
       </svg>
-    </span>
+    </button>
   );
 }
 
