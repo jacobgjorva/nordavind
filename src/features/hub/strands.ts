@@ -35,15 +35,21 @@ export function timeToX(ms: number, span: XSpan, now: number): number {
 
 // predictedRuns: forventede kjøretidspunkter i fremtidsvinduet, fra
 // next_run_at og utover med agentens intervall. Pausede spår ingenting.
+const predictCache = new Map<string, { ts: number; runs: number[] }>();
+
 export function predictedRuns(a: AgentInfo, now: number): number[] {
   if (!a.enabled || a.state === "paused" || !a.next_run_at || !a.interval_seconds) return [];
+  // Cache per agent i 5 s — strandY kalles per sample, prediksjonen er dyr.
+  const hit = predictCache.get(a.id);
+  if (hit && now - hit.ts < 5000) return hit.runs;
   const out: number[] = [];
   let t = Date.parse(a.next_run_at);
   const end = now + FUTURE_MS;
-  while (t <= end && out.length < 60) {
+  while (t <= end && out.length < 200) {
     if (t > now) out.push(t);
     t += a.interval_seconds * 1000;
   }
+  predictCache.set(a.id, { ts: now, runs: out });
   return out;
 }
 
@@ -137,20 +143,21 @@ export function strandY(
   const phase = (hash(s.agent.id) % 628) / 100;
   let y = s.laneY;
 
-  // Krusning per faktisk kjøring.
+  // Aktivitetskonvolutt: summer gaussene rundt hver kjøring (faktisk og
+  // predikert) og legg ÉN felles bærebølge oppå. Med separate sinuser per
+  // kjøring slo tette intervaller (15 min) hverandre i hjel — med felles
+  // bærebølge forsterker de hverandre og tette planer vises som jevn aktivitet.
+  let env = 0;
   for (const r of s.runs) {
-    const runX = timeToX(Date.parse(r.started_at), span, now);
-    const d = x - runX;
-    const env = Math.exp(-(d * d) / (2 * 8 * 8));
-    if (env > 0.02) y += Math.sin(d * 0.38 + phase) * 5.5 * env;
+    const d = x - timeToX(Date.parse(r.started_at), span, now);
+    env += Math.exp(-(d * d) / (2 * 8 * 8));
   }
-
-  // Samme krusning for predikerte kjøringer i fremtidsdelen.
   for (const ms of predictedRuns(s.agent, now)) {
-    const runX = timeToX(ms, span, now);
-    const d = x - runX;
-    const env = Math.exp(-(d * d) / (2 * 8 * 8));
-    if (env > 0.02) y += Math.sin(d * 0.38 + phase) * 5.5 * env;
+    const d = x - timeToX(ms, span, now);
+    env += Math.exp(-(d * d) / (2 * 8 * 8));
+  }
+  if (env > 0.02) {
+    y += Math.sin(x * 0.38 + phase) * 5.5 * Math.min(1, env);
   }
 
   // Kjører akkurat nå: rullende bølge rundt nå-linja.
