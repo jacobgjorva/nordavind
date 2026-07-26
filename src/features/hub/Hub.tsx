@@ -139,7 +139,7 @@ export default function Hub({
         ctx.strokeStyle = dim ? "#3a3b40" : s.color;
         strokeSegment(s, span.x0, nowX);
         ctx.strokeStyle = "#55565c";
-        ctx.globalAlpha = dim ? 0.4 : 0.55;
+        ctx.globalAlpha = dim ? 0.6 : 0.9; // samme dekkgrad som fortiden - gråfargen skiller
         strokeSegment(s, nowX, span.x1);
         ctx.globalAlpha = dim ? 0.6 : 0.9;
 
@@ -164,7 +164,7 @@ export default function Hub({
           ctx.lineWidth = 1.1;
         };
         for (const ms of predictedRuns(s.agent, now, hours)) {
-          glowTail(timeToX(ms, span, now, hours), "150,152,158", 0.35, 1);
+          glowTail(timeToX(ms, span, now, hours), "150,152,158", 0.35, 1.1);
         }
 
         // Navn ved venstre kant, på trådens bane.
