@@ -86,7 +86,7 @@ import {
 import { DEFAULT_MODEL, modelAlias, modelDesc, modelGlow } from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
-import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
+import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument, HISTORY_WINDOW, HISTORY_CHAR_BUDGET } from "./chatHelpers";
 import { FileTag } from "../../ui/FileTag";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
@@ -187,21 +187,31 @@ const SLASH_ACTIONS: {
   },
 ];
 
-// Kontekst-ring: fylles etter hvor mye av samtalens kontekstvindu som er
-// brukt (estimat: ~3,5 tegn per token mot modellens vindu). Ren indikasjon.
-const CONTEXT_TOKENS = 120_000;
-
+// Kontekst-ring: fylles etter hvor mye av kontekstBUDSJETTET (det som faktisk
+// sendes per tur) som er i bruk — ikke hele samtalen, den klippes uansett.
+// Full ring = eldre historikk dekkes nå av samtalesammendraget.
 function ContextRing({ messages }: { messages: { content: string }[] }) {
-  const chars = messages.reduce((n, m) => n + m.content.length, 0);
-  const frac = Math.min(1, chars / 3.5 / CONTEXT_TOKENS);
+  // Klikk på ringen viser tokentallet ved siden av; nytt klikk skjuler det.
+  const [showCount, setShowCount] = useState(false);
+  const chars = messages
+    .slice(-HISTORY_WINDOW)
+    .reduce((n, m) => n + m.content.length, 0);
+  const frac = Math.min(1, chars / HISTORY_CHAR_BUDGET);
+  // Samme tommelfingerregel som resten av appen: ~3,5 tegn per token.
+  const tokens = Math.round(chars / 3.5);
   const R = 6;
   const C = 2 * Math.PI * R;
   const warn = frac > 0.8;
   return (
-    <span
+    <button
+      type="button"
       className={styles.ctxRing}
-      title={`~${Math.round(frac * 100)} % av kontekstvinduet brukt`}
+      onClick={() => setShowCount((v) => !v)}
+      title={`~${Math.round(frac * 100)} % av kontekstbudsjettet brukt${frac >= 1 ? " — eldre historikk dekkes av sammendraget" : ""}`}
     >
+      {showCount && (
+        <span className={styles.ctxCount}>~{formatTokens(tokens)} tokens</span>
+      )}
       <svg width="16" height="16" viewBox="0 0 16 16">
         <circle cx="8" cy="8" r={R} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
         <circle
@@ -212,7 +222,7 @@ function ContextRing({ messages }: { messages: { content: string }[] }) {
           transform="rotate(-90 8 8)"
         />
       </svg>
-    </span>
+    </button>
   );
 }
 
@@ -1072,9 +1082,11 @@ export function Chat({
     // Presentasjons-tur: instruksen står aldri i chat-tråden. Modellen får kun
     // instruksen — hva som allerede ligger på lerretet henter backend fra
     // specen (deterministisk), ikke fra meldingshistorikken.
-    const history = deckTurn
-      ? [{ role: "user" as const, content: apiContent }]
+    const built = deckTurn
+      ? { history: [{ role: "user" as const, content: apiContent }], clipped: false }
       : buildHistory(messages, { role: "user", content: apiContent });
+    const history = built.history;
+    const historyClipped = built.clipped;
 
     // Widget-tur: svaret ER widgeten. På skapelsesturen settes blokka med én
     // gang så vind-animasjonen starter umiddelbart. Senere turer kan være ren
@@ -1215,6 +1227,10 @@ export function Chat({
               : undefined,
           widget: widgetEditRef.current ?? undefined,
           deck: deckCanvasRef.current ?? undefined,
+          // Sammendrags-kontrakten: backend injiserer samtalesammendraget
+          // når historikken er klippet mot tegnbudsjettet.
+          chatId: chatIdRef.current ?? undefined,
+          clipped: historyClipped,
         }
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.

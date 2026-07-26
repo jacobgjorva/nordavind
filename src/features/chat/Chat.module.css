@@ -1130,7 +1130,21 @@
 .ctxRing {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   opacity: 0.8;
+  /* Klikkbar (viser/skjuler tokentallet) — men skal se ut som før. */
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Tokentallet til venstre for ringen når den er klikket. */
+.ctxCount {
+  font-size: 11px;
+  color: var(--text-tertiary, #949494);
+  white-space: nowrap;
 }
 
 /* Tools-snarvei ved siden av bindersen — åpner slash-menyen. */
