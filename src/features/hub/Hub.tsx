@@ -114,14 +114,16 @@ export default function Hub({
         ctx.stroke();
       }
 
-      // Nå-linja: skillet mellom fasit og prediksjon.
+      // Nå-linja: stiplet, skillet mellom fasit og prediksjon.
       ctx.strokeStyle = NOW_COLOR;
       ctx.globalAlpha = 0.5;
       ctx.lineWidth = 1;
+      ctx.setLineDash([4, 5]);
       ctx.beginPath();
       ctx.moveTo(nowX, 104);
       ctx.lineTo(nowX, h - RULER_H - RULER_BOTTOM_GAP - 46);
       ctx.stroke();
+      ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
       // Tidslinjalen nederst: bånd med fine og grove hakk, klokkeslett, og
