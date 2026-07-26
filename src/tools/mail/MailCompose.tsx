@@ -58,10 +58,17 @@ function ChipRow({
   );
 }
 
+export interface ComposeAttachment {
+  id: string;
+  name: string;
+  rows?: number;
+}
+
 export interface ComposeSpec {
   to?: MailPerson[];
   subject?: string;
   body?: string;
+  attachments?: ComposeAttachment[];
 }
 
 // Redigerbart send-kort: mottaker forhåndsutfylt av AI-en, brukeren justerer og
@@ -84,7 +91,10 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
     const text = el?.innerText ?? "";
     const html = el?.innerHTML ?? "";
     try {
-      await sendMail({ to, cc, bcc: [], subject, body: text, body_html: html });
+      await sendMail({
+        to, cc, bcc: [], subject, body: text, body_html: html,
+        attachment_ids: (spec.attachments ?? []).map((a) => a.id),
+      });
       setSent(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sending feilet");
@@ -135,6 +145,16 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
         onInput={() => setEmpty(!(bodyRef.current?.innerText ?? "").trim())}
         dangerouslySetInnerHTML={{ __html: (spec.body ?? "").replace(/\n/g, "<br/>") }}
       />
+      {(spec.attachments ?? []).length > 0 && (
+        <div className={styles.attachRow}>
+          {(spec.attachments ?? []).map((a) => (
+            <span key={a.id} className={styles.attachChip}>
+              📎 {a.name}
+              {a.rows ? <span className={styles.attachMeta}> — {a.rows} rader</span> : null}
+            </span>
+          ))}
+        </div>
+      )}
       {error && <div className={styles.error}>{error}</div>}
       <div className={styles.toolbar}>
         <span className={styles.toolFont}>Inter</span>

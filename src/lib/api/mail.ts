@@ -15,6 +15,7 @@ export interface SendMailPayload {
   in_reply_to?: string;
   references?: string;
   body_html?: string;
+  attachment_ids?: string[];
 }
 
 export async function sendMail(p: SendMailPayload): Promise<void> {
