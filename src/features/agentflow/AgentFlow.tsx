@@ -206,7 +206,7 @@ export default function AgentFlow({
         kind: s.kind,
         x: colX(col++),
         y: midY,
-        h: 62 + (selected === `step-${i}` ? editorHeight({ key: `step-${i}`, kind: s.kind }) : 0),
+        h: 78 + (selected === `step-${i}` ? editorHeight({ key: `step-${i}`, kind: s.kind }) : 0),
         editable: true,
       });
       edges.push({ from: i === 0 ? "start" : `step-${i - 1}`, to: `step-${i}` });
@@ -215,7 +215,7 @@ export default function AgentFlow({
     const judgeX = colX(col++);
     const judgeRows = ["Funn", "Ingen funn"];
     const judgeH =
-      62 + judgeRows.length * ROW_H + 10 + (selected === "judge" ? editorHeight({ key: "judge" }) : 0);
+      66 + judgeRows.length * ROW_H + 10 + (selected === "judge" ? editorHeight({ key: "judge" }) : 0);
     nodes.push({
       key: "judge",
       title: "Vurder resultatet",
@@ -311,7 +311,7 @@ export default function AgentFlow({
     const ax = a.x + NODE_W + WIRE_GAP;
     const ay =
       e.port !== undefined && a.rows
-        ? a.y + 62 + e.port * ROW_H + ROW_H / 2
+        ? a.y + 66 + e.port * ROW_H + ROW_H / 2
         : a.y + a.h / 2;
     const bx = b.x - WIRE_GAP;
     const by = b.y + b.h / 2;

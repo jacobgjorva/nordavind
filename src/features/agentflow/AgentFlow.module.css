@@ -140,7 +140,7 @@
 
 .nodeHead {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
@@ -183,9 +183,12 @@
   font-size: 13px;
   color: #eaeae6;
   font-weight: 550;
-  white-space: nowrap;
+  line-height: 1.3;
+  /* To linjer: ellers ser steg med lang, lik forstavelse identiske ut. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .nodeSub {
