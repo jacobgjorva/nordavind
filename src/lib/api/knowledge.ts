@@ -15,9 +15,35 @@ export async function fetchPendingNodes(): Promise<KnowledgeNode[]> {
   return data.nodes ?? [];
 }
 
+export interface GraphNode {
+  id: string;
+  type: string;
+  title: string;
+  summary: string;
+  created_at: string;
+  hits: number;
+  last_hit_at?: string;
+}
+
+export interface GraphEdge {
+  from_id: string;
+  to_id: string;
+  relation: string;
+}
+
 export interface GraphData {
-  nodes: { id: string; type: string; title: string; summary: string }[];
-  edges: { from_id: string; to_id: string; relation: string }[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+// Kobler to noder i graf-editoren.
+export async function createEdge(e: GraphEdge): Promise<void> {
+  await apiFetch(`/knowledge/edges`, { method: "POST", body: e });
+}
+
+// Fjerner en kant i graf-editoren.
+export async function removeEdge(e: GraphEdge): Promise<void> {
+  await apiFetch(`/knowledge/edges/delete`, { method: "POST", body: e });
 }
 
 // Henter kunnskapsgrafen (aksepterte noder + kanter) til visualisering.
