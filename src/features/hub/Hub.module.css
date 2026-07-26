@@ -1,8 +1,10 @@
-/* Agent-grafen ligger som fullskjerms-lag over appen; chatten består under. */
+/* Agent-grafen fyller hovedflaten ved siden av den globale sidebaren;
+   chatten består montert (skjult) under så en pågående stream ikke dør. */
 .hub {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
   background: #0c0d10;
 }
 

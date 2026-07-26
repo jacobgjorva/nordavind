@@ -249,29 +249,35 @@ export default function App() {
       />
       {/* AdminUserContext: admin-panelene i chatten trenger innlogget bruker-id. */}
       <div className={styles.main}>
-        <Chat
-          key={session.key}
-          userRole={user.role}
-          chatId={session.chatId}
-          onStartAgent={startAgent}
-          initialTitle={
-            session.chatId
-              ? chats.find((c) => c.id === session.chatId)?.title ?? null
-              : null
+        {/* Chatten forblir montert (skjult) når grafen vises — en pågående
+            stream skal ikke dø av navigasjon. Sidebaren er global. */}
+        <div
+          className={
+            view === "hub" ? styles.chatWrapHidden : styles.chatWrap
           }
-          onChatCreated={onChatCreated}
-          onTitleGenerated={() => {
-            fetchChats().then(setChats).catch(swallow);
-          }}
-        />
+        >
+          <Chat
+            key={session.key}
+            userRole={user.role}
+            chatId={session.chatId}
+            onStartAgent={startAgent}
+            initialTitle={
+              session.chatId
+                ? chats.find((c) => c.id === session.chatId)?.title ?? null
+                : null
+            }
+            onChatCreated={onChatCreated}
+            onTitleGenerated={() => {
+              fetchChats().then(setChats).catch(swallow);
+            }}
+          />
+        </div>
+        {view === "hub" && (
+          <Suspense fallback={null}>
+            <Hub onClose={closeHub} onOpenChat={openChat} />
+          </Suspense>
+        )}
       </div>
-      {view === "hub" && (
-        <Suspense fallback={null}>
-          {/* Overlay, ikke bytte av hovedvisning: en pågående chat-stream
-              under skal ikke dø. */}
-          <Hub onClose={closeHub} onOpenChat={openChat} />
-        </Suspense>
-      )}
       {view === "settings" && (
         <div className={styles.settingsOverlay} onClick={closeSettings}>
           <div
