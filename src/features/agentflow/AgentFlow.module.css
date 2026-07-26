@@ -152,24 +152,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #10110f;
-}
-
-.icon_start,
-.icon_end {
-  background: #7fe3b4;
-}
-
-.icon_step {
-  background: #8f9df0;
-}
-
-.icon_judge {
-  background: #f2e05a;
-}
-
-.icon_act {
-  background: #7fb0e3;
 }
 
 .nodeText {

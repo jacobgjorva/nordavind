@@ -24,6 +24,7 @@ import {
   type PlanStep,
 } from "../../lib/api";
 import { ApiError } from "../../lib/api/client";
+import { AVATAR_COLORS } from "../../ui/avatar";
 import styles from "./AgentFlow.module.css";
 
 // Frekvensene Start-noden tilbyr. Minimum er 15 min, som i backend.
@@ -63,6 +64,16 @@ function editorHeight(node: { key: string; kind?: string }): number {
 }
 
 type Tone = "start" | "step" | "judge" | "act" | "end";
+
+// Fargene kommer fra den delte paletten (mail-avatar, filopplasting) —
+// [bakgrunn, ikonfarge], så flyten snakker samme visuelle språk som resten.
+const TONE_COLOR: Record<Tone, [string, string]> = {
+  start: AVATAR_COLORS[2], // grønn
+  step: AVATAR_COLORS[0], // blå
+  judge: AVATAR_COLORS[4], // gul
+  act: AVATAR_COLORS[6], // lilla
+  end: AVATAR_COLORS[5], // rosa
+};
 
 interface FlowNode {
   key: string;
@@ -531,7 +542,13 @@ export default function AgentFlow({
               onClick={() => n.editable && setSelected(selected === n.key ? null : n.key)}
             >
               <div className={styles.nodeHead}>
-                <span className={`${styles.icon} ${styles[`icon_${n.tone}`]}`}>
+                <span
+                  className={styles.icon}
+                  style={{
+                    background: TONE_COLOR[n.tone][0],
+                    color: TONE_COLOR[n.tone][1],
+                  }}
+                >
                   <HugeiconsIcon icon={n.icon} size={15} strokeWidth={2} />
                 </span>
                 <span className={styles.nodeText}>
