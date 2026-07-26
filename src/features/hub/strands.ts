@@ -24,32 +24,34 @@ export function computeSpan(width: number): XSpan {
   return { x0, x1: Math.max(x0 + 120, width - margin) };
 }
 
-// Tidsvindu: 24 timer bakover og 24 timer frem — «nå» står i midten.
-export const PAST_MS = 24 * 3600 * 1000;
-export const FUTURE_MS = 24 * 3600 * 1000;
+// Tidsvindu: like mye bakover som frem — «nå» står i midten. Brukeren
+// velger vidden (±1t, ±6t, ±12t, ±24t).
+export const WINDOW_CHOICES = [1, 6, 12, 24] as const;
 
-// timeToX mapper et tidspunkt inn i spennet.
-export function timeToX(ms: number, span: XSpan, now: number): number {
-  return span.x0 + ((ms - (now - PAST_MS)) / (PAST_MS + FUTURE_MS)) * (span.x1 - span.x0);
+// timeToX mapper et tidspunkt inn i spennet for et gitt vindu (timer).
+export function timeToX(ms: number, span: XSpan, now: number, hours: number): number {
+  const half = hours * 3600 * 1000;
+  return span.x0 + ((ms - (now - half)) / (half * 2)) * (span.x1 - span.x0);
 }
 
 // predictedRuns: forventede kjøretidspunkter i fremtidsvinduet, fra
 // next_run_at og utover med agentens intervall. Pausede spår ingenting.
 const predictCache = new Map<string, { ts: number; runs: number[] }>();
 
-export function predictedRuns(a: AgentInfo, now: number): number[] {
+export function predictedRuns(a: AgentInfo, now: number, hours: number): number[] {
   if (!a.enabled || a.state === "paused" || !a.next_run_at || !a.interval_seconds) return [];
-  // Cache per agent i 5 s — strandY kalles per sample, prediksjonen er dyr.
-  const hit = predictCache.get(a.id);
+  // Cache per agent+vindu i 5 s — strandY kalles per sample, prediksjonen er dyr.
+  const key = `${a.id}:${hours}`;
+  const hit = predictCache.get(key);
   if (hit && now - hit.ts < 5000) return hit.runs;
   const out: number[] = [];
   let t = Date.parse(a.next_run_at);
-  const end = now + FUTURE_MS;
+  const end = now + hours * 3600 * 1000;
   while (t <= end && out.length < 200) {
     if (t > now) out.push(t);
     t += a.interval_seconds * 1000;
   }
-  predictCache.set(a.id, { ts: now, runs: out });
+  predictCache.set(key, { ts: now, runs: out });
   return out;
 }
 
@@ -138,7 +140,8 @@ export function strandY(
   x: number,
   span: XSpan,
   now: number,
-  t: number
+  t: number,
+  hours: number
 ): number {
   const phase = (hash(s.agent.id) % 628) / 100;
   let y = s.laneY;
@@ -149,11 +152,11 @@ export function strandY(
   // bærebølge forsterker de hverandre og tette planer vises som jevn aktivitet.
   let env = 0;
   for (const r of s.runs) {
-    const d = x - timeToX(Date.parse(r.started_at), span, now);
+    const d = x - timeToX(Date.parse(r.started_at), span, now, hours);
     env += Math.exp(-(d * d) / (2 * 8 * 8));
   }
-  for (const ms of predictedRuns(s.agent, now)) {
-    const d = x - timeToX(ms, span, now);
+  for (const ms of predictedRuns(s.agent, now, hours)) {
+    const d = x - timeToX(ms, span, now, hours);
     env += Math.exp(-(d * d) / (2 * 8 * 8));
   }
   if (env > 0.02) {
@@ -163,7 +166,7 @@ export function strandY(
   // Kjører akkurat nå: rullende bølge rundt nå-linja.
   const state = s.agent.state;
   if (state === "working" || state === "thinking") {
-    const d = x - timeToX(now, span, now);
+    const d = x - timeToX(now, span, now, hours);
     const env = Math.exp(-(d * d) / (2 * 34 * 34));
     y += Math.sin(x * 0.12 - t * 2.4 + phase) * 6 * env;
   }

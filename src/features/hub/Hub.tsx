@@ -20,6 +20,7 @@ import {
   predictedRuns,
   strandY,
   timeToX,
+  WINDOW_CHOICES,
   type Strand,
 } from "./strands";
 import styles from "./Hub.module.css";
@@ -51,6 +52,13 @@ export default function Hub({
   // Ekspandert svar-pille (agentId + started_at); null = alle kollapset.
   const [expanded, setExpanded] = useState<string | null>(null);
   const [, setTick] = useState(0); // re-render ved poll så pillene følger tiden
+  // Tidsvindu (±timer), husket mellom økter.
+  const [windowHours, setWindowHours] = useState(() => {
+    const saved = Number(localStorage.getItem("hub-window") ?? 24);
+    return (WINDOW_CHOICES as readonly number[]).includes(saved) ? saved : 24;
+  });
+  const windowRef = useRef(windowHours);
+  windowRef.current = windowHours;
 
   // Render-løkke: FPS-tak, stopp når fanen er skjult.
   useEffect(() => {
@@ -87,26 +95,34 @@ export default function Hub({
       ctx.clearRect(0, 0, w, h);
       const span = computeSpan(w);
 
-      // Tidsakse: markører hver 6. time, fortid og fremtid; «nå» i midten.
+      // Tidsakse: markørtetthet følger vinduet; «nå» i midten.
+      const hours = windowRef.current;
+      const stepH = { 1: 0.25, 6: 1, 12: 3, 24: 6 }[hours] ?? 6;
       ctx.font = "500 10px system-ui, sans-serif";
       ctx.textAlign = "center";
-      for (let off = -24; off <= 24; off += 6) {
-        const x = timeToX(now + off * 3600 * 1000, span, now);
-        ctx.strokeStyle = off === 0 ? "rgba(226,226,222,0.22)" : "rgba(226,226,222,0.07)";
+      for (let off = -hours; off <= hours + 0.001; off += stepH) {
+        const x = timeToX(now + off * 3600 * 1000, span, now, hours);
+        const isNow = Math.abs(off) < 0.001;
+        ctx.strokeStyle = isNow ? "rgba(226,226,222,0.22)" : "rgba(226,226,222,0.07)";
         ctx.beginPath();
         ctx.moveTo(x, 54);
         ctx.lineTo(x, h - 20);
         ctx.stroke();
-        ctx.fillStyle = off === 0 ? "rgba(226,226,222,0.6)" : "rgba(226,226,222,0.35)";
-        ctx.fillText(off === 0 ? "nå" : `${off > 0 ? "+" : ""}${off}t`, x, 46);
+        ctx.fillStyle = isNow ? "rgba(226,226,222,0.6)" : "rgba(226,226,222,0.35)";
+        const label = isNow
+          ? "nå"
+          : stepH < 1
+            ? `${off > 0 ? "+" : ""}${Math.round(off * 60)}m`
+            : `${off > 0 ? "+" : ""}${Math.round(off)}t`;
+        ctx.fillText(label, x, 46);
       }
-      const nowX = timeToX(now, span, now);
+      const nowX = timeToX(now, span, now, hours);
 
       // Tegner en trådstrekning [fra, til] med gjeldende strokeStyle.
       const strokeSegment = (s: Strand, from: number, to: number) => {
         ctx.beginPath();
         for (let x = from; x <= to; x += 2) {
-          const y = strandY(s, x, span, now, t);
+          const y = strandY(s, x, span, now, t, hours);
           if (x === from) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
@@ -147,8 +163,8 @@ export default function Hub({
           if (to > from) strokeSegment(s, from, to);
           ctx.lineWidth = 1.1;
         };
-        for (const ms of predictedRuns(s.agent, now)) {
-          glowTail(timeToX(ms, span, now), "150,152,158", 0.35, 1);
+        for (const ms of predictedRuns(s.agent, now, hours)) {
+          glowTail(timeToX(ms, span, now, hours), "150,152,158", 0.35, 1);
         }
 
         // Navn ved venstre kant, på trådens bane.
@@ -178,7 +194,7 @@ export default function Hub({
     let alive = true;
     const load = () => {
       if (document.hidden) return;
-      Promise.all([fetchAgents(), fetchAgentRuns(24)])
+      Promise.all([fetchAgents(), fetchAgentRuns(Math.max(1, windowHours))])
         .then(([list, runs]: [AgentInfo[], AgentRunEvent[]]) => {
           if (!alive) return;
           setAgents(list);
@@ -195,7 +211,7 @@ export default function Hub({
       alive = false;
       clearInterval(iv);
     };
-  }, []);
+  }, [windowHours]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -263,7 +279,7 @@ export default function Hub({
         return s.runs
           .map((r) => {
             if (!r.alert) return null; // kun funn vises som pille
-            const x = timeToX(Date.parse(r.started_at), pillSpan, pillNow) + 10;
+            const x = timeToX(Date.parse(r.started_at), pillSpan, pillNow, windowHours) + 10;
             if (x < pillSpan.x0 + 10 || x > pillSpan.x1 - 10) return null;
             const key = `${s.agent.id}:${r.started_at}`;
             return {
@@ -340,6 +356,22 @@ export default function Hub({
         <span className={styles.count}>
           {agents.length} {agents.length === 1 ? "agent" : "agenter"} - siste døgn
         </span>
+        <div className={styles.rangePicker}>
+          {WINDOW_CHOICES.map((hrs) => (
+            <button
+              key={hrs}
+              className={`${styles.rangeBtn} ${
+                windowHours === hrs ? styles.rangeBtnActive : ""
+              }`}
+              onClick={() => {
+                setWindowHours(hrs);
+                localStorage.setItem("hub-window", String(hrs));
+              }}
+            >
+              ±{hrs}t
+            </button>
+          ))}
+        </div>
         <button className={styles.close} onClick={onClose} title="Lukk (Esc)">
           ✕
         </button>

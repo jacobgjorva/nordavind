@@ -225,3 +225,30 @@
   padding: 1px 6px;
   color: #d8d8d4;
 }
+
+/* Vindu-velgeren i topplinja. */
+.rangePicker {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.rangeBtn {
+  border: none;
+  background: transparent;
+  color: #8a8a90;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rangeBtn:hover {
+  background: rgba(48, 48, 54, 0.6);
+}
+
+.rangeBtnActive {
+  background: #202020;
+  color: #e6e6e2;
+}
