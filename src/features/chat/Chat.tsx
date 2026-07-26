@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
+import { DeckCanvas } from "../../tools/deck/DeckCanvas";
 import { TableQueryContext } from "./blocks/core";
 
 // Flyt-visningen lazy-lastes: den er kun for agent-chatter.
@@ -315,6 +316,10 @@ export function Chat({
   const [widgets, setWidgets] = useState<Widget[]>([]);
   // Satt til en slug mens en widget bygges/redigeres i denne samtalen.
   const widgetEditRef = useRef<string | null>(null);
+  // Åpent presentasjons-lerret: instrukser går stille til agenten som patcher
+  // decket, og canvaset henter specen på nytt selv.
+  const [deckCanvas, setDeckCanvas] = useState<string | null>(null);
+  const deckCanvasRef = useRef<string | null>(null);
   // True etter et bart /widget: neste melding blir widget-beskrivelsen.
   const widgetPendingRef = useRef(false);
 
@@ -540,9 +545,21 @@ export function Chat({
   // Satt etter «Hva skal vi koble til?» — neste melding intent-ruters
   // deterministisk (M365 rett til OAuth, databaser til agenten).
   const pendingConnectRef = useRef(false);
-  const hasMessages = messages.length > 0;
+  // Åpent lerret teller som samtale i gang: composeren skal ligge nederst,
+  // ikke sentrert under presentasjonen.
+  const hasMessages = messages.length > 0 || deckCanvas !== null;
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Kortet i chatten åpner presentasjonen på lerretet igjen.
+  useEffect(
+    () =>
+      on("deck-open", (slug) => {
+        deckCanvasRef.current = slug;
+        setDeckCanvas(slug);
+      }),
+    []
+  );
 
   // Zoom/vindusendring endrer scrollHeight — juster tekstfeltet på nytt.
   useEffect(() => {
@@ -1020,6 +1037,10 @@ export function Chat({
       ? "```widget\n" + widgetTurnSlug + "\n```"
       : "";
     const presetWidget = !!widgetTurnSlug && buildingWidget;
+    // Presentasjons-tur: lerretet ER svaret. Instruksen utføres stille, uten
+    // assistentboble i chatten.
+    const deckTurn = deckCanvasRef.current;
+    if (deckTurn) emit("deck-working", deckTurn);
 
     const userMsgId = nextId();
     const replyId = nextId();
@@ -1093,6 +1114,15 @@ export function Chat({
             }
           }
           if (delta.widgetUpdated) widgetTouched = true;
+          if (delta.deckUpdated) {
+            // Første patch oppretter decket: åpne lerretet med en gang.
+            if (!deckCanvasRef.current) {
+              deckCanvasRef.current = delta.deckUpdated;
+              setDeckCanvas(delta.deckUpdated);
+            }
+            emit("deck-updated", delta.deckUpdated);
+            reloadWidgets();
+          }
           if (delta.m365Auth) {
             setAuthUrl(delta.m365Auth);
             window.open(delta.m365Auth, "_blank", "width=520,height=680");
@@ -1113,7 +1143,7 @@ export function Chat({
           // Forhåndssatt widget-blokk: ikke rør svaret — animasjonen står til
           // data er klar. Senere widget-turer streamer som vanlig og avgjøres
           // ved slutt (widget vs. tekstsvar).
-          if (presetWidget) return;
+          if (presetWidget || deckTurn) return;
           update(replyId, {
             loading: !acc && !think && steps.length === 0,
             content: acc,
@@ -1135,11 +1165,15 @@ export function Chat({
               ? agent.id
               : undefined,
           widget: widgetEditRef.current ?? undefined,
+          deck: deckCanvasRef.current ?? undefined,
         }
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
       // Ren prat («Takk») får modellens tekstsvar i stedet for en ny widget.
-      if (widgetTurnSlug) {
+      if (deckTurn) {
+        // Lerretet viser resultatet; chatten holder kun en kort kvittering.
+        update(replyId, { loading: false, streaming: false, content: acc || "Ok." });
+      } else if (widgetTurnSlug) {
         if (presetWidget || widgetTouched) {
           acc = widgetBlock;
           update(replyId, { loading: false, streaming: false, content: widgetBlock, revealed: true });
@@ -1403,6 +1437,15 @@ export function Chat({
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
     <div className={styles.chatRoot}>
+      {deckCanvas && (
+        <DeckCanvas
+          slug={deckCanvas}
+          onClose={() => {
+            setDeckCanvas(null);
+            deckCanvasRef.current = null;
+          }}
+        />
+      )}
       {dragging && (
         <div className={styles.dropOverlay}>
           <div className={styles.dropHint}>

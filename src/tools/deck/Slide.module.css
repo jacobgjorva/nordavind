@@ -1,0 +1,608 @@
+/* Kit «noir» — svart lerret, stor hvit sans-typografi, mono-caps detaljer.
+   All typografi i cqw så sliden ser identisk ut i preview, canvas og
+   fullskjerm. */
+
+.slide {
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--dk-bg, #000);
+  color: var(--dk-text, #fff);
+  overflow: hidden;
+  font-family: var(--dk-sans, "Helvetica Neue", Helvetica, Arial, sans-serif);
+}
+
+.footer {
+  position: absolute;
+  left: 3cqw;
+  right: 3cqw;
+  bottom: 2cqw;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--dk-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 1.05cqw;
+  letter-spacing: 0.14em;
+  color: var(--dk-faint, rgba(255, 255, 255, 0.45));
+  pointer-events: none;
+}
+
+/* Bakgrunnsbilde: full-bleed + mørk skygge så teksten alltid er lesbar. */
+.bgImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bgShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.25),
+    rgba(0, 0, 0, 0.45)
+  );
+}
+
+/* title «Big»: gigantisk sans-tittel nesten kant til kant, sentrert litt over
+   midten, med rolig undertittel under. */
+.centerBlock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 3cqw 6cqw;
+}
+
+.monoTitle {
+  font-size: 7.2cqw;
+  line-height: 1.05;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  max-width: 94cqw;
+}
+
+.centerSub {
+  margin-top: 2cqw;
+  font-size: 2cqw;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+/* statement: sitat-slide — serif-tekst i sentrert blokk, litt over midten. */
+.statement {
+  position: absolute;
+  left: 21cqw;
+  right: 19cqw;
+  top: 44%;
+  transform: translateY(-50%);
+}
+
+.statementText {
+  font-family: var(--dk-serif, Georgia, "Times New Roman", serif);
+  font-size: 2.35cqw;
+  line-height: 1.28;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+}
+
+.statementText p {
+  margin: 0 0 1.2cqw;
+}
+
+/* Overskrift øverst til venstre (chart/table/bullets/kpis). */
+.heading {
+  position: absolute;
+  top: 3cqw;
+  left: 3cqw;
+  font-size: 2.6cqw;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+
+.bullets {
+  position: absolute;
+  top: 11cqw;
+  left: 5cqw;
+  right: 14cqw;
+  font-size: 2.6cqw;
+  line-height: 1.5;
+  font-weight: 450;
+}
+
+.bullets ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.bullets li {
+  margin-bottom: 0.9cqw;
+}
+
+/* split: graf oppe til høyre, tekst nede til venstre. */
+.splitViz {
+  position: absolute;
+  top: 3cqw;
+  right: 3cqw;
+  width: 48cqw;
+}
+
+.splitText {
+  position: absolute;
+  left: 5cqw;
+  bottom: 9cqw;
+  right: 54cqw;
+  font-size: 3.2cqw;
+  line-height: 1.25;
+  font-weight: 500;
+}
+
+.splitText p {
+  margin: 0 0 0.8cqw;
+}
+
+.splitText ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+/* chart: grafen fyller flaten under overskriften. */
+.chartArea {
+  position: absolute;
+  top: 8cqw;
+  left: 2cqw;
+  right: 2cqw;
+  bottom: 4cqw;
+}
+
+.viz {
+  width: 100%;
+  height: 100%;
+}
+
+.axis {
+  font-family: var(--dk-sans, "Helvetica Neue", Helvetica, Arial, sans-serif);
+  font-size: 13px;
+  fill: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+.barVal {
+  font-family: var(--dk-sans, "Helvetica Neue", Helvetica, Arial, sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pieLabel {
+  font-family: var(--dk-sans, "Helvetica Neue", Helvetica, Arial, sans-serif);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.emptyViz {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3cqw;
+  color: var(--dk-faint, rgba(255, 255, 255, 0.45));
+}
+
+/* kpis: rad med store nøkkeltall. */
+.kpiRow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5cqw;
+  right: 5cqw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3cqw;
+}
+
+.kpi {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpiLabel {
+  font-size: 1.1cqw;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+  margin-bottom: 0.9cqw;
+}
+
+.kpiValue {
+  font-size: 4.4cqw;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.kpiUnit {
+  font-size: 1.8cqw;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+/* table: regnskaps-stil. */
+.tableWrap {
+  position: absolute;
+  top: 9cqw;
+  left: 5cqw;
+  right: 5cqw;
+  bottom: 5cqw;
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.55cqw;
+}
+
+.table th {
+  font-size: 1.1cqw;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+  text-align: right;
+  padding: 0.9cqw 1.2cqw;
+  border-bottom: 1px solid var(--dk-muted, rgba(255, 255, 255, 0.4));
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table td {
+  text-align: right;
+  padding: 0.85cqw 1.2cqw;
+  border-bottom: 1px solid var(--dk-line, rgba(255, 255, 255, 0.12));
+  font-variant-numeric: tabular-nums;
+}
+
+.keyRow td {
+  font-weight: 650;
+  border-top: 1px solid var(--dk-muted, rgba(255, 255, 255, 0.45));
+}
+
+/* prose: redaksjonell tekstside — meta oppe til venstre, seksjonsetikett,
+   brødtekst i to kolonner. */
+.proseMeta {
+  position: absolute;
+  top: 2.2cqw;
+  left: 2.2cqw;
+  max-width: 15cqw;
+  font-size: 0.85cqw;
+  line-height: 1.35;
+  color: var(--dk-text, #fff);
+  opacity: 0.9;
+}
+
+.proseLabel {
+  position: absolute;
+  top: 2.2cqw;
+  left: 25cqw;
+  font-size: 0.85cqw;
+  color: var(--dk-text, #fff);
+  opacity: 0.9;
+}
+
+/* Kolonnene fyller IKKE hele bredden — høyre ~28 % står tom (som referansen).
+   Stram linjeavstand, tydelig luft mellom avsnitt. */
+.proseBody {
+  position: absolute;
+  top: 7cqw;
+  left: 25cqw;
+  width: 50cqw;
+  bottom: 4cqw;
+  column-count: 2;
+  column-gap: 4.5cqw;
+  font-size: 1.15cqw;
+  line-height: 1.32;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  overflow: hidden;
+}
+
+.proseBody p {
+  margin: 0 0 1.32em;
+}
+
+/* Signatur: fet navnelinje, rolle-linjer under i samme lille grad. */
+.proseBody strong {
+  display: block;
+  font-size: 0.92cqw;
+  font-weight: 700;
+  margin-top: 0.6cqw;
+}
+
+.proseBody p:last-child {
+  font-size: 0.92cqw;
+  line-height: 1.4;
+}
+
+/* contents: innholdsfortegnelse — nummerert liste i stor sans. */
+.tocList {
+  position: absolute;
+  top: 7cqw;
+  left: 25cqw;
+  right: 5cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1cqw;
+}
+
+.tocItem {
+  display: flex;
+  gap: 2.6cqw;
+  font-size: 3.4cqw;
+  line-height: 1.15;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+}
+
+.tocNum {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* section: kapittelåpner — fullbleed bilde, tittel + nummer oppe til venstre. */
+.sectionBlock {
+  position: absolute;
+  top: 10cqw;
+  left: 3.5cqw;
+}
+
+.sectionTitle {
+  font-size: 5.6cqw;
+  line-height: 1.05;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+}
+
+.sectionNum {
+  font-size: 5.6cqw;
+  line-height: 1.05;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  margin-top: 0.8cqw;
+}
+
+/* quote: som statement, med attribusjon under. */
+.quoteAuthor {
+  margin-top: 2.4cqw;
+  font-family: var(--dk-sans, "Helvetica Neue", Helvetica, Arial, sans-serif);
+  font-size: 1.05cqw;
+  font-weight: 700;
+}
+
+/* figure: innrammet bilde venstre, serif-beskrivelse høyre, caption nede. */
+.figureImg {
+  position: absolute;
+  top: 5.5cqw;
+  left: 2.8cqw;
+  width: 48cqw;
+  height: 43cqw;
+  object-fit: cover;
+  border: 0.15cqw solid var(--dk-text, #fff);
+}
+
+.figureText {
+  position: absolute;
+  top: 5.5cqw;
+  left: 60cqw;
+  right: 16cqw;
+}
+
+.figureText .statementText {
+  font-size: 1.35cqw;
+  line-height: 1.35;
+}
+
+.figureCaption {
+  position: absolute;
+  right: 5cqw;
+  bottom: 5cqw;
+  max-width: 24cqw;
+  font-size: 0.85cqw;
+  line-height: 1.4;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+/* image: stort bilde mot høyre, caption i venstre marg. */
+.imageMain {
+  position: absolute;
+  top: 6.5cqw;
+  left: 26cqw;
+  right: 2.5cqw;
+  bottom: 6cqw;
+  width: calc(100% - 28.5cqw);
+  height: calc(100% - 12.5cqw);
+  object-fit: cover;
+}
+
+.imageCaption {
+  position: absolute;
+  top: 6.5cqw;
+  left: 2.8cqw;
+  max-width: 16cqw;
+  font-size: 0.85cqw;
+  line-height: 1.4;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+.imageCaption p {
+  margin: 0;
+}
+
+.imageCaptionTitle {
+  font-weight: 700;
+  color: var(--dk-text, #fff);
+}
+
+/* image-lg: stort sentrert bilde som blør mot bunnen, caption i høyre marg. */
+.imageLg {
+  position: absolute;
+  top: 6.5cqw;
+  left: 26cqw;
+  width: 48cqw;
+  height: calc(100% - 6.5cqw);
+  object-fit: cover;
+}
+
+.imageLgCaption {
+  position: absolute;
+  top: 6.5cqw;
+  left: 81cqw;
+  right: 3cqw;
+  font-size: 0.85cqw;
+  line-height: 1.4;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+.imageLgCaption p {
+  margin: 0;
+}
+
+/* images: stort bilde venstre, lite oppe til høyre, caption nede til høyre. */
+.imagesBig {
+  position: absolute;
+  top: 7.5cqw;
+  left: 2.8cqw;
+  width: 52cqw;
+  height: 42cqw;
+  object-fit: cover;
+}
+
+.imagesSmall {
+  position: absolute;
+  top: 7.5cqw;
+  left: 63cqw;
+  width: 31cqw;
+  height: 19cqw;
+  object-fit: cover;
+}
+
+/* images-caption: helt nede i høyre hjørne så den aldri treffer bildene. */
+.imagesCaption {
+  position: absolute;
+  right: 3cqw;
+  bottom: 3cqw;
+  max-width: 16cqw;
+  font-size: 0.85cqw;
+  line-height: 1.4;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+}
+
+.imagesCaption p {
+  margin: 0;
+}
+
+/* text: venstrestilte avsnitt i medium stor sans. */
+.textBlock {
+  position: absolute;
+  top: 9.5cqw;
+  left: 2.8cqw;
+  width: 62cqw;
+  font-size: 2cqw;
+  line-height: 1.35;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+}
+
+.textBlock p {
+  margin: 0 0 1.9cqw;
+}
+
+.textBlock a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.3cqw;
+}
+
+/* chart: tittel under meta, grafen fyller resten av flaten. */
+.chartHeading {
+  position: absolute;
+  top: 5.5cqw;
+  left: 2.8cqw;
+  font-size: 2.3cqw;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+
+.chartArea {
+  top: 11cqw;
+  left: 2.2cqw;
+  right: 2.2cqw;
+  bottom: 3cqw;
+}
+
+/* chart-duo: to grafer side ved side med liten tittel under hver. */
+.duoRow {
+  position: absolute;
+  top: 11cqw;
+  left: 4cqw;
+  right: 4cqw;
+  bottom: 3cqw;
+  display: flex;
+  gap: 6cqw;
+}
+
+.duoCell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.duoViz {
+  position: relative;
+  flex: 1;
+}
+
+.duoViz .viz {
+  position: absolute;
+  inset: 0;
+}
+
+.duoTitle {
+  text-align: center;
+  font-size: 1.15cqw;
+  color: var(--dk-muted, rgba(255, 255, 255, 0.6));
+  padding-top: 0.8cqw;
+}
+
+/* Inline-redigering: brukeren dobbeltklikker et felt og skriver rett i
+   sliden. Markeringen er diskret — den skal ikke forstyrre designet. */
+.editable {
+  cursor: text;
+  border-radius: 2px;
+  transition: box-shadow 0.12s ease;
+}
+.editable:hover {
+  box-shadow: 0 0 0 1px var(--dk-line, rgba(255, 255, 255, 0.12));
+}
+.editing {
+  position: relative;
+}
+.editArea {
+  width: 100%;
+  min-height: 1.2em;
+  padding: 0;
+  border: 0;
+  outline: 1px solid var(--dk-line, rgba(255, 255, 255, 0.25));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  resize: none;
+  field-sizing: content;
+}

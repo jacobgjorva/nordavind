@@ -14,6 +14,7 @@ import {
 import { emit } from "../../lib/events";
 import { AVATAR_COLORS, avatarColor, initials } from "../../ui/avatar";
 import { UsageChart } from "../../features/settings/UsageChart";
+import { DeckCard } from "../deck/DeckCard";
 import { WidgetControls } from "./WidgetControls";
 import { applyControls, autoFilters, hasControls, initialState } from "./controlsLogic";
 import styles from "./WidgetView.module.css";
@@ -544,7 +545,12 @@ export function WidgetView({ slug }: { slug: string }) {
           <WidgetSkeleton />
         ) : (
           <div className={wasRevealed ? "" : styles.reveal}>
-            <InteractiveCard c={ready.spec} data={ready.data} accent={avatarColor(slug)[0]} />
+            {ready.spec.type === "deck" ? (
+              // Presentasjon: kortet i chatten, lerretet åpnes derfra.
+              <DeckCard c={ready.spec} slug={slug} />
+            ) : (
+              <InteractiveCard c={ready.spec} data={ready.data} accent={avatarColor(slug)[0]} />
+            )}
             <div className={styles.saveBar}>
               <span className={styles.saveHint}>{saved ? `/${slug}` : ""}</span>
               <span className={styles.barActions}>
