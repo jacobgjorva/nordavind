@@ -115,7 +115,7 @@ export default function Hub({
       for (const s of strandsRef.current) {
         const state = s.agent.state ?? "sleeping";
         const dim = state === "paused";
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = 1.1;
         ctx.globalAlpha = dim ? 0.6 : 0.9;
 
         // Fortid i kategorifarge, fremtid i grått — prediksjon, ikke fasit.
@@ -144,7 +144,7 @@ export default function Hub({
           const from = Math.max(span.x0, runX);
           const to = Math.min(span.x1, runX + len);
           if (to > from) strokeSegment(s, from, to);
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = 1.1;
         };
         for (const ms of predictedRuns(s.agent, now)) {
           glowTail(timeToX(ms, span, now), "150,152,158", 0.35, 1);
