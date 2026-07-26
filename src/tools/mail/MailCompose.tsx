@@ -23,6 +23,16 @@ function ChipRow({
   onAdd: (addr: string) => void;
 }) {
   const [draft, setDraft] = useState("");
+  // Utkastet blir chip ved Enter/komma/mellomrom/Tab OG når feltet mister
+  // fokus — brukere trykker sjelden Enter, og adressen må aldri bli liggende
+  // som løs tekst med deaktivert Send-knapp.
+  function commit() {
+    const addr = draft.trim().replace(/,$/, "");
+    if (addr && addr.includes("@")) {
+      onAdd(addr);
+      setDraft("");
+    }
+  }
   return (
     <div className={styles.recipRow}>
       <span className={styles.recipLabel}>{FIELD_LABEL[f]}</span>
@@ -47,12 +57,12 @@ function ChipRow({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && draft.trim()) {
+            if ((e.key === "Enter" || e.key === "," || e.key === " " || e.key === "Tab") && draft.trim()) {
               e.preventDefault();
-              onAdd(draft.trim());
-              setDraft("");
+              commit();
             }
           }}
+          onBlur={commit}
         />
       </div>
     </div>
