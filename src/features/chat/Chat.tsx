@@ -11,7 +11,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Analytics01Icon,
   ChartRelationshipIcon,
-  WorkflowSquare01Icon,
+  Structure04Icon,
   DashboardSpeed01Icon,
   Database01Icon,
   AnonymousIcon,
@@ -1462,16 +1462,6 @@ export function Chat({
           {agent && (
             <button
               className={styles.agentPause}
-              onClick={() => setShowFlow(true)}
-              title="Se og rediger agentens flyt"
-              aria-label="Agentflyt"
-            >
-              <HugeiconsIcon icon={WorkflowSquare01Icon} size={19} strokeWidth={1.8} />
-            </button>
-          )}
-          {agent && (
-            <button
-              className={styles.agentPause}
               onClick={toggleAgentPause}
               title={agent.enabled ? "Sett agenten på pause" : "Gjenoppta agenten"}
               aria-label={agent.enabled ? "Pause agent" : "Gjenoppta agent"}
@@ -1528,6 +1518,16 @@ export function Chat({
                   strokeLinecap="round"
                 />
               </svg>
+            </button>
+          )}
+          {agent && (
+            <button
+              className={styles.agentPause}
+              onClick={() => setShowFlow(true)}
+              title="Se og rediger agentens flyt"
+              aria-label="Agentflyt"
+            >
+              <HugeiconsIcon icon={Structure04Icon} size={18} strokeWidth={1.8} />
             </button>
           )}
           {agent && (

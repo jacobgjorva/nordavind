@@ -18,6 +18,7 @@ import {
   computeSpan,
   layoutStrands,
   predictedRuns,
+  RULER_H,
   strandY,
   timeToX,
   WINDOW_CHOICES,
@@ -95,28 +96,73 @@ export default function Hub({
       ctx.clearRect(0, 0, w, h);
       const span = computeSpan(w);
 
-      // Tidsakse: markørtetthet følger vinduet; «nå» i midten.
       const hours = windowRef.current;
-      const stepH = { 1: 0.25, 6: 1, 12: 3, 24: 6 }[hours] ?? 6;
+      const nowX = timeToX(now, span, now, hours);
+
+      // Tynne loddrette hjelpelinjer i selve grafen — diskrete, linjalen
+      // nederst bærer tidsavlesningen.
+      const majorH = { 1: 0.25, 6: 1, 12: 3, 24: 6 }[hours] ?? 6;
+      for (let off = -hours; off <= hours + 0.001; off += majorH) {
+        const x = timeToX(now + off * 3600 * 1000, span, now, hours);
+        ctx.strokeStyle = "rgba(226,226,222,0.05)";
+        ctx.beginPath();
+        ctx.moveTo(x, 30);
+        ctx.lineTo(x, h - RULER_H - 16);
+        ctx.stroke();
+      }
+
+      // Tidslinjalen nederst: bånd med fine og grove hakk, klokkeslett, og
+      // «nå» som et varmt segment — inspirert av en filmstrip-scrubber.
+      const rulerTop = h - RULER_H;
+      const barY = rulerTop + 16;
+      const barH = 15;
+      const bar = ctx.createLinearGradient(span.x0, 0, span.x1, 0);
+      bar.addColorStop(0, "#1a1b1f");
+      bar.addColorStop(0.5, "#2c2d33");
+      bar.addColorStop(1, "#1a1b1f");
+      ctx.fillStyle = bar;
+      ctx.fillRect(span.x0, barY, span.x1 - span.x0, barH);
+
+      // Fine hakk under båndet.
+      const minorH = majorH / (hours === 1 ? 3 : 6);
+      for (let off = -hours; off <= hours + 0.001; off += minorH) {
+        const x = timeToX(now + off * 3600 * 1000, span, now, hours);
+        ctx.strokeStyle = "rgba(226,226,222,0.28)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, barY + barH + 2);
+        ctx.lineTo(x, barY + barH + 6);
+        ctx.stroke();
+      }
+
+      // Grove hakk gjennom båndet + klokkeslett over.
       ctx.font = "500 10px system-ui, sans-serif";
       ctx.textAlign = "center";
-      for (let off = -hours; off <= hours + 0.001; off += stepH) {
-        const x = timeToX(now + off * 3600 * 1000, span, now, hours);
-        const isNow = Math.abs(off) < 0.001;
-        ctx.strokeStyle = isNow ? "rgba(226,226,222,0.22)" : "rgba(226,226,222,0.07)";
+      for (let off = -hours; off <= hours + 0.001; off += majorH) {
+        const t0 = now + off * 3600 * 1000;
+        const x = timeToX(t0, span, now, hours);
+        ctx.strokeStyle = "rgba(232,232,228,0.75)";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(x, 54);
-        ctx.lineTo(x, h - 20);
+        ctx.moveTo(x, barY - 3);
+        ctx.lineTo(x, barY + barH + 3);
         ctx.stroke();
-        ctx.fillStyle = isNow ? "rgba(226,226,222,0.6)" : "rgba(226,226,222,0.35)";
-        const label = isNow
-          ? "nå"
-          : stepH < 1
-            ? `${off > 0 ? "+" : ""}${Math.round(off * 60)}m`
-            : `${off > 0 ? "+" : ""}${Math.round(off)}t`;
-        ctx.fillText(label, x, 46);
+        const d = new Date(t0);
+        const label = `${String(d.getHours()).padStart(2, "0")}:${String(
+          d.getMinutes()
+        ).padStart(2, "0")}`;
+        ctx.fillStyle = "rgba(226,226,222,0.5)";
+        ctx.fillText(label, x, barY - 8);
       }
-      const nowX = timeToX(now, span, now, hours);
+
+      // «Nå»: varmt segment i båndet med etikett.
+      const nowW = 7;
+      ctx.fillStyle = "#f2e39a";
+      ctx.fillRect(nowX - nowW / 2, barY - 3, nowW, barH + 6);
+      ctx.fillStyle = "#f2e39a";
+      ctx.font = "600 10px system-ui, sans-serif";
+      ctx.fillText("nå", nowX, barY + barH + 18);
+      ctx.lineWidth = 1;
 
       // Tegner en trådstrekning [fra, til] med gjeldende strokeStyle.
       const strokeSegment = (s: Strand, from: number, to: number) => {
@@ -359,9 +405,8 @@ export default function Hub({
       </div>
 
       <div className={styles.topBar}>
-        <span className={styles.title}>Agenter</span>
         <span className={styles.count}>
-          {agents.length} {agents.length === 1 ? "agent" : "agenter"} - siste døgn
+          {agents.length} {agents.length === 1 ? "agent" : "agenter"}
         </span>
         <div className={styles.rangePicker}>
           {WINDOW_CHOICES.map((hrs) => (
@@ -379,9 +424,6 @@ export default function Hub({
             </button>
           ))}
         </div>
-        <button className={styles.close} onClick={onClose} title="Lukk (Esc)">
-          ✕
-        </button>
       </div>
 
       {selected && (
