@@ -170,7 +170,9 @@ export default function Hub({
       // «Nå»: varmt segment i båndet med etikett.
       const nowW = 7;
       ctx.fillStyle = NOW_COLOR;
-      ctx.fillRect(nowX - nowW / 2, barY - 3, nowW, barH + 6);
+      ctx.beginPath();
+      ctx.roundRect(nowX - nowW / 2, barY - 3, nowW, barH + 6, nowW / 2);
+      ctx.fill();
       ctx.fillStyle = NOW_COLOR;
       ctx.font = "600 10px system-ui, sans-serif";
       ctx.fillText("nå", nowX, barY + barH + 18);
