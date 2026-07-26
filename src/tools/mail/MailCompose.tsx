@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { TelegramIcon } from "@hugeicons/core-free-icons";
 import { sendMail, type MailPerson } from "../../lib/api";
@@ -72,17 +72,21 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
   const [to, setTo] = useState<MailPerson[]>(spec.to ?? []);
   const [cc, setCc] = useState<MailPerson[]>([]);
   const [subject, setSubject] = useState(spec.subject ?? "");
-  const [body, setBody] = useState(spec.body ?? "");
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [empty, setEmpty] = useState(!(spec.body ?? "").trim());
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function send() {
-    if (sending || sent || to.length === 0) return;
+    if (sending || sent || to.length === 0 || empty) return;
     setSending(true);
     setError(null);
+    const el = bodyRef.current;
+    const text = el?.innerText ?? "";
+    const html = el?.innerHTML ?? "";
     try {
-      await sendMail({ to, cc, bcc: [], subject, body });
+      await sendMail({ to, cc, bcc: [], subject, body: text, body_html: html });
       setSent(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sending feilet");
@@ -121,20 +125,49 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
         onChange={(e) => setSubject(e.target.value)}
         placeholder="Emne"
       />
-      <textarea
-        className={styles.draft}
-        value={body}
-        rows={2}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Skriv meldingen …"
+      <div
+        ref={bodyRef}
+        className={styles.editor}
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder="Skriv meldingen …"
+        onInput={() => setEmpty(!(bodyRef.current?.innerText ?? "").trim())}
+        dangerouslySetInnerHTML={{ __html: (spec.body ?? "").replace(/\n/g, "<br/>") }}
       />
       {error && <div className={styles.error}>{error}</div>}
-      <div className={styles.sendRow}>
+      <div className={styles.toolbar}>
+        <span className={styles.toolFont}>Inter</span>
+        <select
+          className={styles.toolSize}
+          defaultValue="3"
+          onChange={(e) => document.execCommand("fontSize", false, e.target.value)}
+        >
+          <option value="2">12px</option>
+          <option value="3">14px</option>
+          <option value="4">16px</option>
+        </select>
+        <label className={styles.toolColor} title="Tekstfarge">
+          <input
+            type="color"
+            defaultValue="#eeeeee"
+            onChange={(e) => document.execCommand("foreColor", false, e.target.value)}
+          />
+        </label>
+        <span className={styles.toolGroup}>
+          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("bold"); }}><b>B</b></button>
+          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("italic"); }}><i>I</i></button>
+          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("underline"); }}><u>U</u></button>
+        </span>
+        <span className={styles.toolGroup}>
+          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("justifyLeft"); }}>⯇</button>
+          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("justifyCenter"); }}>☰</button>
+          <button className={styles.toolBtn} onMouseDown={(e) => { e.preventDefault(); document.execCommand("justifyRight"); }}>⯈</button>
+        </span>
         <span className={styles.sigNote}>Signatur legges til automatisk</span>
         <button
           className={styles.sendBtn}
           onClick={send}
-          disabled={sending || to.length === 0 || !body.trim()}
+          disabled={sending || to.length === 0 || empty}
           title="Send"
           aria-label="Send"
         >
