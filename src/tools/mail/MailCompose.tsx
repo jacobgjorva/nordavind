@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { sendMail, type MailPerson } from "../../lib/api";
+import { apiFetch, BASE_URL, getToken, sendMail, type MailPerson } from "../../lib/api";
 import { avatarColor, initials as avatarInitials } from "../../ui/avatar";
 import styles from "./MailCompose.module.css";
 
@@ -58,6 +58,19 @@ function ChipRow({
   );
 }
 
+async function downloadAttachment(id: string, name: string) {
+  const resp = await fetch(`${BASE_URL}/mail/attachments/${id}?format=xlsx`, {
+    headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+  });
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export interface ComposeAttachment {
   id: string;
   name: string;
@@ -82,6 +95,24 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ name: string; columns: string[]; rows: string[][] } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  async function togglePreview(id: string) {
+    if (previewOpen) {
+      setPreviewOpen(false);
+      return;
+    }
+    if (!preview) {
+      try {
+        setPreview(await apiFetch(`/mail/attachments/${id}`));
+      } catch {
+        setError("Fikk ikke hentet forhåndsvisningen.");
+        return;
+      }
+    }
+    setPreviewOpen(true);
+  }
 
   async function send() {
     if (sending || sent || to.length === 0 || empty) return;
@@ -148,11 +179,32 @@ export function MailCompose({ spec }: { spec: ComposeSpec }) {
       {(spec.attachments ?? []).length > 0 && (
         <div className={styles.attachRow}>
           {(spec.attachments ?? []).map((a) => (
-            <span key={a.id} className={styles.attachChip}>
+            <button key={a.id} className={styles.attachChip} onClick={() => togglePreview(a.id)} title="Klikk for forhåndsvisning">
               📎 {a.name}
               {a.rows ? <span className={styles.attachMeta}> — {a.rows} rader</span> : null}
-            </span>
+            </button>
           ))}
+        </div>
+      )}
+      {previewOpen && preview && (
+        <div className={styles.previewBox}>
+          <div className={styles.previewHead}>
+            <span>{preview.name} — {preview.rows.length} rader</span>
+            <button className={styles.previewDl} onClick={() => downloadAttachment((spec.attachments ?? [])[0]?.id ?? "", preview.name)}>
+              Last ned
+            </button>
+          </div>
+          <div className={styles.previewScroll}>
+            <table className={styles.previewTable}>
+              <thead><tr>{preview.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+              <tbody>
+                {preview.rows.slice(0, 50).map((r, i) => (
+                  <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+            {preview.rows.length > 50 && <div className={styles.previewMore}>… og {preview.rows.length - 50} rader til i fila</div>}
+          </div>
         </div>
       )}
       {error && <div className={styles.error}>{error}</div>}
