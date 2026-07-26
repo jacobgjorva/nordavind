@@ -5,8 +5,10 @@
 import type { AgentInfo, AgentRunEvent } from "../../lib/api";
 import { avatarColor } from "../../ui/avatar";
 
-export const PAD_TOP = 64;
-export const PAD_BOTTOM = 32;
+export const PAD_TOP = 56;
+// Plass til tidslinjalen som ligger nederst på skjermen.
+export const RULER_H = 62;
+export const PAD_BOTTOM = RULER_H + 24;
 
 // XSpan er grafens horisontale utstrekning — en sentrert kolonne, ikke full
 // bredde. Navnene står rett til venstre for x0.
