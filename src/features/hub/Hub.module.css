@@ -36,6 +36,8 @@
   color: #8a8a90;
 }
 
+/* Vindu-velgeren står alene til høyre nå som tittel og lukk er borte. */
+
 .close {
   margin-left: auto;
   pointer-events: auto;

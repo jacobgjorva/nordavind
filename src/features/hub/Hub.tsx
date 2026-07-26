@@ -359,9 +359,8 @@ export default function Hub({
       </div>
 
       <div className={styles.topBar}>
-        <span className={styles.title}>Agenter</span>
         <span className={styles.count}>
-          {agents.length} {agents.length === 1 ? "agent" : "agenter"} - siste døgn
+          {agents.length} {agents.length === 1 ? "agent" : "agenter"}
         </span>
         <div className={styles.rangePicker}>
           {WINDOW_CHOICES.map((hrs) => (
@@ -379,9 +378,6 @@ export default function Hub({
             </button>
           ))}
         </div>
-        <button className={styles.close} onClick={onClose} title="Lukk (Esc)">
-          ✕
-        </button>
       </div>
 
       {selected && (
