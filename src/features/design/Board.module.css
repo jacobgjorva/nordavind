@@ -32,6 +32,9 @@
 /* Ett dokument: flatene stablet under hverandre, som et ark-sett. */
 .doc {
   position: absolute;
+  /* Ingen tekstmarkering på rammen — den skal dras, ikke selekteres.
+     Feltene som faktisk redigeres slår den på igjen. */
+  user-select: none;
   /* Taggen henger over rammen og skal ikke klippes bort. */
   overflow: visible;
   display: flex;
@@ -61,6 +64,12 @@
 
 .tag:hover {
   color: var(--text, #eee);
+}
+
+/* Feltet som redigeres skal kunne markeres som vanlig tekst. */
+.doc [contenteditable="true"],
+.doc textarea {
+  user-select: text;
 }
 
 .tag:focus {

@@ -28,6 +28,11 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   const boardRef = useRef<BoardHandle>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // itemsRef speiler listen så flytting kan oppdatere posisjonen uten å
+  // utløse en render (se move).
+  const itemsRef = useRef<BoardItem[]>([]);
+  itemsRef.current = items;
+
   const load = useCallback(
     () => fetchBoard(chatId).then(setItems).catch(() => undefined),
     [chatId]
@@ -71,8 +76,16 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
     patchDesignMeta(slug, { title }).catch(load);
   };
 
+  // Flytting: DOM-en står allerede der brukeren slapp rammen, så React-state
+  // røres IKKE her — en re-render av boardet ville gitt et synlig hakk i det
+  // øyeblikket man slipper. Posisjonen lagres, og listen holdes i takt via
+  // ref-en som brukes ved neste henting.
   const move = (slug: string, pos: { x: number; y: number }) => {
-    setItems((prev) => prev.map((it) => (it.slug === slug ? { ...it, ...pos } : it)));
+    const it = itemsRef.current.find((i) => i.slug === slug);
+    if (it) {
+      it.x = pos.x;
+      it.y = pos.y;
+    }
     moveDocument(chatId, slug, pos).catch(load);
   };
 

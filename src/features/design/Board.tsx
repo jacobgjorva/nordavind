@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { memo, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import type { BoardItem } from "../../lib/api";
 import { Surface } from "../../tools/design/Surface";
 import { resolveTheme, type Kit, type Theme } from "../../tools/design/kit";
@@ -29,6 +29,89 @@ export interface BoardHandle {
   /** Flytt visningen så dokumentet står midt i vinduet. */
   focus: (slug: string) => void;
 }
+
+// DocFrame er memoisert: uten dette rendrer ETT flyttet dokument alle de
+// andre på nytt — med grafer og tekst — og slippet føles tregt.
+const DocFrame = memo(function DocFrame({
+  item,
+  theme,
+  selected,
+  busy,
+  onEdit,
+  onRename,
+}: {
+  item: BoardItem;
+  theme: Theme;
+  selected: boolean;
+  busy: boolean;
+  onEdit: (slug: string, surfaceId: string, field: string, value: string) => void;
+  onRename: (slug: string, title: string) => void;
+}) {
+  const h = docHeight(theme);
+  const surfaces = item.spec?.surfaces ?? [];
+  return (
+    <div
+      data-slug={item.slug}
+      className={`${styles.doc} ${selected ? styles.docSelected : ""} ${
+        busy ? styles.docBusy : ""
+      }`}
+      style={{ left: item.x, top: item.y, width: DOC_W }}
+    >
+      {/* Navnetaggen er også håndtaket: hold og dra her for å flytte rammen,
+          dobbeltklikk for å døpe den om. */}
+      <div
+        data-drag
+        className={styles.tag}
+        onDoubleClick={(ev) => {
+          const el = ev.currentTarget;
+          el.contentEditable = "true";
+          el.focus();
+          document.getSelection()?.selectAllChildren(el);
+        }}
+        onBlur={(ev) => {
+          const el = ev.currentTarget;
+          el.contentEditable = "false";
+          const name = (el.textContent ?? "").trim();
+          if (name && name !== item.title) onRename(item.slug, name);
+          else el.textContent = item.title;
+        }}
+        onKeyDown={(ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            ev.currentTarget.blur();
+          }
+          if (ev.key === "Escape") {
+            ev.currentTarget.textContent = item.title;
+            ev.currentTarget.blur();
+          }
+        }}
+        suppressContentEditableWarning
+      >
+        {item.title}
+      </div>
+      {surfaces.length === 0 ? (
+        <div className={styles.docEmpty} style={{ height: h }}>
+          Tomt
+        </div>
+      ) : (
+        surfaces.map((s) => (
+          <div key={s.id} className={styles.surface} style={{ height: h }}>
+            <Surface
+              s={s}
+              theme={theme}
+              brand={item.spec?.title}
+              edit={
+                selected
+                  ? (field, value) => onEdit(item.slug, s.id, field, value)
+                  : undefined
+              }
+            />
+          </div>
+        ))
+      )}
+    </div>
+  );
+});
 
 export function Board({
   ref,
@@ -293,74 +376,17 @@ export function Board({
       onPointerCancel={endPointer}
     >
       <div ref={worldRef} className={styles.world}>
-        {items.map((it) => {
-          const theme = themeOf(it);
-          const h = docHeight(theme);
-          const surfaces = it.spec?.surfaces ?? [];
-          return (
-            <div
-              key={it.slug}
-              data-slug={it.slug}
-              className={`${styles.doc} ${
-                selected === it.slug ? styles.docSelected : ""
-              } ${busySlug === it.slug ? styles.docBusy : ""}`}
-              style={{ left: it.x, top: it.y, width: DOC_W }}
-            >
-              {/* Navnetaggen er også håndtaket: hold og dra her for å flytte
-                  rammen, dobbeltklikk for å døpe den om. */}
-              <div
-                data-drag
-                className={styles.tag}
-                onDoubleClick={(ev) => {
-                  const el = ev.currentTarget;
-                  el.contentEditable = "true";
-                  el.focus();
-                  document.getSelection()?.selectAllChildren(el);
-                }}
-                onBlur={(ev) => {
-                  const el = ev.currentTarget;
-                  el.contentEditable = "false";
-                  const name = (el.textContent ?? "").trim();
-                  if (name && name !== it.title) onRename(it.slug, name);
-                  else el.textContent = it.title;
-                }}
-                onKeyDown={(ev) => {
-                  if (ev.key === "Enter") {
-                    ev.preventDefault();
-                    ev.currentTarget.blur();
-                  }
-                  if (ev.key === "Escape") {
-                    ev.currentTarget.textContent = it.title;
-                    ev.currentTarget.blur();
-                  }
-                }}
-                suppressContentEditableWarning
-              >
-                {it.title}
-              </div>
-              {surfaces.length === 0 ? (
-                <div className={styles.docEmpty} style={{ height: h }}>
-                  Tomt
-                </div>
-              ) : (
-                surfaces.map((s) => (
-                  <div key={s.id} className={styles.surface} style={{ height: h }}>
-                    <Surface
-                      s={s}
-                      theme={theme}
-                      brand={it.spec?.title}
-                      edit={
-                        selected === it.slug
-                          ? (field, value) => onEdit(it.slug, s.id, field, value)
-                          : undefined
-                      }
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          );
-        })}
+        {items.map((it) => (
+          <DocFrame
+            key={it.slug}
+            item={it}
+            theme={themeOf(it)}
+            selected={selected === it.slug}
+            busy={busySlug === it.slug}
+            onEdit={onEdit}
+            onRename={onRename}
+          />
+        ))}
       </div>
     </div>
   );
