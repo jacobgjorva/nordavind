@@ -1,14 +1,31 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Chat } from "../features/chat/Chat";
 
+// Lazy-lastede sider. Etter en deploy er de gamle chunk-filene borte, og en
+// fane som fortsatt kjører forrige bygg vil feile på importen. Da laster vi
+// siden på nytt ÉN gang i stedet for å vise feilskjermen.
+function freshChunk<T>(load: () => Promise<T>): () => Promise<T> {
+  return () =>
+    load().catch((err) => {
+      const key = "nv-chunk-reload";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+      throw err;
+    });
+}
+
 // Agent-grafen lazy-lastes så den ikke belaster chat-bundelen.
-const Hub = lazy(() => import("../features/hub/Hub"));
+const Hub = lazy(freshChunk(() => import("../features/hub/Hub")));
 // Designsiden lastes først når noen faktisk lager noe — den drar med seg
 // hele rendreren og grafprimitivene.
-const DesignWorkspace = lazy(() =>
-  import("../features/design/DesignWorkspace").then((m) => ({
-    default: m.DesignWorkspace,
-  }))
+const DesignWorkspace = lazy(
+  freshChunk(() =>
+    import("../features/design/DesignWorkspace").then((m) => ({
+      default: m.DesignWorkspace,
+    }))
+  )
 );
 import { Login } from "../features/auth/Login";
 import { M365Onboarding } from "../features/auth/M365Onboarding";
