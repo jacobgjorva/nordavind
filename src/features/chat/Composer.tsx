@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Attachment01Icon, FlashIcon } from "@hugeicons/core-free-icons";
 import type { AnonymousIcon } from "@hugeicons/core-free-icons";
@@ -85,6 +85,7 @@ export function Composer({
   right?: ReactNode;
 }) {
   const slashOpen = (slashItems?.length ?? 0) > 0;
+  const mirrorRef = useRef<HTMLDivElement>(null);
   return (
     <div className={styles.composer}>
       {/* @-nevninger tegnes som piller i selve feltet. En textarea kan ikke
@@ -92,7 +93,7 @@ export function Composer({
           typografi; teksten i feltet er gjennomsiktig, markøren er ikke. */}
       <div className={styles.inputRow}>
         <div className={styles.inputStack}>
-          <div className={styles.highlight} aria-hidden>
+          <div ref={mirrorRef} className={styles.highlight} aria-hidden>
             {renderMentions(value)}
           </div>
           <textarea
@@ -104,6 +105,12 @@ export function Composer({
             onChange={onChange}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
+            onScroll={(e) => {
+              // Feltet kan rulle når meldingen blir lang; speilet må følge
+              // med, ellers havner pillene på feil linje.
+              if (mirrorRef.current)
+                mirrorRef.current.scrollTop = e.currentTarget.scrollTop;
+            }}
             autoFocus
           />
         </div>
