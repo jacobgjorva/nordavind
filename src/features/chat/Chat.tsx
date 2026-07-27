@@ -103,6 +103,7 @@ interface ChatStep {
 // Stegtype → ikon. Holdes i takt med kind-konstantene i backendens narrate.go.
 const STEP_ICONS: Record<string, typeof Database01Icon> = {
   db: Database01Icon,
+  web: SearchIcon,
   table: Analytics01Icon,
   file: Files01Icon,
   mail: Mail01Icon,
