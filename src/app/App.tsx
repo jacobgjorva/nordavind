@@ -265,12 +265,19 @@ export default function App() {
     }
   }, []);
   useEffect(() => {
-    const fromPath = () =>
-      window.location.pathname === "/agents"
-        ? "hub"
-        : window.location.pathname === "/graf"
-          ? "graph"
-          : "chat";
+    const fromPath = () => {
+      const p = window.location.pathname;
+      if (p === "/agents") return "hub" as const;
+      if (p === "/graf") return "graph" as const;
+      // /design/<chat-id>: arbeidsområdet overlever en refresh.
+      const m = /^\/design\/([a-z0-9]+)$/i.exec(p);
+      if (m) {
+        setDesignChat(m[1]);
+        setActiveChatId(m[1]);
+        return "design" as const;
+      }
+      return "chat" as const;
+    };
     setView((v) => (fromPath() === "chat" ? v : fromPath()));
     const onPop = () => setView(fromPath());
     window.addEventListener("popstate", onPop);
@@ -281,11 +288,17 @@ export default function App() {
   // brukeren gikk tilbake til chatten, og en refresh landet i grafen igjen.
   useEffect(() => {
     const want =
-      view === "hub" ? "/agents" : view === "graph" ? "/graf" : "/";
+      view === "hub"
+        ? "/agents"
+        : view === "graph"
+          ? "/graf"
+          : view === "design" && designChat
+            ? `/design/${designChat}`
+            : "/";
     if (window.location.pathname !== want) {
       window.history.replaceState({}, "", want);
     }
-  }, [view]);
+  }, [view, designChat]);
 
   // Esc lukker settings-overlayet.
   useEffect(() => {
