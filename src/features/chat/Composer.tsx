@@ -16,6 +16,28 @@ export interface SlashItem {
   tag?: string;
 }
 
+// mentionRe må speile backend (internal/api/brain.go) slik at det brukeren
+// SER markert er nøyaktig det hjernen slår opp.
+const mentionRe = /@([\p{L}][\p{L}0-9.-]*(?: [\p{L}][\p{L}0-9.-]*)?)/gu;
+
+// renderMentions deler teksten i vanlige biter og nevninger.
+function renderMentions(text: string) {
+  const out: React.ReactNode[] = [];
+  let at = 0;
+  for (const m of text.matchAll(mentionRe)) {
+    const i = m.index ?? 0;
+    if (i > at) out.push(text.slice(at, i));
+    out.push(
+      <span key={i} className={styles.mention}>
+        {m[0]}
+      </span>
+    );
+    at = i + m[0].length;
+  }
+  out.push(text.slice(at));
+  return out;
+}
+
 export function Composer({
   value,
   onChange,
@@ -65,18 +87,26 @@ export function Composer({
   const slashOpen = (slashItems?.length ?? 0) > 0;
   return (
     <div className={styles.composer}>
+      {/* @-nevninger tegnes som piller i selve feltet. En textarea kan ikke
+          style deler av teksten, så et speilende lag ligger bak med samme
+          typografi; teksten i feltet er gjennomsiktig, markøren er ikke. */}
       <div className={styles.inputRow}>
-        <textarea
-          ref={textareaRef}
-          className={styles.input}
-          rows={1}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-          autoFocus
-        />
+        <div className={styles.inputStack}>
+          <div className={styles.highlight} aria-hidden>
+            {renderMentions(value)}
+          </div>
+          <textarea
+            ref={textareaRef}
+            className={`${styles.input} ${styles.inputOverlay}`}
+            rows={1}
+            placeholder={placeholder}
+            value={value}
+            onChange={onChange}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            autoFocus
+          />
+        </div>
       </div>
       {(mentions?.length ?? 0) > 0 && (
         <div className={styles.slashBody}>

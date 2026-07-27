@@ -1239,3 +1239,52 @@
   justify-content: flex-end;
   margin-top: 4px;
 }
+
+/* @-nevninger: pillene tegnes i et speilende lag BAK feltet, siden en
+   textarea ikke kan style deler av teksten sin. Begge lag må ha nøyaktig
+   samme typografi og innrykk, ellers glir markert tekst fra hverandre. */
+.inputStack {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.inputStack .input,
+.highlight {
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 15px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.highlight {
+  position: absolute;
+  inset: 0;
+  color: var(--text);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Teksten i feltet er usynlig; markøren og markeringen er det ikke. */
+.inputOverlay {
+  position: relative;
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+
+.inputOverlay::selection {
+  background: rgba(122, 162, 247, 0.35);
+}
+
+.mention {
+  border-radius: 6px;
+  padding: 1px 4px;
+  margin: 0 -1px;
+  background: rgba(120, 180, 255, 0.16);
+  color: #9ec9ff;
+  box-shadow: inset 0 0 0 0.5px rgba(120, 180, 255, 0.35);
+}
