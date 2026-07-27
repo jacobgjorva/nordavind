@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AnonymousIcon,
+  BorderNone02Icon,
   ChartRelationshipIcon,
   Folder01Icon,
   Folder02Icon,
@@ -21,7 +22,8 @@ type SidebarProps = {
   onOpenSettings: () => void;
   onOpenHub: () => void;
   onOpenGraph: () => void;
-  onOpenChat: (id: string) => void;
+  onNewDesign: () => void;
+  onOpenChat: (id: string, kind?: string) => void;
   onDeleteChat: (id: string) => void;
   onNewFolder: () => void;
   onRenameFolder: (id: string, name: string) => void;
@@ -62,6 +64,7 @@ export function Sidebar({
   onOpenSettings,
   onOpenHub,
   onOpenGraph,
+  onNewDesign,
   onOpenChat,
   onDeleteChat,
   onNewFolder,
@@ -116,6 +119,9 @@ export function Sidebar({
 
   // Agent-chatter pinnes øverst; mappe-chatter vises i mappa; resten i historikk.
   const agentChats = chats.filter((c) => c.agent_id);
+  // Design-chatter eier hvert sitt dokument og har egen gruppe: de åpner et
+  // lerret, ikke en samtale.
+  const designChats = chats.filter((c) => c.kind === "design");
   const regularChats = chats.filter((c) => !c.agent_id && !c.folder_id);
 
   useEffect(() => {
@@ -171,6 +177,13 @@ export function Sidebar({
         </span>
       </button>
 
+      <button className={styles.navLink} onClick={onNewDesign}>
+        <span className={styles.newChatLabel}>
+          <HugeiconsIcon icon={BorderNone02Icon} size={15} strokeWidth={1.8} />
+          Nytt design
+        </span>
+      </button>
+
       <button className={styles.navLink} onClick={onOpenGraph}>
         <span className={styles.newChatLabel}>
           <HugeiconsIcon icon={ChartRelationshipIcon} size={15} strokeWidth={1.8} />
@@ -216,6 +229,37 @@ export function Sidebar({
             ))}
           </div>
         )}
+        {designChats.length > 0 && (
+          <div className={styles.group}>
+            <div className={styles.groupLabel}>DESIGN</div>
+            {designChats.map((c) => (
+              <div key={c.id} className={styles.chatRow}>
+                <button
+                  className={`${styles.chat} ${
+                    c.id === activeChatId ? styles.chatActive : ""
+                  }`}
+                  onClick={() => onOpenChat(c.id, "design")}
+                >
+                  <HugeiconsIcon
+                    icon={BorderNone02Icon}
+                    size={14}
+                    className={styles.chatIcon}
+                  />
+                  <span className={styles.chatTitleText}>{c.title}</span>
+                </button>
+                <button
+                  className={styles.chatDelete}
+                  onClick={(e) => del(e, c)}
+                  aria-label="Slett"
+                  title="Slett"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Mapper: mellom agenter og historikk. Dra chatter hit for å organisere. */}
         <div className={styles.group}>
           <div className={styles.folderHeader}>

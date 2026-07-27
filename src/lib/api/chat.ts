@@ -9,6 +9,8 @@ export interface ChatSummary {
   agent_id?: string;
   agent_enabled?: boolean;
   kind?: string;
+  /** Design-chat: dokumentet den eier. */
+  design_slug?: string;
   folder_id?: string;
 }
 

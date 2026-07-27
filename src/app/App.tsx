@@ -3,6 +3,13 @@ import { Chat } from "../features/chat/Chat";
 
 // Agent-grafen lazy-lastes så den ikke belaster chat-bundelen.
 const Hub = lazy(() => import("../features/hub/Hub"));
+// Designsiden lastes først når noen faktisk lager noe — den drar med seg
+// hele rendreren og grafprimitivene.
+const DesignWorkspace = lazy(() =>
+  import("../features/design/DesignWorkspace").then((m) => ({
+    default: m.DesignWorkspace,
+  }))
+);
 import { Login } from "../features/auth/Login";
 import { M365Onboarding } from "../features/auth/M365Onboarding";
 import { Settings } from "../features/settings/Settings";
@@ -11,6 +18,7 @@ import { Sidebar } from "../layout/Sidebar";
 import { AdminUserContext } from "../tools/admin";
 import {
   clearToken,
+  createDesign,
   createDraftAgent,
   createFolder,
   deleteChat,
@@ -30,7 +38,10 @@ import { swallow } from "../lib/log";
 import styles from "./App.module.css";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "settings" | "hub" | "graph">("chat");
+  const [view, setView] = useState<"chat" | "settings" | "hub" | "graph" | "design">("chat");
+  // Åpent designdokument (slug). Design er en egen side, ikke et lag over
+  // chatten — se DesignWorkspace.
+  const [designSlug, setDesignSlug] = useState<string | null>(null);
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
   // remonter komponenten og dreper streamen.
@@ -141,6 +152,14 @@ export default function App() {
 
   const openChat = useCallback(
     (id: string, kind?: string) => {
+      const chat = chats.find((c) => c.id === id);
+      // Design-chatter åpner lerretet sitt, ikke en samtaletråd.
+      if ((kind ?? chat?.kind) === "design" && chat?.design_slug) {
+        setActiveChatId(id);
+        setDesignSlug(chat.design_slug);
+        setView("design");
+        return;
+      }
       setActiveChatId(id);
       setSession((s) => ({
         key: s.key + 1,
@@ -167,6 +186,21 @@ export default function App() {
       setActiveChatId(agent.chat_id);
       setSession((s) => ({ key: s.key + 1, chatId: agent.chat_id }));
       setView("chat");
+    } catch {
+      // Ikke kritisk; brukeren kan prøve igjen.
+    }
+  }, []);
+
+  // /design oppretter et tomt dokument og en chat som eier det, og lander
+  // brukeren på designsiden med galleriet som første skjerm.
+  const startDesign = useCallback(async (kit?: string) => {
+    try {
+      const d = await createDesign(kit ?? "", "");
+      const list = await fetchChats();
+      setChats(list);
+      setActiveChatId(d.chat_id);
+      setDesignSlug(d.slug);
+      setView("design");
     } catch {
       // Ikke kritisk; brukeren kan prøve igjen.
     }
@@ -252,6 +286,7 @@ export default function App() {
         onOpenSettings={openSettings}
         onOpenHub={openHub}
         onOpenGraph={openGraph}
+        onNewDesign={() => startDesign()}
         onOpenChat={openChat}
         onDeleteChat={onDeleteChat}
         folders={folders}
@@ -267,7 +302,7 @@ export default function App() {
             stream skal ikke dø av navigasjon. Sidebaren er global. */}
         <div
           className={
-            view === "hub" || view === "graph"
+            view === "hub" || view === "graph" || view === "design"
               ? styles.chatWrapHidden
               : styles.chatWrap
           }
@@ -277,6 +312,7 @@ export default function App() {
             userRole={user.role}
             chatId={session.chatId}
             onStartAgent={startAgent}
+            onStartDesign={startDesign}
             initialTitle={
               session.chatId
                 ? chats.find((c) => c.id === session.chatId)?.title ?? null
@@ -292,6 +328,18 @@ export default function App() {
           <Suspense fallback={null}>
             <Hub onClose={closeHub} onOpenChat={openChat} />
           </Suspense>
+        )}
+        {view === "design" && designSlug && (
+          <div className={styles.designPage}>
+            <Suspense fallback={null}>
+              <DesignWorkspace
+                key={designSlug}
+                slug={designSlug}
+                title={chats.find((c) => c.id === activeChatId)?.title ?? null}
+                onTitle={() => fetchChats().then(setChats).catch(swallow)}
+              />
+            </Suspense>
+          </div>
         )}
         {view === "graph" && (
           <div className={styles.graphPage}>

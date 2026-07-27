@@ -83,3 +83,12 @@
   flex-direction: column;
   background: #050507;
 }
+
+/* Designsiden fyller hele flaten ved siden av sidebaren. */
+.designPage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

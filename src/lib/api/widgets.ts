@@ -58,6 +58,22 @@ export async function patchSurface(
   await apiFetch(`/designs/${slug}/patch`, { method: "POST", body: op });
 }
 
+// Setter uttrykk, tittel eller stil på dokumentet (brukerens egne valg).
+export async function patchDesignMeta(
+  slug: string,
+  meta: { kit?: string; title?: string; style?: Record<string, string> }
+): Promise<void> {
+  await apiFetch(`/designs/${slug}/meta`, { method: "POST", body: meta });
+}
+
+// Starter en design-chat: ett tomt dokument og chatten som eier det.
+export async function createDesign(
+  kit: string,
+  title?: string
+): Promise<{ chat_id: string; slug: string; kit: string }> {
+  return apiFetch("/designs", { method: "POST", body: { kit, title } });
+}
+
 // Kjører en lagret SELECT mot en tilkobling (flater henter live data).
 export async function runQuery(
   connectionId: string,
