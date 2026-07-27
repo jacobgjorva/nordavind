@@ -74,7 +74,10 @@
   background: rgba(122, 162, 247, 0.04);
 }
 
+/* Hver flate rastreres for seg: da slipper nabo-flatene å males på nytt når
+   én ramme flyttes eller endres. */
 .surface {
+  contain: paint;
   border-radius: 8px;
   overflow: hidden;
   background: #000;

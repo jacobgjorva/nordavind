@@ -63,7 +63,10 @@ export function Board({
     y: number;
     ox: number;
     oy: number;
+    dx: number;
+    dy: number;
     moved: boolean;
+    frame: number;
   } | null>(null);
   const anim = useRef(0);
 
@@ -181,8 +184,14 @@ export function Board({
         y: e.clientY,
         ox: it.x,
         oy: it.y,
+        dx: 0,
+        dy: 0,
         moved: false,
+        frame: 0,
       };
+      // Løft rammen ut i eget lag mens den flyttes: da flyttes ferdig malte
+      // piksler av GPU-en i stedet for at hele dokumentet males på nytt.
+      card.style.willChange = "transform";
       wrapRef.current?.setPointerCapture(e.pointerId);
       return;
     }
@@ -195,12 +204,18 @@ export function Board({
   const onPointerMove = (e: React.PointerEvent) => {
     const d = dragDoc.current;
     if (d) {
-      const dx = (e.clientX - d.x) / view.current.z;
-      const dy = (e.clientY - d.y) / view.current.z;
       if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return;
       d.moved = true;
-      d.el.style.left = `${d.ox + dx}px`;
-      d.el.style.top = `${d.oy + dy}px`;
+      d.dx = (e.clientX - d.x) / view.current.z;
+      d.dy = (e.clientY - d.y) / view.current.z;
+      // Transform, ikke left/top: left/top utløser layout for hele rammen
+      // (med grafer og tekst) hver eneste frame — transform gjør ikke det.
+      if (!d.frame) {
+        d.frame = requestAnimationFrame(() => {
+          d.frame = 0;
+          d.el.style.transform = `translate3d(${d.dx}px, ${d.dy}px, 0)`;
+        });
+      }
       return;
     }
     const p = pan.current;
@@ -214,12 +229,15 @@ export function Board({
     const d = dragDoc.current;
     if (d) {
       dragDoc.current = null;
+      cancelAnimationFrame(d.frame);
+      d.el.style.willChange = "";
+      d.el.style.transform = "";
       wrapRef.current?.releasePointerCapture(e.pointerId);
       if (d.moved) {
-        onMove(d.slug, {
-          x: parseFloat(d.el.style.left),
-          y: parseFloat(d.el.style.top),
-        });
+        // Ny posisjon settes én gang, når musa slippes.
+        d.el.style.left = `${d.ox + d.dx}px`;
+        d.el.style.top = `${d.oy + d.dy}px`;
+        onMove(d.slug, { x: d.ox + d.dx, y: d.oy + d.dy });
       } else {
         onSelect(d.slug);
         focusDoc(d.slug);
