@@ -332,12 +332,7 @@ export default function App() {
         {view === "design" && designSlug && (
           <div className={styles.designPage}>
             <Suspense fallback={null}>
-              <DesignWorkspace
-                key={designSlug}
-                slug={designSlug}
-                title={chats.find((c) => c.id === activeChatId)?.title ?? null}
-                onTitle={() => fetchChats().then(setChats).catch(swallow)}
-              />
+              <DesignWorkspace key={designSlug} slug={designSlug} />
             </Suspense>
           </div>
         )}

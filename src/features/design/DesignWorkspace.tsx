@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchWidget,
-  patchDesignMeta,
   patchSurface,
   streamChat,
   type Surface as SurfaceModel,
@@ -16,7 +15,6 @@ import {
 } from "../../tools/design/kit";
 import { Surface } from "../../tools/design/Surface";
 import { Composer } from "../chat/Composer";
-import { Gallery } from "./Gallery";
 import styles from "./DesignWorkspace.module.css";
 
 // DesignWorkspace er designsiden: lerretet er innholdet, ikke et panel oppå
@@ -24,20 +22,11 @@ import styles from "./DesignWorkspace.module.css";
 // under. Alt som bare gir mening for design bor her, og forstyrrer aldri
 // vanlig chat.
 
-export function DesignWorkspace({
-  slug,
-  title,
-  onTitle,
-}: {
-  slug: string;
-  title: string | null;
-  onTitle?: (t: string) => void;
-}) {
+export function DesignWorkspace({ slug }: { slug: string }) {
   const [spec, setSpec] = useState<WidgetSpec | null>(null);
   const [kits, setKits] = useState<Record<string, Kit> | null>(null);
   const [at, setAt] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [presenting, setPresenting] = useState(false);
   const [input, setInput] = useState("");
   const [log, setLog] = useState<{ text: string; done: boolean }[]>([]);
   const [step, setStep] = useState<string | null>(null);
@@ -102,11 +91,6 @@ export function DesignWorkspace({
     patchSurface(slug, { action: "remove", id }).catch(load);
   };
 
-  const pickKit = async (kit: string) => {
-    await patchDesignMeta(slug, { kit }).catch(() => undefined);
-    load();
-  };
-
   // Instruksen går til modellen med lerretet som kontekst. Ingen chatboble:
   // resultatet er dokumentet, og loggen viser bare hva som ble bedt om.
   async function send() {
@@ -139,77 +123,8 @@ export function DesignWorkspace({
     }
   }
 
-  // Fullskjerm: piltaster blar, Esc lukker.
-  useEffect(() => {
-    if (!presenting) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPresenting(false);
-      if (e.key === "ArrowRight" || e.key === " ")
-        setAt((n) => Math.min(n + 1, count - 1));
-      if (e.key === "ArrowLeft") setAt((n) => Math.max(n - 1, 0));
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [presenting, count]);
-
-  if (presenting && current)
-    return (
-      <div className={styles.present}>
-        <button className={styles.presentClose} onClick={() => setPresenting(false)}>
-          ✕
-        </button>
-        <div
-          className={styles.presentStage}
-          onClick={() => setAt((n) => Math.min(n + 1, count - 1))}
-        >
-          <div className={styles.presentSurface}>
-            <Surface key={index} s={current} theme={theme} brand={spec?.title} />
-          </div>
-        </div>
-      </div>
-    );
-
-  // Tomt dokument uten valgt uttrykk: galleriet er første skjerm.
-  if (spec && count === 0 && !spec.kit) {
-    return <Gallery onPick={pickKit} />;
-  }
-
   return (
     <div className={styles.page}>
-      <div className={styles.bar}>
-        <input
-          className={styles.docTitle}
-          value={spec?.title ?? title ?? ""}
-          placeholder="Uten navn"
-          onChange={(e) =>
-            setSpec((p) => (p ? { ...p, title: e.target.value } : p))
-          }
-          onBlur={(e) => {
-            const t = e.target.value.trim();
-            if (!t) return;
-            patchDesignMeta(slug, { title: t }).catch(() => undefined);
-            onTitle?.(t);
-          }}
-        />
-        <span className={styles.barSpace} />
-        {step && <span className={styles.step}>{step} …</span>}
-        <span className={styles.kitName}>{theme.name}</span>
-        <button
-          className={styles.barBtn}
-          onClick={() => setSpec((p) => (p ? { ...p, kit: "" } : p))}
-          title="Bytt uttrykk"
-        >
-          Uttrykk
-        </button>
-        <button
-          className={styles.barBtn}
-          disabled={count === 0}
-          onClick={() => setPresenting(true)}
-        >
-          Presenter
-        </button>
-      </div>
-
       <div className={styles.body}>
         <aside className={styles.rail}>
           {surfaces.map((s, i) => (

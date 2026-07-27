@@ -7,58 +7,12 @@
   min-height: 0;
 }
 
-.bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border-bottom: 0.5px solid var(--border, #26262a);
-}
 
-.docTitle {
-  background: none;
-  border: 0;
-  outline: none;
-  color: var(--text, #eee);
-  font-size: 14px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  min-width: 160px;
-}
 
-.docTitle:hover,
-.docTitle:focus {
-  background: var(--bg-raised, #1a1a1e);
-}
 
-.barSpace {
-  flex: 1;
-}
 
-.step {
-  color: var(--text-muted, #a0a0a8);
-  font-size: 12px;
-}
 
-.kitName {
-  color: var(--text-faint, #6a6a72);
-  font-size: 12px;
-}
 
-.barBtn {
-  background: var(--bg-raised, #1a1a1e);
-  border: 0.5px solid var(--border, #2a2a2e);
-  border-radius: 8px;
-  color: var(--text, #eee);
-  font-size: 12px;
-  padding: 5px 12px;
-  cursor: pointer;
-}
-
-.barBtn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
 
 .body {
   flex: 1;
@@ -72,7 +26,6 @@
   flex: none;
   overflow-y: auto;
   padding: 12px 10px;
-  border-right: 0.5px solid var(--border, #26262a);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -207,7 +160,6 @@
 /* Instruksfeltet er den DELTE composeren (features/chat/Composer) — samme
    felt som i chatten. Her ligger bare rammen rundt og loggen over. */
 .composerWrap {
-  border-top: 0.5px solid var(--border, #26262a);
   padding: 10px 16px 14px;
   max-width: 860px;
   width: 100%;
