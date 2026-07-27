@@ -243,7 +243,10 @@ export function Board({
       const el = wrapRef.current;
       const it = items.find((i) => i.slug === slug);
       if (!el || !it) return;
-      const h = docHeight(themeOf(it));
+      // Hele stabelen skal inn i bildet — ellers havner nye flater utenfor
+      // skjermen og det ser ut som ingenting skjedde.
+      const n = Math.max(1, it.spec?.surfaces?.length ?? 1);
+      const h = docHeight(themeOf(it)) * n + 24 * (n - 1) + 28;
       const z = Math.min(
         MAX_ZOOM,
         Math.max(MIN_ZOOM, Math.min((el.clientWidth - 160) / DOC_W, (el.clientHeight - 160) / h))
