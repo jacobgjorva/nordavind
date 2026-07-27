@@ -1,42 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  fetchWidget,
+  createDocument,
+  fetchBoard,
+  moveDocument,
   patchSurface,
   streamChat,
-  type Surface as SurfaceModel,
-  type WidgetSpec,
+  type BoardItem,
 } from "../../lib/api";
-import {
-  defaultTheme,
-  loadKits,
-  resolveTheme,
-  type Kit,
-  type Theme,
-} from "../../tools/design/kit";
-import { Board } from "./Board";
+import { loadKits, type Kit } from "../../tools/design/kit";
 import { Composer } from "../chat/Composer";
+import { Board, type BoardHandle } from "./Board";
 import styles from "./DesignWorkspace.module.css";
 
-// DesignWorkspace er designsiden: lerretet er innholdet, ikke et panel oppå
-// en samtale. Flatelisten til venstre, verktøylinjen over, instruksfeltet
-// under. Alt som bare gir mening for design bor her, og forstyrrer aldri
-// vanlig chat.
+// Designsiden er et arbeidsområde: mange dokumenter på én uendelig flate.
+// Klikk velger et dokument (det snapper til midten), og instruksen gjelder
+// det valgte. Står ingenting valgt, lager neste melding et nytt dokument der
+// brukeren ser — så varianter kan stå side om side uten å overskrive noe.
 
-export function DesignWorkspace({ slug }: { slug: string }) {
-  const [spec, setSpec] = useState<WidgetSpec | null>(null);
+export function DesignWorkspace({ chatId }: { chatId: string }) {
+  const [items, setItems] = useState<BoardItem[]>([]);
   const [kits, setKits] = useState<Record<string, Kit> | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [log, setLog] = useState<{ text: string; done: boolean }[]>([]);
+  const [busySlug, setBusySlug] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
+  const boardRef = useRef<BoardHandle>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(
-    () =>
-      fetchWidget(slug)
-        .then((w) => setSpec(w.spec ?? {}))
-        .catch(() => undefined),
-    [slug]
+    () => fetchBoard(chatId).then(setItems).catch(() => undefined),
+    [chatId]
   );
 
   useEffect(() => {
@@ -45,36 +38,59 @@ export function DesignWorkspace({ slug }: { slug: string }) {
   }, [load]);
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const surfaces: SurfaceModel[] = spec?.surfaces ?? [];
-  const count = surfaces.length;
-  const theme: Theme = kits
-    ? resolveTheme(kits, spec?.kit, spec?.style)
-    : defaultTheme();
-
-  // Brukerens egen retting: patch feltet og vis det straks. Serveren kjører
-  // nøyaktig samme operasjon, så de to kan ikke komme i utakt.
-  const edit = (id: string, field: string, value: string) => {
-    setSpec((prev) =>
-      prev
-        ? {
-            ...prev,
-            surfaces: (prev.surfaces ?? []).map((s) =>
-              s.id === id ? { ...s, fields: { ...s.fields, [field]: value } } : s
-            ),
-          }
-        : prev
+  // Brukerens egen retting på lerretet. Serveren kjører nøyaktig samme
+  // operasjon som modellen ville gjort, så de kan ikke komme i utakt.
+  const edit = (slug: string, surfaceId: string, field: string, value: string) => {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.slug !== slug
+          ? it
+          : {
+              ...it,
+              spec: {
+                ...it.spec,
+                surfaces: (it.spec.surfaces ?? []).map((s) =>
+                  s.id === surfaceId
+                    ? { ...s, fields: { ...s.fields, [field]: value } }
+                    : s
+                ),
+              },
+            }
+      )
     );
-    patchSurface(slug, { action: "set", id, fields: { [field]: value } }).catch(load);
+    patchSurface(slug, {
+      action: "set",
+      id: surfaceId,
+      fields: { [field]: value },
+    }).catch(load);
   };
 
-  // Instruksen går til modellen med lerretet som kontekst. Ingen chatboble:
-  // resultatet er dokumentet, og loggen viser bare hva som ble bedt om.
+  const move = (slug: string, pos: { x: number; y: number }) => {
+    setItems((prev) => prev.map((it) => (it.slug === slug ? { ...it, ...pos } : it)));
+    moveDocument(chatId, slug, pos).catch(load);
+  };
+
+  // Instruksen gjelder det valgte dokumentet. Er ingenting valgt, opprettes
+  // et nytt der brukeren står — det er slik man starter en ny variant.
   async function send() {
     const text = input.trim();
-    if (!text || busy) return;
+    if (!text || busySlug) return;
     setInput("");
-    setLog((l) => [...l, { text, done: false }]);
-    setBusy(true);
+
+    let slug = selected;
+    if (!slug) {
+      try {
+        const pos = boardRef.current?.center() ?? { x: 0, y: 0 };
+        const created = await createDocument(chatId, pos);
+        slug = created.slug;
+        setSelected(slug);
+        await load();
+      } catch {
+        return;
+      }
+    }
+
+    setBusySlug(slug);
     setStep("Tenker");
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -90,11 +106,11 @@ export function DesignWorkspace({ slug }: { slug: string }) {
         { design: slug }
       );
       await load();
-      setLog((l) => l.map((e, i) => (i === l.length - 1 ? { ...e, done: true } : e)));
+      boardRef.current?.focus(slug);
     } catch {
-      setLog((l) => l.map((e, i) => (i === l.length - 1 ? { ...e, done: true } : e)));
+      // Avbrutt eller feilet: lerretet står som det var.
     } finally {
-      setBusy(false);
+      setBusySlug(null);
       setStep(null);
     }
   }
@@ -102,23 +118,17 @@ export function DesignWorkspace({ slug }: { slug: string }) {
   return (
     <div className={styles.page}>
       <Board
-        surfaces={surfaces}
-        theme={theme}
-        brand={spec?.title}
-        edit={edit}
-        busy={busy}
+        ref={boardRef}
+        items={items}
+        kits={kits}
+        selected={selected}
+        onSelect={setSelected}
+        onMove={move}
+        onEdit={edit}
+        busySlug={busySlug}
       />
 
       <div className={styles.composerWrap}>
-        {log.length > 0 && (
-          <div className={styles.log}>
-            {log.slice(-3).map((e, i) => (
-              <span key={i} className={e.done ? styles.logDone : styles.logLive}>
-                {e.text}
-              </span>
-            ))}
-          </div>
-        )}
         <Composer
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -128,10 +138,11 @@ export function DesignWorkspace({ slug }: { slug: string }) {
               send();
             }
           }}
-          placeholder={
-            count === 0 ? "Hva skal dokumentet handle om?" : "Hva vil du endre?"
+          placeholder={selected ? "Hva vil du endre?" : "Hva skal vi lage?"}
+          model={busySlug ? (step ?? "Jobber") : undefined}
+          modelHint={
+            busySlug ? undefined : selected ? "endrer det valgte" : "lager et nytt"
           }
-          model={busy ? (step ?? "Jobber") : undefined}
         />
       </div>
     </div>

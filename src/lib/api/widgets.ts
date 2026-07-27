@@ -66,12 +66,48 @@ export async function patchDesignMeta(
   await apiFetch(`/designs/${slug}/meta`, { method: "POST", body: meta });
 }
 
-// Starter en design-chat: ett tomt dokument og chatten som eier det.
-export async function createDesign(
-  kit: string,
-  title?: string
-): Promise<{ chat_id: string; slug: string; kit: string }> {
-  return apiFetch("/designs", { method: "POST", body: { kit, title } });
+// Starter et design-arbeidsområde (chatten som holder dokumentene).
+export async function createDesign(): Promise<{ chat_id: string }> {
+  return apiFetch("/designs", { method: "POST", body: {} });
+}
+
+// Ett dokument på boardet, med posisjon og innhold.
+export interface BoardItem {
+  slug: string;
+  title: string;
+  x: number;
+  y: number;
+  spec: WidgetSpec;
+}
+
+// Alt som ligger i arbeidsområdet — ett kall tegner hele bordet.
+export async function fetchBoard(chatId: string): Promise<BoardItem[]> {
+  const d = await apiFetch<{ items?: BoardItem[] }>(`/designs/${chatId}/board`);
+  return d.items ?? [];
+}
+
+// Nytt dokument der brukeren står på boardet.
+export async function createDocument(
+  chatId: string,
+  pos: { x: number; y: number },
+  kit?: string
+): Promise<{ slug: string; kit: string }> {
+  return apiFetch(`/designs/${chatId}/documents`, {
+    method: "POST",
+    body: { ...pos, kit: kit ?? "" },
+  });
+}
+
+// Lagrer at et dokument er flyttet på boardet.
+export async function moveDocument(
+  chatId: string,
+  slug: string,
+  pos: { x: number; y: number }
+): Promise<void> {
+  await apiFetch(`/designs/${chatId}/documents/${slug}/move`, {
+    method: "POST",
+    body: pos,
+  });
 }
 
 // Kjører en lagret SELECT mot en tilkobling (flater henter live data).

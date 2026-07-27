@@ -39,9 +39,9 @@ import styles from "./App.module.css";
 
 export default function App() {
   const [view, setView] = useState<"chat" | "settings" | "hub" | "graph" | "design">("chat");
-  // Åpent designdokument (slug). Design er en egen side, ikke et lag over
-  // chatten — se DesignWorkspace.
-  const [designSlug, setDesignSlug] = useState<string | null>(null);
+  // Åpent design-arbeidsområde (chat-id). Design er en egen side med mange
+  // dokumenter på ett board — se DesignWorkspace.
+  const [designChat, setDesignChat] = useState<string | null>(null);
   // session styrer remount av Chat; activeChatId er kun sidebar-markering.
   // De er adskilt slik at opprettelse av samtale midt i en stream ikke
   // remonter komponenten og dreper streamen.
@@ -153,10 +153,10 @@ export default function App() {
   const openChat = useCallback(
     (id: string, kind?: string) => {
       const chat = chats.find((c) => c.id === id);
-      // Design-chatter åpner lerretet sitt, ikke en samtaletråd.
-      if ((kind ?? chat?.kind) === "design" && chat?.design_slug) {
+      // Design-chatter åpner arbeidsområdet sitt, ikke en samtaletråd.
+      if ((kind ?? chat?.kind) === "design") {
         setActiveChatId(id);
-        setDesignSlug(chat.design_slug);
+        setDesignChat(id);
         setView("design");
         return;
       }
@@ -191,15 +191,14 @@ export default function App() {
     }
   }, []);
 
-  // /design oppretter et tomt dokument og en chat som eier det, og lander
-  // brukeren på designsiden med galleriet som første skjerm.
-  const startDesign = useCallback(async (kit?: string) => {
+  // /design oppretter et tomt arbeidsområde og lander brukeren på boardet.
+  const startDesign = useCallback(async () => {
     try {
-      const d = await createDesign(kit ?? "", "");
+      const d = await createDesign();
       const list = await fetchChats();
       setChats(list);
       setActiveChatId(d.chat_id);
-      setDesignSlug(d.slug);
+      setDesignChat(d.chat_id);
       setView("design");
     } catch {
       // Ikke kritisk; brukeren kan prøve igjen.
@@ -329,10 +328,10 @@ export default function App() {
             <Hub onClose={closeHub} onOpenChat={openChat} />
           </Suspense>
         )}
-        {view === "design" && designSlug && (
+        {view === "design" && designChat && (
           <div className={styles.designPage}>
             <Suspense fallback={null}>
-              <DesignWorkspace key={designSlug} slug={designSlug} />
+              <DesignWorkspace key={designChat} chatId={designChat} />
             </Suspense>
           </div>
         )}
