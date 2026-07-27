@@ -14,6 +14,9 @@ import styles from "./Board.module.css";
 
 export const DOC_W = 960;
 const GRID = 40;
+// Skjermavstand mellom prikkene: holdes innenfor dette båndet uansett zoom.
+const GRID_MIN_PX = 26;
+const GRID_MAX_PX = 90;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2.5;
 
@@ -161,7 +164,13 @@ export function Board({
     if (worldRef.current)
       worldRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${z})`;
     if (wrapRef.current) {
-      const g = GRID * z;
+      // Rutenettet holder samme TETTHET på skjermen uansett zoom: steget
+      // dobles når prikkene kommer for tett, og halveres når de blir for
+      // spredte. Uten dette males titusenvis av prikker når man zoomer ut,
+      // og alt hakker.
+      let g = GRID * z;
+      while (g < GRID_MIN_PX) g *= 2;
+      while (g > GRID_MAX_PX) g /= 2;
       wrapRef.current.style.backgroundSize = `${g}px ${g}px`;
       wrapRef.current.style.backgroundPosition = `${x}px ${y}px`;
     }
