@@ -46,36 +46,62 @@
   cursor: pointer;
 }
 
-/* Navnetagg over rammen — også håndtaket for å flytte den. */
-.tag {
+/* Baren over rammen: navn, meta og forhåndsvisning. Også håndtaket. */
+.bar {
   position: absolute;
   bottom: 100%;
-  left: 14px;
-  margin-bottom: 6px;
-  color: var(--text-muted, #a0a0a8);
-  font-size: 20px;
-  line-height: 1.2;
-  white-space: nowrap;
+  left: 0;
+  right: 0;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #1c1c1e;
+  color: var(--text, #eee);
+  font-size: 22px;
   cursor: grab;
-  padding: 2px 4px;
-  border-radius: 4px;
+}
+
+.bar:active {
+  cursor: grabbing;
+}
+
+.barName {
   outline: none;
+  border-radius: 6px;
+  padding: 0 2px;
 }
 
-.tag:hover {
-  color: var(--text, #eee);
-}
-
-/* Feltet som redigeres skal kunne markeres som vanlig tekst. */
-.doc [contenteditable="true"],
-.doc textarea {
-  user-select: text;
-}
-
-.tag:focus {
-  color: var(--text, #eee);
-  background: rgba(122, 162, 247, 0.12);
+.barName:focus {
+  background: rgba(122, 162, 247, 0.14);
   cursor: text;
+}
+
+.barMeta {
+  flex: 1;
+  color: var(--text-faint, #6a6a72);
+  font-variant-numeric: tabular-nums;
+}
+
+.barPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: 0;
+  border-radius: 10px;
+  background: #2a2a2e;
+  color: var(--text-muted, #a0a0a8);
+  cursor: pointer;
+}
+
+.barPreview:hover {
+  color: var(--text, #eee);
+  background: #34343a;
 }
 
 .docSelected {

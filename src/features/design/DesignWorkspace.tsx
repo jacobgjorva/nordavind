@@ -8,7 +8,8 @@ import {
   streamChat,
   type BoardItem,
 } from "../../lib/api";
-import { loadKits, type Kit } from "../../tools/design/kit";
+import { loadKits, resolveTheme, type Kit } from "../../tools/design/kit";
+import { Surface } from "../../tools/design/Surface";
 import { Composer } from "../chat/Composer";
 import { Board, type BoardHandle } from "./Board";
 import styles from "./DesignWorkspace.module.css";
@@ -25,6 +26,8 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   const [input, setInput] = useState("");
   const [busySlug, setBusySlug] = useState<string | null>(null);
   const [step, setStep] = useState<string | null>(null);
+  // Forhåndsvisning: ett dokument i fullskjerm, én flate om gangen.
+  const [preview, setPreview] = useState<{ slug: string; at: number } | null>(null);
   const boardRef = useRef<BoardHandle>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -145,8 +148,19 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
         onMove={move}
         onEdit={edit}
         onRename={rename}
+        onPreview={(slug) => setPreview({ slug, at: 0 })}
         busySlug={busySlug}
       />
+
+      {preview && (
+        <Preview
+          item={items.find((i) => i.slug === preview.slug)}
+          kits={kits}
+          at={preview.at}
+          onAt={(at) => setPreview((p) => (p ? { ...p, at } : p))}
+          onClose={() => setPreview(null)}
+        />
+      )}
 
       <div className={styles.composerWrap}>
         <Composer
@@ -164,6 +178,59 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
             busySlug ? undefined : selected ? "endrer det valgte" : "lager et nytt"
           }
         />
+      </div>
+    </div>
+  );
+}
+
+// Preview viser dokumentet i fullskjerm: piltaster og klikk blar, Esc lukker.
+function Preview({
+  item,
+  kits,
+  at,
+  onAt,
+  onClose,
+}: {
+  item?: BoardItem;
+  kits: Record<string, Kit> | null;
+  at: number;
+  onAt: (at: number) => void;
+  onClose: () => void;
+}) {
+  const surfaces = item?.spec?.surfaces ?? [];
+  const count = surfaces.length;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" || e.key === " ") onAt(Math.min(at + 1, count - 1));
+      if (e.key === "ArrowLeft") onAt(Math.max(at - 1, 0));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [at, count, onAt, onClose]);
+
+  if (!item || count === 0) return null;
+  const index = Math.min(at, count - 1);
+  return (
+    <div className={styles.preview}>
+      <button className={styles.previewClose} onClick={onClose} aria-label="Lukk">
+        ✕
+      </button>
+      <div
+        className={styles.previewStage}
+        onClick={() => onAt(Math.min(index + 1, count - 1))}
+      >
+        <div className={styles.previewSurface}>
+          <Surface
+            key={index}
+            s={surfaces[index]}
+            theme={resolveTheme(kits ?? {}, item.spec?.kit, item.spec?.style)}
+            brand={item.spec?.title}
+          />
+        </div>
+      </div>
+      <div className={styles.previewCount}>
+        {index + 1} / {count}
       </div>
     </div>
   );

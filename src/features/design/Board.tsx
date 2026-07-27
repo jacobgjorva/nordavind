@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { PlayIcon } from "@hugeicons/core-free-icons";
 import type { BoardItem } from "../../lib/api";
 import { Surface } from "../../tools/design/Surface";
 import { resolveTheme, type Kit, type Theme } from "../../tools/design/kit";
@@ -42,6 +44,7 @@ const DocFrame = memo(function DocFrame({
   busy,
   onEdit,
   onRename,
+  onPreview,
 }: {
   item: BoardItem;
   theme: Theme;
@@ -49,6 +52,7 @@ const DocFrame = memo(function DocFrame({
   busy: boolean;
   onEdit: (slug: string, surfaceId: string, field: string, value: string) => void;
   onRename: (slug: string, title: string) => void;
+  onPreview: (slug: string) => void;
 }) {
   const h = docHeight(theme);
   const surfaces = item.spec?.surfaces ?? [];
@@ -60,37 +64,51 @@ const DocFrame = memo(function DocFrame({
       }`}
       style={{ left: item.x, top: item.y, width: DOC_W }}
     >
-      {/* Navnetaggen er også håndtaket: hold og dra her for å flytte rammen,
-          dobbeltklikk for å døpe den om. */}
-      <div
-        data-drag
-        className={styles.tag}
-        onDoubleClick={(ev) => {
-          const el = ev.currentTarget;
-          el.contentEditable = "true";
-          el.focus();
-          document.getSelection()?.selectAllChildren(el);
-        }}
-        onBlur={(ev) => {
-          const el = ev.currentTarget;
-          el.contentEditable = "false";
-          const name = (el.textContent ?? "").trim();
-          if (name && name !== item.title) onRename(item.slug, name);
-          else el.textContent = item.title;
-        }}
-        onKeyDown={(ev) => {
-          if (ev.key === "Enter") {
-            ev.preventDefault();
-            ev.currentTarget.blur();
-          }
-          if (ev.key === "Escape") {
-            ev.currentTarget.textContent = item.title;
-            ev.currentTarget.blur();
-          }
-        }}
-        suppressContentEditableWarning
-      >
-        {item.title}
+      {/* Baren over rammen er håndtaket: hold og dra her for å flytte den,
+          dobbeltklikk navnet for å døpe om. Knappen til høyre åpner
+          forhåndsvisning. */}
+      <div data-drag className={styles.bar}>
+        <span
+          className={styles.barName}
+          onDoubleClick={(ev) => {
+            const el = ev.currentTarget;
+            el.contentEditable = "true";
+            el.focus();
+            document.getSelection()?.selectAllChildren(el);
+          }}
+          onBlur={(ev) => {
+            const el = ev.currentTarget;
+            el.contentEditable = "false";
+            const name = (el.textContent ?? "").trim();
+            if (name && name !== item.title) onRename(item.slug, name);
+            else el.textContent = item.title;
+          }}
+          onKeyDown={(ev) => {
+            if (ev.key === "Enter") {
+              ev.preventDefault();
+              ev.currentTarget.blur();
+            }
+            if (ev.key === "Escape") {
+              ev.currentTarget.textContent = item.title;
+              ev.currentTarget.blur();
+            }
+          }}
+          suppressContentEditableWarning
+        >
+          {item.title}
+        </span>
+        <span className={styles.barMeta}>
+          {surfaces.length || ""}
+        </span>
+        <button
+          className={styles.barPreview}
+          onPointerDown={(ev) => ev.stopPropagation()}
+          onClick={() => onPreview(item.slug)}
+          title="Forhåndsvis"
+          aria-label="Forhåndsvis"
+        >
+          <HugeiconsIcon icon={PlayIcon} size={15} strokeWidth={2} />
+        </button>
       </div>
       {surfaces.length === 0 ? (
         <div className={styles.docEmpty} style={{ height: h }}>
@@ -125,6 +143,7 @@ export function Board({
   onMove,
   onEdit,
   onRename,
+  onPreview,
   busySlug,
 }: {
   ref?: React.Ref<BoardHandle>;
@@ -135,6 +154,7 @@ export function Board({
   onMove: (slug: string, pos: { x: number; y: number }) => void;
   onEdit: (slug: string, surfaceId: string, field: string, value: string) => void;
   onRename: (slug: string, title: string) => void;
+  onPreview: (slug: string) => void;
   busySlug?: string | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -394,6 +414,7 @@ export function Board({
             busy={busySlug === it.slug}
             onEdit={onEdit}
             onRename={onRename}
+            onPreview={onPreview}
           />
         ))}
       </div>
