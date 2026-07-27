@@ -9,7 +9,7 @@
   cursor: grab;
   background-color: var(--bg, #0a0a0a);
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.18) 1.4px, transparent 1.4px);
+    radial-gradient(circle, rgba(255, 255, 255, 0.11) 1.2px, transparent 1.2px);
   touch-action: none;
   user-select: none;
 }
