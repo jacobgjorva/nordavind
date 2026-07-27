@@ -32,6 +32,8 @@
 /* Ett dokument: flatene stablet under hverandre, som et ark-sett. */
 .doc {
   position: absolute;
+  top: 0;
+  left: 0;
   /* Ingen tekstmarkering på rammen — den skal dras, ikke selekteres.
      Feltene som faktisk redigeres slår den på igjen. */
   user-select: none;

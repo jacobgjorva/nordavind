@@ -62,7 +62,13 @@ const DocFrame = memo(function DocFrame({
       className={`${styles.doc} ${selected ? styles.docSelected : ""} ${
         busy ? styles.docBusy : ""
       }`}
-      style={{ left: item.x, top: item.y, width: DOC_W }}
+      // Posisjonen er en transform, ikke left/top: da bruker draging og
+      // hviletilstand SAMME egenskap, og rammen kan ikke blafre mellom to
+      // posisjonssystemer i overgangen.
+      style={{
+        transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
+        width: DOC_W,
+      }}
     >
       {/* Baren over rammen er håndtaket: hold og dra her for å flytte den,
           dobbeltklikk navnet for å døpe om. Knappen til høyre åpner
@@ -283,6 +289,10 @@ export function Board({
   // navnetaggen over rammen, så man aldri drar dokumentet ut av stilling
   // mens man jobber i det.
   const onPointerDown = (e: React.PointerEvent) => {
+    // Stopp en pågående glidning: uten dette fortsetter visningen å bevege
+    // seg mens brukeren drar, og rammen ser ut til å hoppe tilbake før den
+    // lander på ny plass.
+    cancelAnimationFrame(anim.current);
     const card = (e.target as HTMLElement).closest<HTMLElement>("[data-slug]");
     if (card) {
       const slug = card.dataset.slug!;
@@ -331,12 +341,10 @@ export function Board({
       d.moved = true;
       d.dx = (e.clientX - d.x) / view.current.z;
       d.dy = (e.clientY - d.y) / view.current.z;
-      // Transform, ikke left/top: left/top utløser layout for hele rammen
-      // (med grafer og tekst) hver eneste frame — transform gjør ikke det.
       if (!d.frame) {
         d.frame = requestAnimationFrame(() => {
           d.frame = 0;
-          d.el.style.transform = `translate3d(${d.dx}px, ${d.dy}px, 0)`;
+          d.el.style.transform = `translate3d(${d.ox + d.dx}px, ${d.oy + d.dy}px, 0)`;
         });
       }
       return;
@@ -362,14 +370,12 @@ export function Board({
         // det ikke blinker, og transform nullstilles i samme frame.
         const x = d.ox + d.dx;
         const y = d.oy + d.dy;
-        // Sett den endelige posisjonen FØR transformen nullstilles, i samme
-        // frame — ellers vises ett bilde av rammen på gammel plass.
-        d.el.style.left = `${x}px`;
-        d.el.style.top = `${y}px`;
-        d.el.style.transform = "none";
+        // Samme egenskap som React vil sette rett etterpå — ingen overgang,
+        // ingen mellomtilstand.
+        d.el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
         onMove(d.slug, { x, y });
       } else {
-        d.el.style.transform = "";
+        d.el.style.transform = `translate3d(${d.ox}px, ${d.oy}px, 0)`;
         onSelect(d.slug);
         focusDoc(d.slug);
       }
