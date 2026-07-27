@@ -47,6 +47,16 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   }, [load]);
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Esc slipper valget: neste melding lager da et nytt canvas i stedet for å
+  // endre det du sist jobbet med.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Brukerens egen retting på lerretet. Serveren kjører nøyaktig samme
   // operasjon som modellen ville gjort, så de kan ikke komme i utakt.
   const edit = (slug: string, surfaceId: string, field: string, value: string) => {
