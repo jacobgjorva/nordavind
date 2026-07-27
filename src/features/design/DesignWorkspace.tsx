@@ -13,7 +13,7 @@ import {
   type Kit,
   type Theme,
 } from "../../tools/design/kit";
-import { Surface } from "../../tools/design/Surface";
+import { Board } from "./Board";
 import { Composer } from "../chat/Composer";
 import styles from "./DesignWorkspace.module.css";
 
@@ -25,7 +25,6 @@ import styles from "./DesignWorkspace.module.css";
 export function DesignWorkspace({ slug }: { slug: string }) {
   const [spec, setSpec] = useState<WidgetSpec | null>(null);
   const [kits, setKits] = useState<Record<string, Kit> | null>(null);
-  const [at, setAt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState("");
   const [log, setLog] = useState<{ text: string; done: boolean }[]>([]);
@@ -51,35 +50,21 @@ export function DesignWorkspace({ slug }: { slug: string }) {
   const theme: Theme = kits
     ? resolveTheme(kits, spec?.kit, spec?.style)
     : defaultTheme();
-  const index = Math.min(at, Math.max(count - 1, 0));
-  const current = surfaces[index];
-
-  // Ny flate: hopp til den som nettopp kom til.
-  useEffect(() => {
-    if (count > 0) setAt(count - 1);
-  }, [count]);
 
   // Brukerens egen retting: patch feltet og vis det straks. Serveren kjører
   // nøyaktig samme operasjon, så de to kan ikke komme i utakt.
-  const edit = (field: string, value: string) => {
-    if (!current?.id) return;
+  const edit = (id: string, field: string, value: string) => {
     setSpec((prev) =>
       prev
         ? {
             ...prev,
             surfaces: (prev.surfaces ?? []).map((s) =>
-              s.id === current.id
-                ? { ...s, fields: { ...s.fields, [field]: value } }
-                : s
+              s.id === id ? { ...s, fields: { ...s.fields, [field]: value } } : s
             ),
           }
         : prev
     );
-    patchSurface(slug, {
-      action: "set",
-      id: current.id,
-      fields: { [field]: value },
-    }).catch(load);
+    patchSurface(slug, { action: "set", id, fields: { [field]: value } }).catch(load);
   };
 
   // Instruksen går til modellen med lerretet som kontekst. Ingen chatboble:
@@ -116,46 +101,13 @@ export function DesignWorkspace({ slug }: { slug: string }) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.body}>
-        <main className={styles.stageWrap}>
-          <div className={`${styles.stage} ${busy ? styles.stageBusy : ""}`}>
-            {current ? (
-              <Surface
-                key={`${index}-${count}`}
-                s={current}
-                theme={theme}
-                brand={spec?.title}
-                edit={edit}
-              />
-            ) : (
-              <div className={styles.blank}>
-                Beskriv dokumentet i feltet under, så bygger jeg det.
-              </div>
-            )}
-          </div>
-          {count > 1 && (
-            <div className={styles.nav}>
-              <button
-                className={styles.navBtn}
-                disabled={index <= 0}
-                onClick={() => setAt((n) => Math.max(n - 1, 0))}
-              >
-                ←
-              </button>
-              <span className={styles.count}>
-                {index + 1} / {count}
-              </span>
-              <button
-                className={styles.navBtn}
-                disabled={index >= count - 1}
-                onClick={() => setAt((n) => Math.min(n + 1, count - 1))}
-              >
-                →
-              </button>
-            </div>
-          )}
-        </main>
-      </div>
+      <Board
+        surfaces={surfaces}
+        theme={theme}
+        brand={spec?.title}
+        edit={edit}
+        busy={busy}
+      />
 
       <div className={styles.composerWrap}>
         {log.length > 0 && (
