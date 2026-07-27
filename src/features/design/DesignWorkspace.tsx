@@ -82,15 +82,6 @@ export function DesignWorkspace({ slug }: { slug: string }) {
     }).catch(load);
   };
 
-  const removeSurface = (id: string) => {
-    setSpec((prev) =>
-      prev
-        ? { ...prev, surfaces: (prev.surfaces ?? []).filter((s) => s.id !== id) }
-        : prev
-    );
-    patchSurface(slug, { action: "remove", id }).catch(load);
-  };
-
   // Instruksen går til modellen med lerretet som kontekst. Ingen chatboble:
   // resultatet er dokumentet, og loggen viser bare hva som ble bedt om.
   async function send() {
@@ -126,32 +117,6 @@ export function DesignWorkspace({ slug }: { slug: string }) {
   return (
     <div className={styles.page}>
       <div className={styles.body}>
-        <aside className={styles.rail}>
-          {surfaces.map((s, i) => (
-            <div key={s.id} className={styles.railItem}>
-              <button
-                className={`${styles.railThumb} ${
-                  i === index ? styles.railThumbActive : ""
-                }`}
-                onClick={() => setAt(i)}
-              >
-                <Surface s={s} theme={theme} brand={spec?.title} />
-              </button>
-              <span className={styles.railNum}>{i + 1}</span>
-              <button
-                className={styles.railDelete}
-                onClick={() => removeSurface(s.id)}
-                title="Slett flaten"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {count === 0 && (
-            <div className={styles.railEmpty}>Ingen flater ennå</div>
-          )}
-        </aside>
-
         <main className={styles.stageWrap}>
           <div className={`${styles.stage} ${busy ? styles.stageBusy : ""}`}>
             {current ? (
