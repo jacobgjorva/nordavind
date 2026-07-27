@@ -101,9 +101,10 @@ interface ChatStep {
 }
 
 // Stegtype → ikon. Holdes i takt med kind-konstantene i backendens narrate.go.
+// "web" står med vilje ikke her: SearchIcon er fallbacken i StepIcon, og det
+// er riktig ikon for et søk.
 const STEP_ICONS: Record<string, typeof Database01Icon> = {
   db: Database01Icon,
-  web: SearchIcon,
   table: Analytics01Icon,
   file: Files01Icon,
   mail: Mail01Icon,
