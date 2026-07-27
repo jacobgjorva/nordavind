@@ -79,3 +79,12 @@ button {
   }
 }
 
+
+/* Mens noe dras på designboardet: ingen tekstmarkering noe sted. Uten dette
+   markerte museturen tekst i rammene den passerte. */
+body.nv-dragging,
+body.nv-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: grabbing !important;
+}

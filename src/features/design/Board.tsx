@@ -310,12 +310,18 @@ export function Board({
       // piksler av GPU-en i stedet for at hele dokumentet males på nytt.
       card.style.willChange = "transform";
       card.setPointerCapture(e.pointerId);
+      // Hindre at nettleseren starter en tekstmarkering fra trykket: uten
+      // dette ble tekst i andre rammer markert mens man dro.
+      e.preventDefault();
+      document.body.classList.add("nv-dragging");
       return;
     }
     onSelect(null);
     pan.current = { x: e.clientX, y: e.clientY, vx: view.current.x, vy: view.current.y };
     wrapRef.current?.setPointerCapture(e.pointerId);
     wrapRef.current?.classList.add(styles.grabbing);
+    e.preventDefault();
+    document.body.classList.add("nv-dragging");
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -346,6 +352,7 @@ export function Board({
     const d = dragDoc.current;
     if (d) {
       dragDoc.current = null;
+      document.body.classList.remove("nv-dragging");
       cancelAnimationFrame(d.frame);
       d.el.style.willChange = "";
       if (d.el.hasPointerCapture?.(e.pointerId))
@@ -366,6 +373,7 @@ export function Board({
       }
       return;
     }
+    document.body.classList.remove("nv-dragging");
     if (!pan.current) return;
     pan.current = null;
     wrapRef.current?.releasePointerCapture(e.pointerId);
