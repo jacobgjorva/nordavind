@@ -225,6 +225,8 @@ export interface StreamDelta {
   sources?: SourceRef[];
   /** Fremdriftssteg til thinking-tidslinjen */
   step?: string;
+  /** Hva steget handler om (db, web, file, mail, table, agent, link) — styrer ikonet */
+  stepKind?: string;
   /** Widget-specen ble endret av et verktøykall */
   widgetUpdated?: boolean;
   /** Databasespørringen bak svaret (til live Excel-eksport) */
@@ -382,6 +384,7 @@ export async function streamChat(
         const json = JSON.parse(data);
         const sources = json.nordavind_sources as SourceRef[] | undefined;
         const step = json.nordavind_step as string | undefined;
+        const stepKind = json.nordavind_step_kind as string | undefined;
         const query = json.nordavind_query as TableQuery | undefined;
         const m365Auth = json.nordavind_m365_auth as string | undefined;
         const connectionCreated = json.nordavind_connection_created as
@@ -401,7 +404,7 @@ export async function streamChat(
           widgetUpdated || query || m365Auth || connectionCreated || designUpdated
         ) {
           onDelta({
-            content, reasoning, model, sources, step,
+            content, reasoning, model, sources, step, stepKind,
             widgetUpdated, query, m365Auth, connectionCreated, designUpdated,
           });
         }

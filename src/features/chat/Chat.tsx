@@ -27,6 +27,8 @@ import {
   UserGroupIcon,
   UserSettings01Icon,
   Delete01Icon,
+  Mail01Icon,
+  Link01Icon,
   Csv01Icon,
   Doc01Icon,
   HtmlFile01Icon,
@@ -91,6 +93,34 @@ import { FileTag } from "../../ui/FileTag";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
 
+/** Ett steg i arbeidstidslinjen. `kind` kommer fra backendens narrasjons-
+ *  register og velger ikon; ukjente verdier faller tilbake til søkeikonet. */
+interface ChatStep {
+  text: string;
+  kind?: string;
+}
+
+// Stegtype → ikon. Holdes i takt med kind-konstantene i backendens narrate.go.
+const STEP_ICONS: Record<string, typeof Database01Icon> = {
+  db: Database01Icon,
+  table: Analytics01Icon,
+  file: Files01Icon,
+  mail: Mail01Icon,
+  link: Link01Icon,
+  agent: UserGroupIcon,
+};
+
+function StepIcon({ kind }: { kind?: string }) {
+  const icon = kind ? STEP_ICONS[kind] : undefined;
+  if (!icon) return <SearchIcon size={14} />;
+  return <HugeiconsIcon icon={icon} size={14} strokeWidth={1.8} />;
+}
+
+/** Hvor mange steg en tur får vise. Grundig modus kan kjøre 20 runder med
+ *  flere steg hver, så taket må være romslig — det gamle på 10 kuttet
+ *  tidslinjen midt i lange kjøringer. */
+const MAX_STEPS = 60;
+
 interface ChatMessage extends Omit<ApiMessage, "content"> {
   // content er alltid ren tekst for visning; multimodal payload (bilder)
   // ligger i apiContent og sendes til modellen.
@@ -109,7 +139,7 @@ interface ChatMessage extends Omit<ApiMessage, "content"> {
   /** Kilder fra backendens websøk */
   sources?: SourceRef[];
   /** Tidslinje over hva modellen gjør mens den tenker */
-  steps?: string[];
+  steps?: ChatStep[];
   /** Det brukeren faktisk skrev (uten vedleggstekst) */
   display?: string;
   /** Navn på vedlagte filer */
@@ -558,6 +588,8 @@ export function Chat({
   const agentModeRef = useRef(false);
   // M365-innlogging: lenke fra connect_m365-verktøyet vises over composeren.
   const [authUrl, setAuthUrl] = useState<string | null>(null);
+  // Hvilke ferdige svar som viser arbeidstidslinjen utfoldet (per melding-id).
+  const [openSteps, setOpenSteps] = useState<Record<string, boolean>>({});
   // Satt etter «Hva skal vi koble til?» — neste melding intent-ruters
   // deterministisk (M365 rett til OAuth, databaser til agenten).
   const pendingConnectRef = useRef(false);
@@ -1117,10 +1149,10 @@ export function Chat({
       let resolved: string | undefined;
       let tableQuery: TableQuery | undefined;
       const sources: SourceRef[] = [];
-      const steps: string[] = [];
-      const pushStep = (label: string) => {
-        if (label && steps[steps.length - 1] !== label && steps.length < 10) {
-          steps.push(label);
+      const steps: ChatStep[] = [];
+      const pushStep = (label: string, kind?: string) => {
+        if (label && steps[steps.length - 1]?.text !== label && steps.length < MAX_STEPS) {
+          steps.push({ text: label, kind });
         }
       };
       await streamChat(
@@ -1128,7 +1160,7 @@ export function Chat({
         history,
         (delta) => {
           if (delta.reasoning) think += delta.reasoning;
-          if (delta.step) pushStep(delta.step);
+          if (delta.step) pushStep(delta.step, delta.stepKind);
           if (delta.query) tableQuery = delta.query;
           if (delta.content) acc += delta.content;
           if (delta.model) {
@@ -1650,12 +1682,43 @@ export function Chat({
                               <span className={styles.stepLine} />
                               <div className={styles.step}>
                                 <span className={styles.stepIcon}>
-                                  <SearchIcon size={14} />
+                                  <StepIcon kind={step.kind} />
                                 </span>
-                                <span className={styles.reasoning}>{step}</span>
+                                <span className={styles.reasoning}>{step.text}</span>
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+                    {/* Ferdig svar: arbeidet forsvinner ikke, det legger seg
+                        sammenslått over svaret og kan foldes ut igjen. */}
+                    {m.role === "assistant" &&
+                      !m.error &&
+                      !m.streaming &&
+                      !m.loading &&
+                      (m.steps?.length ?? 0) > 0 && (
+                        <div className={styles.thoughtBox}>
+                          <button
+                            type="button"
+                            className={styles.thoughtToggle}
+                            onClick={() =>
+                              setOpenSteps((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                            }
+                          >
+                            {openSteps[m.id] ? "Skjul arbeidet" : `Arbeidet (${m.steps!.length} steg)`}
+                          </button>
+                          {openSteps[m.id] && (
+                            <div className={styles.thoughtBody}>
+                              {m.steps!.map((step, i) => (
+                                <div className={styles.step} key={i}>
+                                  <span className={styles.stepIcon}>
+                                    <StepIcon kind={step.kind} />
+                                  </span>
+                                  <span className={styles.reasoning}>{step.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     {m.content ? (
