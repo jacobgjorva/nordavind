@@ -29,6 +29,10 @@ export function Composer({
   slashIndex,
   onSlashHover,
   onSlashPick,
+  mentions,
+  mentionIndex,
+  onMentionHover,
+  onMentionPick,
   model,
   modelHint,
   left,
@@ -47,6 +51,11 @@ export function Composer({
   slashIndex?: number;
   onSlashHover?: (i: number) => void;
   onSlashPick?: (cmd: string) => void;
+  /** @-nevninger: entiteter hjernen kjenner. */
+  mentions?: { id: string; name: string; kind: string }[];
+  mentionIndex?: number;
+  onMentionHover?: (i: number) => void;
+  onMentionPick?: (name: string) => void;
   model?: string;
   modelHint?: string;
   /** Ekstra kontroller i bunnlinjen (rolle-pille, egne knapper). */
@@ -69,6 +78,27 @@ export function Composer({
           autoFocus
         />
       </div>
+      {(mentions?.length ?? 0) > 0 && (
+        <div className={styles.slashBody}>
+          <ul className={styles.slashList}>
+            {mentions!.map((m, i) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  className={`${styles.slashItem} ${
+                    i === mentionIndex ? styles.slashItemActive : ""
+                  }`}
+                  onMouseEnter={() => onMentionHover?.(i)}
+                  onClick={() => onMentionPick?.(m.name)}
+                >
+                  <span className={styles.slashLabel}>{m.name}</span>
+                  <span className={styles.slashHint}>{m.kind}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {slashOpen && (
         <div className={styles.slashBody}>
           <ul className={styles.slashList}>

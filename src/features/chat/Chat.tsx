@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
 import { Composer } from "./Composer";
+import { searchEntities, type BrainEntity } from "../../lib/api";
 import { TableQueryContext } from "./blocks/core";
 
 // Flyt-visningen lazy-lastes: den er kun for agent-chatter.
@@ -1252,6 +1253,13 @@ export function Chat({
 
   // Slash-meny: vises mens brukeren skriver en kommando (før mellomrom).
   // Innebygde handlinger (agent, ny widget) + brukerens widgets som /<slug>.
+  // @-nevninger: en snarvei til hjernen, ikke en forutsetning. Automatisk
+  // gjenkjenning gjelder fortsatt — dette gir bare et entydig treff når
+  // brukeren VET hvem hun mener.
+  const mentionMatch = /(?:^|\s)@([\p{L}0-9.-]*)$/u.exec(input);
+  const mentionQuery = mentionMatch?.[1] ?? "";
+  const mentioning = mentionMatch !== null;
+
   const slashMatch = /^\/([a-z0-9-]*)$/i.exec(input);
   const slashPrefix = slashMatch?.[1].toLowerCase() ?? "";
   const slashItems = slashMatch
@@ -1275,6 +1283,32 @@ export function Chat({
     : [];
   const slashOpen = slashItems.length > 0;
 
+  const [mentions, setMentions] = useState<BrainEntity[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  useEffect(() => {
+    if (!mentioning) {
+      setMentions([]);
+      return;
+    }
+    let alive = true;
+    searchEntities(mentionQuery)
+      .then((e) => alive && setMentions(e))
+      .catch(() => alive && setMentions([]));
+    return () => {
+      alive = false;
+    };
+  }, [mentioning, mentionQuery]);
+  useEffect(() => setMentionIndex(0), [mentionQuery]);
+  const mentionOpen = mentions.length > 0;
+
+  // Sett inn navnet der @-et står, så teksten blir lesbar for både modell og
+  // menneske.
+  function pickMention(name: string) {
+    setInput((v) => v.replace(/@[\p{L}0-9.-]*$/u, "@" + name + " "));
+    setMentions([]);
+    textareaRef.current?.focus();
+  }
+
   function pickSlash(cmd: string) {
     setSlashIndex(0);
     if (cmd === "widget") {
@@ -1287,6 +1321,28 @@ export function Chat({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % mentions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + mentions.length) % mentions.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pickMention(mentions[mentionIndex]?.name ?? mentions[0].name);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentions([]);
+        return;
+      }
+    }
     if (slashOpen) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -1378,6 +1434,10 @@ export function Chat({
       slashIndex={slashIndex}
       onSlashHover={setSlashIndex}
       onSlashPick={pickSlash}
+      mentions={mentionOpen ? mentions : undefined}
+      mentionIndex={mentionIndex}
+      onMentionHover={setMentionIndex}
+      onMentionPick={pickMention}
       model={modelAlias(activeModel)}
       modelHint={modelDesc(activeModel)}
       left={userRole === "admin" ? <ImpersonatePill /> : null}

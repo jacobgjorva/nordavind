@@ -109,3 +109,17 @@ export async function deleteNode(id: string): Promise<void> {
 export async function rejectNode(id: string): Promise<void> {
   await apiFetch(`/knowledge/${id}/reject`, { method: "POST" });
 }
+
+// Entiteter hjernen kjenner — grunnlaget for @-nevninger i meldingsfeltet.
+export interface BrainEntity {
+  id: string;
+  name: string;
+  kind: string;
+}
+
+export async function searchEntities(q: string): Promise<BrainEntity[]> {
+  const d = await apiFetch<{ entities?: BrainEntity[] }>(
+    `/entities?q=${encodeURIComponent(q)}`
+  );
+  return d.entities ?? [];
+}
