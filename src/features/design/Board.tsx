@@ -362,9 +362,11 @@ export function Board({
         // det ikke blinker, og transform nullstilles i samme frame.
         const x = d.ox + d.dx;
         const y = d.oy + d.dy;
+        // Sett den endelige posisjonen FØR transformen nullstilles, i samme
+        // frame — ellers vises ett bilde av rammen på gammel plass.
         d.el.style.left = `${x}px`;
         d.el.style.top = `${y}px`;
-        d.el.style.transform = "";
+        d.el.style.transform = "none";
         onMove(d.slug, { x, y });
       } else {
         d.el.style.transform = "";

@@ -29,6 +29,11 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   // Forhåndsvisning: ett dokument i fullskjerm, én flate om gangen.
   const [preview, setPreview] = useState<{ slug: string; at: number } | null>(null);
   const boardRef = useRef<BoardHandle>(null);
+  // Posisjoner brukeren nettopp har dratt til, men som serveren ennå ikke har
+  // bekreftet. De vinner alltid over hentede data — ellers kan en henting som
+  // var underveis svare med den GAMLE posisjonen og få rammen til å blafre
+  // tilbake et øyeblikk.
+  const pending = useRef<Record<string, { x: number; y: number }>>({});
   const abortRef = useRef<AbortController | null>(null);
 
   // Henting beholder identiteten til rammer som ikke har endret seg. Uten
@@ -39,8 +44,10 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
       fetchBoard(chatId)
         .then((fresh) =>
           setItems((prev) =>
-            fresh.map((f) => {
-              const old = prev.find((p) => p.slug === f.slug);
+            fresh.map((raw) => {
+              const p = pending.current[raw.slug];
+              const f = p ? { ...raw, ...p } : raw;
+              const old = prev.find((o) => o.slug === f.slug);
               return old && JSON.stringify(old) === JSON.stringify(f) ? old : f;
             })
           )
@@ -102,10 +109,18 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   // ikke hele boardet — og React eier posisjonen, så ingenting spretter
   // tilbake ved neste render.
   const move = (slug: string, pos: { x: number; y: number }) => {
+    pending.current[slug] = pos;
     setItems((prev) =>
       prev.map((it) => (it.slug === slug ? { ...it, ...pos } : it))
     );
-    moveDocument(chatId, slug, pos).catch(load);
+    moveDocument(chatId, slug, pos)
+      .then(() => {
+        delete pending.current[slug];
+      })
+      .catch(() => {
+        delete pending.current[slug];
+        load();
+      });
   };
 
   // Instruksen gjelder det valgte dokumentet. Er ingenting valgt, opprettes
