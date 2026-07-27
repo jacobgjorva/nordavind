@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Surface as SurfaceModel } from "../../lib/api";
 import { Surface } from "../../tools/design/Surface";
 import type { Theme } from "../../tools/design/kit";
@@ -6,21 +6,20 @@ import styles from "./Board.module.css";
 
 // Board er den uendelige flaten dokumentet lever på: rutenettet ligger fast i
 // verdensrommet, flatene ligger utover det, og brukeren drar seg rundt med
-// musa. Ingen sider, ingen piler — man beveger seg dit man vil se.
+// musa.
+//
+// Ytelse: panorering og zoom skrives DIREKTE på DOM-en i en rAF-løkke, aldri
+// gjennom React. Et setState per musebevegelse ville rendret hver eneste
+// flate (med grafer og alt) på nytt og gjort bevegelsen hakkete — her flyttes
+// bare to style-verdier per frame.
 
-// Verdenskoordinater: hver flate får fast bredde, og de legges i rader.
 const CARD_W = 960;
 const GAP = 80;
 const PER_ROW = 3;
+const GRID = 40;
 
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.5;
-
-interface View {
-  x: number;
-  y: number;
-  z: number;
-}
 
 // ratioOf gir høyde/bredde-forholdet fra kittets format («16:9»).
 function ratioOf(theme: Theme): number {
@@ -41,24 +40,36 @@ export function Board({
   edit?: (id: string, field: string, value: string) => void;
   busy?: boolean;
 }) {
-  const [view, setView] = useState<View>({ x: 0, y: 0, z: 0.55 });
   const wrapRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const view = useRef({ x: 0, y: 0, z: 0.55 });
+  const frame = useRef(0);
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
   const fitted = useRef(0);
 
   const cardH = CARD_W * ratioOf(theme);
 
-  // Legg flatene i et rutenett i verdensrommet.
-  const place = useCallback(
-    (i: number) => ({
-      x: (i % PER_ROW) * (CARD_W + GAP),
-      y: Math.floor(i / PER_ROW) * (cardH + GAP),
-    }),
-    [cardH]
-  );
+  // Én skriving per frame: transform på verdenen, bakgrunnsposisjon på
+  // rutenettet. Ingenting annet røres.
+  const paint = useCallback(() => {
+    frame.current = 0;
+    const { x, y, z } = view.current;
+    if (worldRef.current)
+      worldRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${z})`;
+    if (wrapRef.current) {
+      const g = GRID * z;
+      wrapRef.current.style.backgroundSize = `${g}px ${g}px`;
+      wrapRef.current.style.backgroundPosition = `${x}px ${y}px`;
+    }
+  }, []);
 
-  // Sentrer innholdet når det kommer nye flater (men bare når antallet endrer
-  // seg — ellers ville lerretet hoppet mens brukeren jobber).
+  const schedule = useCallback(() => {
+    if (!frame.current) frame.current = requestAnimationFrame(paint);
+  }, [paint]);
+
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  // Sentrer innholdet når det kommer nye flater — aldri mens brukeren jobber.
   useEffect(() => {
     if (surfaces.length === 0 || fitted.current === surfaces.length) return;
     fitted.current = surfaces.length;
@@ -72,86 +83,109 @@ export function Board({
       MAX_ZOOM,
       Math.max(MIN_ZOOM, Math.min((el.clientWidth - 120) / w, (el.clientHeight - 120) / h))
     );
-    setView({
+    view.current = {
       z,
       x: (el.clientWidth - w * z) / 2,
       y: (el.clientHeight - h * z) / 2,
-    });
-  }, [surfaces.length, cardH]);
+    };
+    schedule();
+  }, [surfaces.length, cardH, schedule]);
 
-  // Dra i bakgrunnen for å flytte seg. Museknappen holdes nede — samme
-  // bevegelse som i et tegneprogram.
-  const onDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("[data-surface]")) return;
-    drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
-  };
   useEffect(() => {
-    const move = (e: MouseEvent) => {
-      const d = drag.current;
-      if (!d) return;
-      setView((v) => ({ ...v, x: d.vx + (e.clientX - d.x), y: d.vy + (e.clientY - d.y) }));
-    };
-    const up = () => (drag.current = null);
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-  }, []);
+    paint();
+  }, [paint]);
 
-  // Hjul: zoom mot pekeren med ctrl/⌘ (som i tegneprogrammer), ellers panorer.
-  const onWheel = (e: React.WheelEvent) => {
-    const el = wrapRef.current;
-    if (!el) return;
-    if (e.ctrlKey || e.metaKey) {
-      const rect = el.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
-      setView((v) => {
+  // Dra i bakgrunnen for å flytte seg. Pekeren fanges, så bevegelsen fortsetter
+  // selv når musa forlater vinduet.
+  const onPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("[data-surface]")) return;
+    drag.current = {
+      x: e.clientX,
+      y: e.clientY,
+      vx: view.current.x,
+      vy: view.current.y,
+    };
+    wrapRef.current?.setPointerCapture(e.pointerId);
+    wrapRef.current?.classList.add(styles.grabbing);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    view.current.x = d.vx + (e.clientX - d.x);
+    view.current.y = d.vy + (e.clientY - d.y);
+    schedule();
+  };
+
+  const endDrag = (e: React.PointerEvent) => {
+    if (!drag.current) return;
+    drag.current = null;
+    wrapRef.current?.releasePointerCapture(e.pointerId);
+    wrapRef.current?.classList.remove(styles.grabbing);
+  };
+
+  // Hjul: zoom mot pekeren med ctrl/⌘ (og med styreflatens knipebevegelse,
+  // som nettleseren sender som ctrl+wheel), ellers panorering.
+  const onWheel = useCallback(
+    (e: WheelEvent) => {
+      const el = wrapRef.current;
+      if (!el) return;
+      e.preventDefault();
+      const v = view.current;
+      if (e.ctrlKey || e.metaKey) {
+        const rect = el.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
         const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.z * Math.exp(-e.deltaY / 400)));
         const k = z / v.z;
-        return { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
-      });
-      return;
-    }
-    setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
-  };
+        view.current = { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
+      } else {
+        view.current = { ...v, x: v.x - e.deltaX, y: v.y - e.deltaY };
+      }
+      schedule();
+    },
+    [schedule]
+  );
 
-  const grid = 40 * view.z;
+  // Wheel må være en ikke-passiv lytter for at preventDefault skal virke
+  // (React setter passive som standard, og siden ville zoomet i stedet).
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [onWheel]);
+
   return (
     <div
       ref={wrapRef}
-      className={`${styles.board} ${drag.current ? styles.grabbing : ""}`}
-      onMouseDown={onDown}
-      onWheel={onWheel}
-      style={{
-        backgroundSize: `${grid}px ${grid}px`,
-        backgroundPosition: `${view.x}px ${view.y}px`,
-      }}
+      className={styles.board}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
     >
-      <div
-        className={styles.world}
-        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}
-      >
-        {surfaces.map((s, i) => {
-          const p = place(i);
-          return (
-            <div
-              key={s.id}
-              data-surface
-              className={`${styles.card} ${busy ? styles.cardBusy : ""}`}
-              style={{ left: p.x, top: p.y, width: CARD_W, height: cardH }}
-            >
-              <Surface
-                s={s}
-                theme={theme}
-                brand={brand}
-                edit={edit ? (field, value) => edit(s.id, field, value) : undefined}
-              />
-            </div>
-          );
-        })}
+      <div ref={worldRef} className={styles.world}>
+        {surfaces.map((s, i) => (
+          <div
+            key={s.id}
+            data-surface
+            className={`${styles.card} ${busy ? styles.cardBusy : ""}`}
+            style={{
+              left: (i % PER_ROW) * (CARD_W + GAP),
+              top: Math.floor(i / PER_ROW) * (cardH + GAP),
+              width: CARD_W,
+              height: cardH,
+            }}
+          >
+            <Surface
+              s={s}
+              theme={theme}
+              brand={brand}
+              edit={edit ? (field, value) => edit(s.id, field, value) : undefined}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

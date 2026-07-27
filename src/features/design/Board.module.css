@@ -9,7 +9,7 @@
   cursor: grab;
   background-color: var(--bg, #0a0a0a);
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    radial-gradient(circle, rgba(255, 255, 255, 0.18) 1.4px, transparent 1.4px);
   touch-action: none;
   user-select: none;
 }
@@ -24,6 +24,9 @@
   left: 0;
   transform-origin: 0 0;
   will-change: transform;
+  /* Egen komposisjonslag: flatene rastreres én gang og flyttes av GPU-en
+     under panorering, i stedet for å males på nytt hver frame. */
+  backface-visibility: hidden;
 }
 
 .card {
