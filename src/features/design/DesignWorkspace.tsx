@@ -31,13 +31,21 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   const boardRef = useRef<BoardHandle>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // itemsRef speiler listen så flytting kan oppdatere posisjonen uten å
-  // utløse en render (se move).
-  const itemsRef = useRef<BoardItem[]>([]);
-  itemsRef.current = items;
-
+  // Henting beholder identiteten til rammer som ikke har endret seg. Uten
+  // dette ville hver oppdatering gitt nye objekter for ALLE dokumenter, og
+  // memo-en i Board ville rendret hele boardet på nytt.
   const load = useCallback(
-    () => fetchBoard(chatId).then(setItems).catch(() => undefined),
+    () =>
+      fetchBoard(chatId)
+        .then((fresh) =>
+          setItems((prev) =>
+            fresh.map((f) => {
+              const old = prev.find((p) => p.slug === f.slug);
+              return old && JSON.stringify(old) === JSON.stringify(f) ? old : f;
+            })
+          )
+        )
+        .catch(() => undefined),
     [chatId]
   );
 
@@ -89,16 +97,14 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
     patchDesignMeta(slug, { title }).catch(load);
   };
 
-  // Flytting: DOM-en står allerede der brukeren slapp rammen, så React-state
-  // røres IKKE her — en re-render av boardet ville gitt et synlig hakk i det
-  // øyeblikket man slipper. Posisjonen lagres, og listen holdes i takt via
-  // ref-en som brukes ved neste henting.
+  // Flytting: bare den flyttede rammen får et nytt objekt, resten beholder
+  // identiteten sin. Med memo i Board betyr det at ÉN ramme rendres på nytt,
+  // ikke hele boardet — og React eier posisjonen, så ingenting spretter
+  // tilbake ved neste render.
   const move = (slug: string, pos: { x: number; y: number }) => {
-    const it = itemsRef.current.find((i) => i.slug === slug);
-    if (it) {
-      it.x = pos.x;
-      it.y = pos.y;
-    }
+    setItems((prev) =>
+      prev.map((it) => (it.slug === slug ? { ...it, ...pos } : it))
+    );
     moveDocument(chatId, slug, pos).catch(load);
   };
 

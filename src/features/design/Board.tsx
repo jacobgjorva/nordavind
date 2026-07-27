@@ -288,8 +288,10 @@ export function Board({
       const slug = card.dataset.slug!;
       const it = items.find((i) => i.slug === slug);
       if (!it) return;
-      if (!(e.target as HTMLElement).closest("[data-drag]")) {
-        onSelect(slug);
+      const handle = (e.target as HTMLElement).closest("[data-drag]");
+      // Navnet redigeres: la musa markere tekst i stedet for å dra rammen.
+      if (!handle || (e.target as HTMLElement).closest('[contenteditable="true"]')) {
+        if (!handle) onSelect(slug);
         return;
       }
       dragDoc.current = {
@@ -307,7 +309,7 @@ export function Board({
       // Løft rammen ut i eget lag mens den flyttes: da flyttes ferdig malte
       // piksler av GPU-en i stedet for at hele dokumentet males på nytt.
       card.style.willChange = "transform";
-      wrapRef.current?.setPointerCapture(e.pointerId);
+      card.setPointerCapture(e.pointerId);
       return;
     }
     onSelect(null);
@@ -346,14 +348,19 @@ export function Board({
       dragDoc.current = null;
       cancelAnimationFrame(d.frame);
       d.el.style.willChange = "";
-      d.el.style.transform = "";
-      wrapRef.current?.releasePointerCapture(e.pointerId);
+      if (d.el.hasPointerCapture?.(e.pointerId))
+        d.el.releasePointerCapture(e.pointerId);
       if (d.moved) {
-        // Ny posisjon settes én gang, når musa slippes.
-        d.el.style.left = `${d.ox + d.dx}px`;
-        d.el.style.top = `${d.oy + d.dy}px`;
-        onMove(d.slug, { x: d.ox + d.dx, y: d.oy + d.dy });
+        // Ny posisjon eies av React fra nå: left/top settes med det samme så
+        // det ikke blinker, og transform nullstilles i samme frame.
+        const x = d.ox + d.dx;
+        const y = d.oy + d.dy;
+        d.el.style.left = `${x}px`;
+        d.el.style.top = `${y}px`;
+        d.el.style.transform = "";
+        onMove(d.slug, { x, y });
       } else {
+        d.el.style.transform = "";
         onSelect(d.slug);
         focusDoc(d.slug);
       }
