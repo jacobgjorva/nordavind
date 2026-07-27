@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
-import { DeckCanvas } from "../../tools/deck/DeckCanvas";
+import { DesignCanvas } from "../../tools/design/DesignCanvas";
 import { TableQueryContext } from "./blocks/core";
 
 // Flyt-visningen lazy-lastes: den er kun for agent-chatter.
@@ -322,10 +322,10 @@ export function Chat({
   const [widgets, setWidgets] = useState<Widget[]>([]);
   // Satt til en slug mens en widget bygges/redigeres i denne samtalen.
   const widgetEditRef = useRef<string | null>(null);
-  // Åpent presentasjons-lerret: instrukser går stille til agenten som patcher
-  // decket, og canvaset henter specen på nytt selv.
-  const [deckCanvas, setDeckCanvas] = useState<string | null>(null);
-  const deckCanvasRef = useRef<string | null>(null);
+  // Åpent designlerret: instrukser går stille til agenten som endrer
+  // dokumentet, og lerretet henter det på nytt selv.
+  const [designCanvas, setDesignCanvas] = useState<string | null>(null);
+  const designCanvasRef = useRef<string | null>(null);
   // True etter et bart /widget: neste melding blir widget-beskrivelsen.
   const widgetPendingRef = useRef(false);
 
@@ -553,16 +553,16 @@ export function Chat({
   const pendingConnectRef = useRef(false);
   // Åpent lerret teller som samtale i gang: composeren skal ligge nederst,
   // ikke sentrert under presentasjonen.
-  const hasMessages = messages.length > 0 || deckCanvas !== null;
+  const hasMessages = messages.length > 0 || designCanvas !== null;
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
   // Kortet i chatten åpner presentasjonen på lerretet igjen.
   useEffect(
     () =>
-      on("deck-open", (slug) => {
-        deckCanvasRef.current = slug;
-        setDeckCanvas(slug);
+      on("design-open", (slug) => {
+        designCanvasRef.current = slug;
+        setDesignCanvas(slug);
       }),
     []
   );
@@ -939,19 +939,19 @@ export function Chat({
     // intent-rutingen. Uten beskrivelse står lerretet tomt og venter på
     // første instruks. Naturlig språk («lag en presentasjon om …») havner
     // samme sted via intent-motoren.
-    if (/^\/(presentasjon|presentation)\b/i.test(raw) && !deckCanvasRef.current) {
+    if (/^\/(presentasjon|presentation)\b/i.test(raw) && !designCanvasRef.current) {
       setInput("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
       const rest = raw.replace(/^\/(presentasjon|presentation)\s*/i, "").trim();
       // Alltid en fersk slug: uten suffikset kolliderte «presentasjon» med
-      // forrige deck, og lerretet åpnet den gamle presentasjonen i stedet.
+      // forrige dokument, og lerretet åpnet det gamle i stedet.
       const name = `${rest.slice(0, 48) || "presentasjon"}-${Date.now().toString(36)}`;
       let slug: string;
       try {
         slug = (await createWidget(name)).slug;
       } catch {
         // Opprettelsen feilet: ikke gjett på en slug som kan tilhøre et annet
-        // deck — la brukeren få vite det i stedet.
+        // dokument — la brukeren få vite det i stedet.
         setMessages((prev) => [
           ...prev,
           {
@@ -964,8 +964,8 @@ export function Chat({
         ]);
         return;
       }
-      deckCanvasRef.current = slug;
-      setDeckCanvas(slug);
+      designCanvasRef.current = slug;
+      setDesignCanvas(slug);
       reloadWidgets();
       if (!rest) return; // tomt lerret — vent på instruks
       return send(rest);
@@ -1068,11 +1068,11 @@ export function Chat({
         ]
       : textContent;
 
-    const deckTurn = deckCanvasRef.current;
+    const designTurn = designCanvasRef.current;
     // Presentasjons-tur: instruksen står aldri i chat-tråden. Modellen får kun
     // instruksen — hva som allerede ligger på lerretet henter backend fra
     // specen (deterministisk), ikke fra meldingshistorikken.
-    const history = deckTurn
+    const history = designTurn
       ? [{ role: "user" as const, content: apiContent }]
       : buildHistory(messages, { role: "user", content: apiContent });
 
@@ -1088,9 +1088,9 @@ export function Chat({
 
     const userMsgId = nextId();
     const replyId = nextId();
-    if (deckTurn) {
+    if (designTurn) {
       // Lerretet ER samtalen: ingen bobler, kun arbeids-puls på slidene.
-      emit("deck-working", deckTurn);
+      emit("design-working", designTurn);
     } else {
       setMessages((prev) => [
         ...prev,
@@ -1163,13 +1163,13 @@ export function Chat({
             }
           }
           if (delta.widgetUpdated) widgetTouched = true;
-          if (delta.deckUpdated) {
-            // Første patch oppretter decket: åpne lerretet med en gang.
-            if (!deckCanvasRef.current) {
-              deckCanvasRef.current = delta.deckUpdated;
-              setDeckCanvas(delta.deckUpdated);
+          if (delta.designUpdated) {
+            // Første operasjon oppretter dokumentet: åpne lerretet straks.
+            if (!designCanvasRef.current) {
+              designCanvasRef.current = delta.designUpdated;
+              setDesignCanvas(delta.designUpdated);
             }
-            emit("deck-updated", delta.deckUpdated);
+            emit("design-updated", delta.designUpdated);
             reloadWidgets();
           }
           if (delta.m365Auth) {
@@ -1192,7 +1192,7 @@ export function Chat({
           // Forhåndssatt widget-blokk: ikke rør svaret — animasjonen står til
           // data er klar. Senere widget-turer streamer som vanlig og avgjøres
           // ved slutt (widget vs. tekstsvar).
-          if (presetWidget || deckTurn) return;
+          if (presetWidget || designTurn) return;
           update(replyId, {
             loading: !acc && !think && steps.length === 0,
             content: acc,
@@ -1214,12 +1214,12 @@ export function Chat({
               ? agent.id
               : undefined,
           widget: widgetEditRef.current ?? undefined,
-          deck: deckCanvasRef.current ?? undefined,
+          design: designCanvasRef.current ?? undefined,
         }
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
       // Ren prat («Takk») får modellens tekstsvar i stedet for en ny widget.
-      if (deckTurn) {
+      if (designTurn) {
         // Lerretet viser resultatet — ingenting skal legges i chat-tråden.
         reloadWidgets();
       } else if (widgetTurnSlug) {
@@ -1245,7 +1245,7 @@ export function Chat({
       // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
       // Hopp over korte meldinger uten substans; backend gater videre på
       // bedriftsinterne markører før den bruker et LLM-kall.
-      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current && !deckTurn) {
+      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current && !designTurn) {
         extractKnowledge({
           chat_id: chatIdRef.current ?? undefined,
           question: text,
@@ -1254,7 +1254,7 @@ export function Chat({
       }
 
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
-      if (chatIdRef.current && acc && !deckTurn) {
+      if (chatIdRef.current && acc && !designTurn) {
         const displayContent =
           files.length > 0
             ? `${text}\n\n[Vedlegg: ${files.map((a) => a.name).join(", ")}]`
@@ -1282,9 +1282,9 @@ export function Chat({
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "Ukjent feil";
-      if (deckTurn) {
+      if (designTurn) {
         // Ingen boble å feile i: stopp pulsen og la lerretet stå som det var.
-        emit("deck-updated", deckTurn);
+        emit("design-updated", designTurn);
         return;
       }
       update(replyId, {
@@ -1491,12 +1491,12 @@ export function Chat({
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
     <div className={styles.chatRoot}>
-      {deckCanvas && (
-        <DeckCanvas
-          slug={deckCanvas}
+      {designCanvas && (
+        <DesignCanvas
+          slug={designCanvas}
           onClose={() => {
-            setDeckCanvas(null);
-            deckCanvasRef.current = null;
+            setDesignCanvas(null);
+            designCanvasRef.current = null;
           }}
         />
       )}

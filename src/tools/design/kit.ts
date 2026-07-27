@@ -1,19 +1,19 @@
 import { apiFetch } from "../../lib/api/client";
 
-// Kittene er ferdig designede temaer: tokens, bilder og slide-komposisjoner.
-// De ligger som JSON i backend (internal/deck/kits) og hentes herfra, så
-// modellens katalog og det brukeren ser aldri kan komme i utakt. Nye temaer
-// og nye slide-typer er nye JSON-filer — ingen kode her skal endres.
+// Kittene er ferdig designede uttrykk: format, tokens, bilder og flate-typer.
+// De ligger som JSON i backend (internal/design/kits) og hentes herfra, så
+// katalogen modellen ser og det brukeren ser aldri kan komme i utakt. Nye
+// uttrykk og nye flate-typer er nye JSON-filer — ingen kode her skal endres.
 
-export interface KitField {
+export interface KitSlot {
   key: string;
   kind: "text" | "markdown" | "list" | "image" | "images" | "widget" | "widgets";
   hint: string;
   required?: boolean;
 }
 
-// Blokk i en slide-komposisjon. kind bestemmer hvilken primitiv som rendres,
-// field hvilket felt på sliden den viser, class hvilken CSS-klasse den får.
+// Blokk i en komposisjon. kind bestemmer hvilken primitiv som rendres, field
+// hvilket felt på flaten den viser, class hvilken CSS-klasse den får.
 export interface KitBlock {
   kind:
     | "group"
@@ -39,35 +39,40 @@ export interface KitBlock {
 
 export interface KitLayout {
   key: string;
-  label: string;
   use: string;
-  fields: KitField[];
+  slots: KitSlot[];
+  fallback?: string;
   blocks: KitBlock[];
 }
 
-export interface DeckKit {
+export interface Kit {
   name: string;
+  type: string;
   label: string;
   description: string;
+  format: { ratio: string; width: number };
   tokens: Record<string, string>;
   palette: string[];
-  images: string[];
+  assets: string[];
   layouts: KitLayout[];
 }
 
-// DeckTheme er kittet med deck-spesifikke overrides lagt oppå.
-export interface DeckTheme {
+// Theme er kittet med dokumentets token-overrides lagt oppå.
+export interface Theme {
   name: string;
   tokens: Record<string, string>;
   palette: string[];
-  images: string[];
+  assets: string[];
   layouts: KitLayout[];
+  format: { ratio: string; width: number };
 }
 
-const FALLBACK: DeckKit = {
+const FALLBACK: Kit = {
   name: "noir",
+  type: "deck",
   label: "Noir",
   description: "",
+  format: { ratio: "16:9", width: 1920 },
   tokens: {
     bg: "#000000",
     text: "#ffffff",
@@ -79,11 +84,11 @@ const FALLBACK: DeckKit = {
     mono: 'ui-monospace, "SF Mono", Menlo, monospace',
   },
   palette: ["#6b8afd", "#e8e97a", "#f2683c"],
-  images: [],
+  assets: [],
   layouts: [],
 };
 
-type KitCatalog = { default: string; kits: Record<string, DeckKit> };
+type KitCatalog = { default: string; kits: Record<string, Kit> };
 
 let cache: KitCatalog | null = null;
 let pending: Promise<KitCatalog> | null = null;
@@ -92,32 +97,33 @@ let pending: Promise<KitCatalog> | null = null;
 export async function loadKits(): Promise<KitCatalog> {
   if (cache) return cache;
   if (!pending)
-    pending = apiFetch<KitCatalog>("/deck/kits")
+    pending = apiFetch<KitCatalog>("/design/kits")
       .then((d) => (cache = d))
       .catch(() => ({ default: "noir", kits: { noir: FALLBACK } }));
   return pending;
 }
 
-// defaultTheme er temaet før kittene er hentet (grafene trenger tokens med
-// en gang de mountes).
-export function defaultTheme(): DeckTheme {
+// defaultTheme er uttrykket før kittene er hentet (grafene trenger tokens
+// med en gang de mountes).
+export function defaultTheme(): Theme {
   return { ...FALLBACK };
 }
 
-// resolveTheme legger deck-spesifikke token-overrides oppå kittet. «palette»
-// i overrides er en kommaseparert fargeliste.
+// resolveTheme legger dokumentets token-overrides oppå kittet. «palette» i
+// overrides er en kommaseparert fargeliste.
 export function resolveTheme(
-  kits: Record<string, DeckKit>,
+  kits: Record<string, Kit>,
   name?: string,
   overrides?: Record<string, string>
-): DeckTheme {
+): Theme {
   const base = kits[name ?? "noir"] ?? kits.noir ?? FALLBACK;
-  const theme: DeckTheme = {
+  const theme: Theme = {
     name: base.name,
     tokens: { ...base.tokens },
     palette: [...base.palette],
-    images: base.images,
+    assets: base.assets,
     layouts: base.layouts,
+    format: base.format,
   };
   if (!overrides) return theme;
   const { palette, ...rest } = overrides;
@@ -130,26 +136,27 @@ export function resolveTheme(
   return theme;
 }
 
-// resolveImage: navn fra temaets bildemappe («bg-1») eller full path/URL.
-export function resolveImage(t: DeckTheme, image?: string): string | undefined {
+// resolveAsset: navn fra kittets bildemappe («bg-1») eller full path/URL.
+// Slår alltid opp på stammen, så en utskiftet filtype ikke gir tom ramme.
+export function resolveAsset(t: Theme, image?: string): string | undefined {
   if (!image) return undefined;
   if (image.startsWith("/") || image.startsWith("http") || image.startsWith("data:"))
     return image;
-  // Slå alltid opp mot temaets faktiske filer på stammen («bg-1»): bytter man
-  // ut et motiv med en annen filtype, skal gamle decks fortsatt vise bilde.
   const stem = image.replace(/\.[a-z0-9]+$/i, "");
-  const hit = t.images.find((f) => f === image || f.replace(/\.[a-z0-9]+$/i, "") === stem);
+  const hit = t.assets.find(
+    (f) => f === image || f.replace(/\.[a-z0-9]+$/i, "") === stem
+  );
   return `/themes/${t.name}/${hit ?? image}`;
 }
 
-// CSS-variabler for slide-rota (--dk-<token>).
-export function themeVars(t: DeckTheme): Record<string, string> {
+// CSS-variabler for flate-rota (--dk-<token>).
+export function themeVars(t: Theme): Record<string, string> {
   const vars: Record<string, string> = {};
   for (const [k, v] of Object.entries(t.tokens)) vars[`--dk-${k}`] = v;
   return vars;
 }
 
-// layoutOf finner komposisjonen sliden skal rendres med.
-export function layoutOf(t: DeckTheme, key?: string): KitLayout | undefined {
+// layoutOf finner komposisjonen flaten skal rendres med.
+export function layoutOf(t: Theme, key?: string): KitLayout | undefined {
   return t.layouts.find((l) => l.key === key) ?? t.layouts[0];
 }

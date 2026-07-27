@@ -6,12 +6,12 @@ interface EventMap {
   "agents-changed": void;
   "chat-deleted": string;
   "widgets-changed": void;
-  // Presentasjonen er endret av agenten — canvaset henter specen på nytt.
-  "deck-updated": string;
-  // Agenten har begynt på en instruks mot canvaset (vis arbeids-puls).
-  "deck-working": string;
-  // Åpne presentasjonen på lerretet igjen (fra kortet i chatten).
-  "deck-open": string;
+  // Dokumentet er endret av agenten — lerretet henter det på nytt.
+  "design-updated": string;
+  // Agenten har begynt på en instruks mot lerretet (vis arbeids-puls).
+  "design-working": string;
+  // Åpne dokumentet på lerretet igjen (fra kortet i chatten).
+  "design-open": string;
   // E-post sendt fra compose-kortet — chatten kvitterer med vanlig melding.
   "mail-sent": void;
   // Tilkoblingslisten er endret — paneler bør laste på nytt.

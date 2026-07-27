@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { DeckSlide, WidgetSpec } from "../../lib/api";
+import type { Surface as SurfaceModel, WidgetSpec } from "../../lib/api";
 import {
   layoutOf,
-  resolveImage,
+  resolveAsset,
   themeVars,
-  type DeckTheme,
   type KitBlock,
+  type Theme,
 } from "./kit";
-import styles from "./Slide.module.css";
+import styles from "./Surface.module.css";
 import { Duo, KitKpi, KitTable, ThemeCtx, Visual } from "./visuals";
 
-// Slide rendrer én slide ut fra kittets komposisjon: hver blokk i layouten
+// Surface rendrer én flate ut fra kittets komposisjon: hver blokk i layouten
 // peker på et felt, og feltet fylles av modellen eller av brukeren selv.
-// Rendereren kjenner ingen layout-navn — kommer det en ny slide-type i
+// Rendereren kjenner ingen layout-navn — kommer det en ny flate-type i
 // kit-JSON-en, virker den her uten kodeendring.
 
 type Editor = (field: string, value: string) => void;
@@ -93,8 +93,8 @@ function Block({
   edit,
 }: {
   b: KitBlock;
-  s: DeckSlide;
-  theme: DeckTheme;
+  s: SurfaceModel;
+  theme: Theme;
   brand?: string;
   edit?: Editor;
 }) {
@@ -102,9 +102,9 @@ function Block({
   // Ny slide-type i kit-JSON-en med en klasse som mangler i temaets CSS er
   // den ene feilen denne rendereren ikke kan se selv — si fra i utvikling.
   if (import.meta.env.DEV && b.class && !cls)
-    console.warn(`deck: klassen «${b.class}» finnes ikke i temaets CSS`);
+    console.warn(`design: klassen «${b.class}» finnes ikke i temaets CSS`);
   const field = b.field ?? "";
-  const raw = field ? (s as Record<string, unknown>)[field] : undefined;
+  const raw = field ? s.fields[field] : undefined;
   const text = typeof raw === "string" ? raw : "";
   const onSave = edit ? (v: string) => edit(field, v) : undefined;
 
@@ -119,7 +119,7 @@ function Block({
       );
 
     case "bg": {
-      const src = resolveImage(theme, text);
+      const src = resolveAsset(theme, text);
       if (!src) return null;
       return (
         <>
@@ -179,13 +179,13 @@ function Block({
     }
 
     case "image": {
-      const src = resolveImage(theme, text);
+      const src = resolveAsset(theme, text);
       return src ? <img src={src} className={cls} alt="" /> : null;
     }
 
     case "imageAt": {
       const list = Array.isArray(raw) ? (raw as string[]) : [];
-      const src = resolveImage(theme, list[b.index ?? 0]);
+      const src = resolveAsset(theme, list[b.index ?? 0]);
       return src ? <img src={src} className={cls} alt="" /> : null;
     }
 
@@ -221,16 +221,16 @@ function Block({
   }
 }
 
-// Slide: fast 16:9-flate. Typografien skalerer med containeren (cqw), så
-// samme komponent brukes i canvas, miniatyr og fullskjerm.
-export function Slide({
+// Surface: én flate i kittets format. Typografien skalerer med containeren
+// (cqw), så samme komponent brukes i lerret, miniatyr og fullskjerm.
+export function Surface({
   s,
   theme,
   brand,
   edit,
 }: {
-  s: DeckSlide;
-  theme: DeckTheme;
+  s: SurfaceModel;
+  theme: Theme;
   brand?: string;
   /** Satt: brukeren kan dobbeltklikke og skrive om tekstfeltene. */
   edit?: Editor;

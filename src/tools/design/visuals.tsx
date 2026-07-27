@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { runQuery, type QueryResult, type WidgetSpec } from "../../lib/api";
-import styles from "./Slide.module.css";
-import { defaultTheme, type DeckTheme } from "./kit";
+import styles from "./Surface.module.css";
+import { defaultTheme, type Theme } from "./kit";
 
-// Grafer, nøkkeltall og tabeller for slides. Hentet uendret fra det gamle
+// Grafer, nøkkeltall og tabeller for flater. Hentet uendret fra det gamle
 // kittet: dette er primitivene layoutene setter sammen, ikke layout selv.
-export const ThemeCtx = createContext<DeckTheme>(defaultTheme());
+export const ThemeCtx = createContext<Theme>(defaultTheme());
 
 // Kit «noir»: svart lerret, stor hvit sans-typografi, mono-caps detaljer og
 // fargede grafer med verdi-etiketter. Modellen leverer kun innhold/SQL —

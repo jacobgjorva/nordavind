@@ -205,8 +205,8 @@ export interface StreamDelta {
   m365Auth?: string;
   /** Connector-agenten opprettet en tilkobling (id) */
   connectionCreated?: string;
-  /** Presentasjonen ble endret av et verktøykall (slug) */
-  deckUpdated?: string;
+  /** Dokumentet på lerretet ble endret av et verktøykall (slug) */
+  designUpdated?: string;
 }
 
 export interface TableQuery {
@@ -292,7 +292,7 @@ export async function streamChat(
     agentEdit?: string;
     widget?: string;
     connector?: boolean;
-    deck?: string;
+    design?: string;
   }
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -317,8 +317,8 @@ export async function streamChat(
       ...(opts?.widget ? { nordavind_widget: opts.widget } : {}),
       // Connector-agent: hjelper brukeren koble til eksterne kilder.
       ...(opts?.connector ? { nordavind_connector: true } : {}),
-      // Åpent presentasjons-lerret: modellen patcher slides på dette decket.
-      ...(opts?.deck ? { nordavind_deck: opts.deck } : {}),
+      // Åpent designlerret: modellen bygger og endrer dette dokumentet.
+      ...(opts?.design ? { nordavind_design: opts.design } : {}),
     }),
   });
 
@@ -356,7 +356,7 @@ export async function streamChat(
         const widgetUpdated = json.nordavind_widget_updated as
           | boolean
           | undefined;
-        const deckUpdated = json.nordavind_deck_updated as string | undefined;
+        const designUpdated = json.nordavind_design_updated as string | undefined;
         const delta = json.choices?.[0]?.delta;
         const content = delta?.content;
         const reasoning = delta?.reasoning ?? delta?.reasoning_content;
@@ -364,11 +364,11 @@ export async function streamChat(
         const model = (json.model as string | undefined)?.split("/").pop();
         if (
           content || reasoning || model || sources || step ||
-          widgetUpdated || query || m365Auth || connectionCreated || deckUpdated
+          widgetUpdated || query || m365Auth || connectionCreated || designUpdated
         ) {
           onDelta({
             content, reasoning, model, sources, step,
-            widgetUpdated, query, m365Auth, connectionCreated, deckUpdated,
+            widgetUpdated, query, m365Auth, connectionCreated, designUpdated,
           });
         }
       } catch {

@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   fetchWidget,
-  patchSlide,
-  type DeckSlide,
+  patchSurface,
+  type Surface as SurfaceModel,
   type WidgetSpec,
 } from "../../lib/api";
 import { on } from "../../lib/events";
-import styles from "./DeckCanvas.module.css";
-import { defaultTheme, loadKits, resolveTheme, type DeckKit, type DeckTheme } from "./kit";
-import { Slide } from "./Slide";
+import styles from "./DesignCanvas.module.css";
+import { defaultTheme, loadKits, resolveTheme, type Kit, type Theme } from "./kit";
+import { Surface } from "./Surface";
 
-// DeckCanvas: presentasjonen som et sentrert 16:9-lerret over chatten.
-// Brukeren dirigerer med meldinger, og kan dobbeltklikke rett i sliden for å
-// rette tekst selv. Begge veier skriver samme patch, så ingenting overskrives.
-export function DeckCanvas({
+// DesignCanvas: dokumentet som et sentrert lerret. Brukeren dirigerer med
+// meldinger, og kan dobbeltklikke rett i flaten for å rette tekst selv.
+// Begge veier går gjennom samme patch i motoren, så ingenting overskrives.
+export function DesignCanvas({
   slug,
   onClose,
 }: {
@@ -21,7 +21,7 @@ export function DeckCanvas({
   onClose: () => void;
 }) {
   const [spec, setSpec] = useState<WidgetSpec | null>(null);
-  const [kits, setKits] = useState<Record<string, DeckKit> | null>(null);
+  const [kits, setKits] = useState<Record<string, Kit> | null>(null);
   const [i, setI] = useState(0);
   const [busy, setBusy] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -41,37 +41,43 @@ export function DeckCanvas({
     load();
     loadKits().then((d) => setKits(d.kits));
   }, [load]);
-  useEffect(() => on("deck-updated", (s) => s === slug && load()), [slug, load]);
-  useEffect(() => on("deck-working", (s) => s === slug && setBusy(true)), [slug]);
+  useEffect(() => on("design-updated", (s) => s === slug && load()), [slug, load]);
+  useEffect(() => on("design-working", (s) => s === slug && setBusy(true)), [slug]);
 
-  const slides: DeckSlide[] = spec?.slides ?? [];
-  const count = slides.length;
-  // Ny slide: hopp til den som nettopp kom til.
+  const surfaces: SurfaceModel[] = spec?.surfaces ?? [];
+  const count = surfaces.length;
+  // Ny flate: hopp til den som nettopp kom til.
   useEffect(() => {
     if (count > 0) setI(count - 1);
   }, [count]);
 
-  const theme: DeckTheme = kits
-    ? resolveTheme(kits, spec?.theme, spec?.style)
+  const theme: Theme = kits
+    ? resolveTheme(kits, spec?.kit, spec?.style)
     : defaultTheme();
   const at = Math.min(i, Math.max(count - 1, 0));
-  const current = slides[at];
+  const current = surfaces[at];
 
-  // Brukerens egen retting: patch feltet på sliden og oppdater lerretet med
-  // en gang (optimistisk — serveren har samme semantikk).
+  // Brukerens egen retting: patch feltet på flaten og oppdater lerretet med
+  // en gang (optimistisk — motoren har samme semantikk på serversiden).
   const edit = (field: string, value: string) => {
     if (!current?.id) return;
     setSpec((prev) =>
       prev
         ? {
             ...prev,
-            slides: (prev.slides ?? []).map((s) =>
-              s.id === current.id ? { ...s, [field]: value } : s
+            surfaces: (prev.surfaces ?? []).map((s) =>
+              s.id === current.id
+                ? { ...s, fields: { ...s.fields, [field]: value } }
+                : s
             ),
           }
         : prev
     );
-    patchSlide(slug, { op: "set", id: current.id, [field]: value }).catch(load);
+    patchSurface(slug, {
+      action: "set",
+      id: current.id,
+      fields: { [field]: value },
+    }).catch(load);
   };
 
   // Fullskjerm: piltaster blar, Esc lukker.
@@ -99,7 +105,7 @@ export function DeckCanvas({
           onClick={() => setI((n) => Math.min(n + 1, count - 1))}
         >
           <div className={styles.presentSlide}>
-            <Slide key={at} s={current} theme={theme} brand={spec?.title} />
+            <Surface key={at} s={current} theme={theme} brand={spec?.title} />
           </div>
         </div>
       </div>
@@ -120,12 +126,12 @@ export function DeckCanvas({
         </div>
         {count === 0 ? (
           <div className={styles.empty}>
-            {spec === null ? "" : "Tomt lerret — beskriv presentasjonen i meldingsfeltet under."}
+            {spec === null ? "" : "Tomt lerret — beskriv dokumentet i meldingsfeltet under."}
           </div>
         ) : (
           <>
             <div className={styles.stage}>
-              <Slide
+              <Surface
                 key={`${at}-${count}`}
                 s={current}
                 theme={theme}

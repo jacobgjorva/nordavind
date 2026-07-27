@@ -17,45 +17,48 @@ export interface WidgetSpec {
   filters?: { column: string; label?: string }[];
   sort?: { column: string; label?: string; dir?: "asc" | "desc" }[];
   group?: string;
-  // type "deck": presentasjon — slides fylt inn i kittets ferdige layouts.
-  slides?: DeckSlide[];
-  /** Tema fra kit-katalogen (backend: internal/deck/kits). */
-  theme?: string;
-  /** Token-overrides oppå temaet (bg, text, palette …). */
+  // type "design": dokument på designlerretet — flater fra et kitt.
+  kind?: string;
+  kit?: string;
+  surfaces?: Surface[];
+  /** Token-overrides oppå kittet (bg, text, palette …). */
   style?: Record<string, string>;
 }
 
-// Én slide. Feltene er de kittet definerer for den valgte layouten.
-export interface DeckSlide {
-  /** Stabil id — patcher fra både AI og bruker treffer på denne. */
-  id?: string;
-  layout?: string;
+// Én flate: en slide, en flyer-side, en plakat. Feltene er de kittets layout
+// definerer — motoren avviser alt annet.
+export interface Surface {
+  id: string;
+  layout: string;
+  fields: SurfaceFields;
+}
+
+export interface SurfaceFields {
   title?: string;
   content?: string;
   image?: string;
   images?: string[];
   widget?: WidgetSpec;
   widgets?: WidgetSpec[];
+  [key: string]: unknown;
 }
 
-// Patcher ÉN slide. Samme vei inn som modellens set_slide, så brukerens
-// redigering og en chat-instruks aldri kommer i utakt.
-export async function patchSlide(
+// Redigering av én flate. Samme vei inn som modellens patch, så brukerens
+// egne rettinger og en chat-instruks aldri kommer i utakt.
+export async function patchSurface(
   slug: string,
-  patch: Partial<DeckSlide> & { op?: "add" | "set" | "remove" | "move"; after?: string }
+  op: {
+    action?: "set" | "add" | "remove" | "move";
+    id?: string;
+    after?: string;
+    layout?: string;
+    fields?: SurfaceFields;
+  }
 ): Promise<void> {
-  await apiFetch(`/decks/${slug}/slide`, { method: "POST", body: patch });
+  await apiFetch(`/designs/${slug}/patch`, { method: "POST", body: op });
 }
 
-// Setter tittel, tema eller stil på presentasjonen.
-export async function patchDeck(
-  slug: string,
-  meta: { title?: string; theme?: string; style?: Record<string, string> }
-): Promise<void> {
-  await apiFetch(`/decks/${slug}/meta`, { method: "POST", body: meta });
-}
-
-// Kjører en lagret SELECT mot en tilkobling (slides henter live data).
+// Kjører en lagret SELECT mot en tilkobling (flater henter live data).
 export async function runQuery(
   connectionId: string,
   sql: string
