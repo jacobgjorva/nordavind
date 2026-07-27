@@ -15,6 +15,7 @@ import {
   type Theme,
 } from "../../tools/design/kit";
 import { Surface } from "../../tools/design/Surface";
+import { Composer } from "../chat/Composer";
 import { Gallery } from "./Gallery";
 import styles from "./DesignWorkspace.module.css";
 
@@ -276,7 +277,7 @@ export function DesignWorkspace({
         </main>
       </div>
 
-      <div className={styles.composer}>
+      <div className={styles.composerWrap}>
         {log.length > 0 && (
           <div className={styles.log}>
             {log.slice(-3).map((e, i) => (
@@ -286,28 +287,20 @@ export function DesignWorkspace({
             ))}
           </div>
         )}
-        <div className={styles.inputRow}>
-          <textarea
-            className={styles.input}
-            rows={1}
-            placeholder={
-              count === 0
-                ? "Hva skal dokumentet handle om?"
-                : "Hva vil du endre?"
+        <Composer
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
             }
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-          />
-          <button className={styles.send} onClick={send} disabled={busy || !input.trim()}>
-            {busy ? "…" : "Send"}
-          </button>
-        </div>
+          }}
+          placeholder={
+            count === 0 ? "Hva skal dokumentet handle om?" : "Hva vil du endre?"
+          }
+          model={busy ? (step ?? "Jobber") : undefined}
+        />
       </div>
     </div>
   );

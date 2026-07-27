@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
+import { Composer } from "./Composer";
 import { TableQueryContext } from "./blocks/core";
 
 // Flyt-visningen lazy-lastes: den er kun for agent-chatter.
@@ -19,10 +20,8 @@ import {
   BorderNone02Icon,
   NeuralNetworkIcon,
   ArrowDown01Icon,
-  Attachment01Icon,
   BadgePlusIcon,
   Files01Icon,
-  FlashIcon,
   LayoutAlignLeftIcon,
   UserGroupIcon,
   UserSettings01Icon,
@@ -1342,79 +1341,24 @@ export function Chat({
           )}
         </div>
       )}
-    <div className={styles.composer}>
-      <div className={styles.inputRow}>
-        <textarea
-          ref={textareaRef}
-          className={styles.input}
-          rows={1}
-          placeholder="Spør om hva som helst …"
-          value={input}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          autoFocus
-        />
-      </div>
-      {slashOpen && (
-        <div className={styles.slashBody}>
-          <ul className={styles.slashList}>
-            {slashItems.map((a, i) => (
-              <li key={a.cmd}>
-                <button
-                  type="button"
-                  className={`${styles.slashItem} ${
-                    i === slashIndex ? styles.slashItemActive : ""
-                  }`}
-                  onMouseEnter={() => setSlashIndex(i)}
-                  onClick={() => pickSlash(a.cmd)}
-                >
-                  <HugeiconsIcon
-                    icon={a.icon}
-                    size={16}
-                    className={styles.slashIcon}
-                  />
-                  <span className={styles.slashLabel}>{a.label}</span>
-                  {"tag" in a && typeof a.tag === "string" && (
-                    <span className={styles.slashTag}>{a.tag}</span>
-                  )}
-                  <span className={styles.slashHint}>{a.desc}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <div className={styles.footer}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          hidden
-          multiple
-          accept=".pdf,.docx,.txt,.md,.csv,.json,.log,text/*,image/*"
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-        <button
-          className={`${styles.actionBtn} ${styles.attachBtn}`}
-          onClick={() => fileInputRef.current?.click()}
-          title="Legg ved fil"
-          aria-label="Legg ved fil"
-        >
-          <HugeiconsIcon icon={Attachment01Icon} size={16} strokeWidth={2} />
-        </button>
-        {userRole === "admin" && <ImpersonatePill />}
-        <span className={styles.footerRight}>
-          <ContextRing messages={messages} />
-          <span className={styles.modelInfo}>
-            <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
-            <span className={styles.modelName}>{modelAlias(activeModel)}</span>
-            {modelDesc(activeModel) && (
-              <span className={styles.modelHint}>{modelDesc(activeModel)}</span>
-            )}
-          </span>
-        </span>
-      </div>
-    </div>
+    <Composer
+      value={input}
+      onChange={handleInput}
+      onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
+      placeholder="Spør om hva som helst …"
+      textareaRef={textareaRef}
+      fileInputRef={fileInputRef}
+      onFiles={handleFiles}
+      slashItems={slashOpen ? slashItems : undefined}
+      slashIndex={slashIndex}
+      onSlashHover={setSlashIndex}
+      onSlashPick={pickSlash}
+      model={modelAlias(activeModel)}
+      modelHint={modelDesc(activeModel)}
+      left={userRole === "admin" ? <ImpersonatePill /> : null}
+      right={<ContextRing messages={messages} />}
+    />
     </>
   );
 

@@ -204,10 +204,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Instruksfeltet: samtalen med modellen, uten chatbobler. */
-.composer {
+/* Instruksfeltet er den DELTE composeren (features/chat/Composer) — samme
+   felt som i chatten. Her ligger bare rammen rundt og loggen over. */
+.composerWrap {
   border-top: 0.5px solid var(--border, #26262a);
   padding: 10px 16px 14px;
+  max-width: 860px;
+  width: 100%;
+  align-self: center;
 }
 
 .log {
@@ -232,44 +236,6 @@
 .logLive {
   color: var(--text, #eee);
   border-color: var(--accent, #7aa2f7);
-}
-
-.inputRow {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  border: 0.5px solid var(--border, #2a2a2e);
-  border-radius: 12px;
-  background: var(--bg-raised, #131316);
-  padding: 10px 12px;
-}
-
-.input {
-  flex: 1;
-  background: none;
-  border: 0;
-  outline: none;
-  resize: none;
-  color: var(--text, #eee);
-  font: inherit;
-  font-size: 14px;
-  max-height: 140px;
-  field-sizing: content;
-}
-
-.send {
-  background: var(--bg-inset, #1a1a1e);
-  border: 0.5px solid var(--border, #2a2a2e);
-  border-radius: 8px;
-  color: var(--text, #eee);
-  font-size: 13px;
-  padding: 5px 14px;
-  cursor: pointer;
-}
-
-.send:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 /* Fullskjerm. */
