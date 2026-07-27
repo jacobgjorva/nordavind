@@ -260,6 +260,16 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // URL-en følger visningen. Uten dette ble adressen stående på /graf etter at
+  // brukeren gikk tilbake til chatten, og en refresh landet i grafen igjen.
+  useEffect(() => {
+    const want =
+      view === "hub" ? "/agents" : view === "graph" ? "/graf" : "/";
+    if (window.location.pathname !== want) {
+      window.history.replaceState({}, "", want);
+    }
+  }, [view]);
+
   // Esc lukker settings-overlayet.
   useEffect(() => {
     if (view !== "settings") return;
