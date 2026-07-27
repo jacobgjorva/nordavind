@@ -127,7 +127,11 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
   // et nytt der brukeren står — det er slik man starter en ny variant.
   async function send() {
     const text = input.trim();
-    if (!text || busySlug) return;
+    if (!text) return;
+    // En pågående instruks skal aldri gjøre feltet dødt: henger forrige strøm
+    // (eller ble den aldri avsluttet), avbryter vi den og kjører den nye.
+    // Før dette ble meldinger droppet i stillhet.
+    abortRef.current?.abort();
     setInput("");
 
     let slug = selected;
@@ -145,7 +149,6 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
 
     setBusySlug(slug);
     setStep("Tenker");
-    abortRef.current?.abort();
     abortRef.current = new AbortController();
     try {
       await streamChat(
@@ -160,11 +163,14 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
       );
       await load();
       boardRef.current?.focus(slug);
-    } catch {
-      // Avbrutt eller feilet: lerretet står som det var.
+      setStep(null);
+    } catch (e) {
+      // Avbrutt av en ny instruks: la den nye få styre visningen.
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setStep("Klarte ikke fullføre — prøv igjen");
+      setTimeout(() => setStep(null), 4000);
     } finally {
       setBusySlug(null);
-      setStep(null);
     }
   }
 
