@@ -3,6 +3,7 @@ import {
   createDocument,
   fetchBoard,
   moveDocument,
+  patchDesignMeta,
   patchSurface,
   streamChat,
   type BoardItem,
@@ -65,6 +66,11 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
     }).catch(load);
   };
 
+  const rename = (slug: string, title: string) => {
+    setItems((prev) => prev.map((it) => (it.slug === slug ? { ...it, title } : it)));
+    patchDesignMeta(slug, { title }).catch(load);
+  };
+
   const move = (slug: string, pos: { x: number; y: number }) => {
     setItems((prev) => prev.map((it) => (it.slug === slug ? { ...it, ...pos } : it)));
     moveDocument(chatId, slug, pos).catch(load);
@@ -125,6 +131,7 @@ export function DesignWorkspace({ chatId }: { chatId: string }) {
         onSelect={setSelected}
         onMove={move}
         onEdit={edit}
+        onRename={rename}
         busySlug={busySlug}
       />
 

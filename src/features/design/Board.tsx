@@ -38,6 +38,7 @@ export function Board({
   onSelect,
   onMove,
   onEdit,
+  onRename,
   busySlug,
 }: {
   ref?: React.Ref<BoardHandle>;
@@ -47,6 +48,7 @@ export function Board({
   onSelect: (slug: string | null) => void;
   onMove: (slug: string, pos: { x: number; y: number }) => void;
   onEdit: (slug: string, surfaceId: string, field: string, value: string) => void;
+  onRename: (slug: string, title: string) => void;
   busySlug?: string | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -159,14 +161,19 @@ export function Board({
   );
 
   // Klikk på tom flate: ingenting er valgt, og neste melding lager et nytt
-  // dokument. Klikk på et dokument velger det og snapper det til midten.
+  // dokument. Klikk på et dokument velger det; FLYTTING skjer kun via
+  // navnetaggen over rammen, så man aldri drar dokumentet ut av stilling
+  // mens man jobber i det.
   const onPointerDown = (e: React.PointerEvent) => {
     const card = (e.target as HTMLElement).closest<HTMLElement>("[data-slug]");
     if (card) {
       const slug = card.dataset.slug!;
       const it = items.find((i) => i.slug === slug);
       if (!it) return;
-      // Dra dokumentet med musa; et rent klikk (uten bevegelse) velger det.
+      if (!(e.target as HTMLElement).closest("[data-drag]")) {
+        onSelect(slug);
+        return;
+      }
       dragDoc.current = {
         slug,
         el: card,
@@ -281,6 +288,38 @@ export function Board({
               } ${busySlug === it.slug ? styles.docBusy : ""}`}
               style={{ left: it.x, top: it.y, width: DOC_W }}
             >
+              {/* Navnetaggen er også håndtaket: hold og dra her for å flytte
+                  rammen, dobbeltklikk for å døpe den om. */}
+              <div
+                data-drag
+                className={styles.tag}
+                onDoubleClick={(ev) => {
+                  const el = ev.currentTarget;
+                  el.contentEditable = "true";
+                  el.focus();
+                  document.getSelection()?.selectAllChildren(el);
+                }}
+                onBlur={(ev) => {
+                  const el = ev.currentTarget;
+                  el.contentEditable = "false";
+                  const name = (el.textContent ?? "").trim();
+                  if (name && name !== it.title) onRename(it.slug, name);
+                  else el.textContent = it.title;
+                }}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter") {
+                    ev.preventDefault();
+                    ev.currentTarget.blur();
+                  }
+                  if (ev.key === "Escape") {
+                    ev.currentTarget.textContent = it.title;
+                    ev.currentTarget.blur();
+                  }
+                }}
+                suppressContentEditableWarning
+              >
+                {it.title}
+              </div>
               {surfaces.length === 0 ? (
                 <div className={styles.docEmpty} style={{ height: h }}>
                   Tomt
