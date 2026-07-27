@@ -8,10 +8,8 @@ import {
   fetchAgentRuns,
   fetchAgents,
   markAgentSeen,
-  setAgentPersona,
   type AgentInfo,
   type AgentRunEvent,
-  type AgentState,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
 import {
@@ -30,13 +28,6 @@ import styles from "./Hub.module.css";
 const POLL_MS = 5000;
 const FPS_CAP = 30;
 
-const STATE_LABEL: Record<AgentState, string> = {
-  working: "jobber nå",
-  thinking: "legger plan",
-  broken: "trenger tilsyn",
-  paused: "pauset",
-  sleeping: "sover til neste vakt",
-};
 
 export default function Hub({
   onClose,
@@ -48,8 +39,6 @@ export default function Hub({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strandsRef = useRef<Strand[]>([]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
-  const [selected, setSelected] = useState<AgentInfo | null>(null);
-  const [draft, setDraft] = useState({ name: "", personality: "", category: "" });
   const [size, setSize] = useState({ w: 0, h: 0 });
   // Ekspandert svar-pille (agentId + started_at); null = alle kollapset.
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -235,8 +224,7 @@ export default function Hub({
         ctx.globalAlpha = 1;
         ctx.font = "500 11px system-ui, sans-serif";
         ctx.textAlign = "right";
-        ctx.fillStyle =
-          selected?.id === s.agent.id ? "#f0f0ec" : "rgba(226,226,222,0.7)";
+        ctx.fillStyle = "rgba(226,226,222,0.7)";
         let label = s.agent.name;
         while (label.length > 3 && ctx.measureText(label).width > 118) {
           label = label.slice(0, -2);
@@ -251,7 +239,7 @@ export default function Hub({
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [selected]);
+  }, []);
 
   // Polling: agenter + kjøringshistorikk.
   useEffect(() => {
@@ -265,7 +253,6 @@ export default function Hub({
           const canvas = canvasRef.current;
           strandsRef.current = layoutStrands(list, runs, canvas?.clientHeight ?? 600);
           setTick((n) => n + 1);
-          setSelected((sel) => (sel ? list.find((a) => a.id === sel.id) ?? null : null));
         })
         .catch(swallow);
     };
@@ -281,57 +268,30 @@ export default function Hub({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setRangeOpen(false);
-      setSelected((s) => {
-        if (s) return null;
-        onClose();
-        return s;
-      });
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Klikk: nærmeste tråd innen 14 px (navn ved venstre kant treffer også).
-  const pick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    let best: Strand | null = null;
-    let bestD = 14;
-    for (const s of strandsRef.current) {
-      const d = Math.abs(s.laneY - y);
-      if (d < bestD) {
-        bestD = d;
-        best = s;
+  // Klikk på en tråd åpner agentens chat direkte — ingen mellomkort.
+  const pick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      let best: Strand | null = null;
+      let bestD = 16;
+      for (const s of strandsRef.current) {
+        const d = Math.abs(s.laneY - y);
+        if (d < bestD) {
+          bestD = d;
+          best = s;
+        }
       }
-    }
-    setSelected(best?.agent ?? null);
-    if (best) {
-      setDraft({
-        name: best.agent.name,
-        personality: best.agent.personality ?? "",
-        category: best.agent.category ?? "",
-      });
-    }
-  }, []);
-
-  const save = useCallback(async () => {
-    if (!selected) return;
-    try {
-      await setAgentPersona(selected.id, {
-        name: draft.name,
-        personality: draft.personality,
-        category: draft.category,
-      });
-      const [list, runs] = await Promise.all([fetchAgents(), fetchAgentRuns(24)]);
-      setAgents(list);
-      strandsRef.current = layoutStrands(list, runs, canvasRef.current?.clientHeight ?? 600);
-      setSelected(list.find((a) => a.id === selected.id) ?? null);
-    } catch {
-      // Ikke kritisk — brukeren kan prøve igjen.
-    }
-  }, [selected, draft]);
-
-  const categories = [...new Set(agents.map((a) => a.category).filter(Boolean))] as string[];
+      if (best?.agent.chat_id) onOpenChat(best.agent.chat_id);
+    },
+    [onOpenChat]
+  );
 
   // Svar-piller: én per kjøring i vinduet. «Funn!» når kjøringen fant noe
   // med verdi, ellers «Ingen funn». Klikk ekspanderer til hele meldingen.
@@ -457,60 +417,6 @@ export default function Hub({
         </div>
       </div>
 
-      {selected && (
-        <div className={styles.card}>
-          <input
-            className={styles.cardName}
-            value={draft.name}
-            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-            onBlur={save}
-          />
-          <div className={styles.cardState}>
-            {STATE_LABEL[selected.state ?? "sleeping"]}
-          </div>
-          {selected.task && <p className={styles.cardTask}>{selected.task}</p>}
-          {selected.schedule_label && (
-            <div className={styles.cardMeta}>{selected.schedule_label}</div>
-          )}
-          <input
-            className={styles.cardInput}
-            placeholder="Kategori - f.eks. økonomi"
-            value={draft.category}
-            onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-            onBlur={save}
-            list="hub-categories"
-          />
-          <datalist id="hub-categories">
-            {categories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <textarea
-            className={styles.cardPersonality}
-            placeholder="Personlighet - f.eks. «gretten men grundig»"
-            value={draft.personality}
-            onChange={(e) => setDraft((d) => ({ ...d, personality: e.target.value }))}
-            onBlur={save}
-            rows={2}
-          />
-          <div className={styles.cardActions}>
-            <button
-              className={styles.cardBtn}
-              onClick={() => {
-                if (selected.chat_id) {
-                  onClose();
-                  onOpenChat(selected.chat_id);
-                }
-              }}
-            >
-              Åpne chat
-            </button>
-            <button className={styles.cardBtnGhost} onClick={() => setSelected(null)}>
-              Lukk
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

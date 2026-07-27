@@ -36,6 +36,7 @@ import {
   Xls01Icon,
   Upload05Icon,
   Zip01Icon,
+  SdCardIcon,
 } from "@hugeicons/core-free-icons";
 import { SearchIcon } from "../../ui/Icons";
 import {
@@ -54,7 +55,7 @@ import {
   listWidgets,
   type Widget,
   deleteAgent,
-  extractKnowledge,
+  rememberMessage,
   fetchChatAgent,
   generateChatTitle,
   logCorrection,
@@ -84,7 +85,7 @@ import {
 import { DEFAULT_MODEL, modelAlias, modelDesc, modelGlow } from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
-import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument } from "./chatHelpers";
+import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument, HISTORY_WINDOW, HISTORY_CHAR_BUDGET } from "./chatHelpers";
 import { FileTag } from "../../ui/FileTag";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
@@ -185,21 +186,31 @@ const SLASH_ACTIONS: {
   },
 ];
 
-// Kontekst-ring: fylles etter hvor mye av samtalens kontekstvindu som er
-// brukt (estimat: ~3,5 tegn per token mot modellens vindu). Ren indikasjon.
-const CONTEXT_TOKENS = 120_000;
-
+// Kontekst-ring: fylles etter hvor mye av kontekstBUDSJETTET (det som faktisk
+// sendes per tur) som er i bruk — ikke hele samtalen, den klippes uansett.
+// Full ring = eldre historikk dekkes nå av samtalesammendraget.
 function ContextRing({ messages }: { messages: { content: string }[] }) {
-  const chars = messages.reduce((n, m) => n + m.content.length, 0);
-  const frac = Math.min(1, chars / 3.5 / CONTEXT_TOKENS);
+  // Klikk på ringen viser tokentallet ved siden av; nytt klikk skjuler det.
+  const [showCount, setShowCount] = useState(false);
+  const chars = messages
+    .slice(-HISTORY_WINDOW)
+    .reduce((n, m) => n + m.content.length, 0);
+  const frac = Math.min(1, chars / HISTORY_CHAR_BUDGET);
+  // Samme tommelfingerregel som resten av appen: ~3,5 tegn per token.
+  const tokens = Math.round(chars / 3.5);
   const R = 6;
   const C = 2 * Math.PI * R;
   const warn = frac > 0.8;
   return (
-    <span
+    <button
+      type="button"
       className={styles.ctxRing}
-      title={`~${Math.round(frac * 100)} % av kontekstvinduet brukt`}
+      onClick={() => setShowCount((v) => !v)}
+      title={`~${Math.round(frac * 100)} % av kontekstbudsjettet brukt${frac >= 1 ? " — eldre historikk dekkes av sammendraget" : ""}`}
     >
+      {showCount && (
+        <span className={styles.ctxCount}>~{formatTokens(tokens)} tokens</span>
+      )}
       <svg width="16" height="16" viewBox="0 0 16 16">
         <circle cx="8" cy="8" r={R} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
         <circle
@@ -210,7 +221,7 @@ function ContextRing({ messages }: { messages: { content: string }[] }) {
           transform="rotate(-90 8 8)"
         />
       </svg>
-    </span>
+    </button>
   );
 }
 
@@ -530,6 +541,8 @@ export function Chat({
   // Forslag om å lagre et vedlagt dokument i kunnskapsbasen, knyttet til
   // brukermeldingen det gjelder.
   const [trainOffer, setTrainOffer] = useState<{ id: string; docs: Attachment[] } | null>(null);
+  // Minnekortet: meldings-id-er brukeren har lagret til minnet denne økten.
+  const [remembered, setRemembered] = useState<Set<string>>(new Set());
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Armert svar: neste brukermelding logges som korrigering på dette svaret.
   const [correctionTarget, setCorrectionTarget] = useState<{
@@ -685,6 +698,21 @@ export function Chat({
         content: "Kunne ikke lagre: " + (e instanceof Error ? e.message : "ukjent feil"),
       });
     }
+  }
+
+  // Minnekortet: lagre meldingen som bedriftskunnskap med ett klikk.
+  function rememberMsg(id: string, content: string) {
+    setRemembered((prev) => new Set(prev).add(id));
+    rememberMessage({
+      text: content,
+      chat_id: chatIdRef.current ?? undefined,
+    }).catch(() => {
+      setRemembered((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    });
   }
 
   function dismissTrain() {
@@ -1026,7 +1054,9 @@ export function Chat({
         ]
       : textContent;
 
-    const history = buildHistory(messages, { role: "user", content: apiContent });
+    const built = buildHistory(messages, { role: "user", content: apiContent });
+    const history = built.history;
+    const historyClipped = built.clipped;
 
     // Widget-tur: svaret ER widgeten. På skapelsesturen settes blokka med én
     // gang så vind-animasjonen starter umiddelbart. Senere turer kan være ren
@@ -1152,6 +1182,10 @@ export function Chat({
               ? agent.id
               : undefined,
           widget: widgetEditRef.current ?? undefined,
+          // Sammendrags-kontrakten: backend injiserer samtalesammendraget
+          // når historikken er klippet mot tegnbudsjettet.
+          chatId: chatIdRef.current ?? undefined,
+          clipped: historyClipped,
         }
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
@@ -1176,16 +1210,6 @@ export function Chat({
         emit("agents-changed");
       }
 
-      // Passivt kunnskaps-uttrekk fra utvekslingen (ikke agent/widget-bygging).
-      // Hopp over korte meldinger uten substans; backend gater videre på
-      // bedriftsinterne markører før den bruker et LLM-kall.
-      if (acc && text.trim().length >= 40 && !agentModeRef.current && !widgetEditRef.current) {
-        extractKnowledge({
-          chat_id: chatIdRef.current ?? undefined,
-          question: text,
-          answer: acc,
-        });
-      }
 
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
       if (chatIdRef.current && acc) {
@@ -1613,6 +1637,8 @@ export function Chat({
                                     : { id: m.id, content }
                                 )
                               }
+                              remembered={remembered.has(m.id)}
+                              onRemember={(content) => rememberMsg(m.id, content)}
                             />
                           )}
                         </div>
@@ -1655,6 +1681,18 @@ export function Chat({
                     ) : null}
                   </TableQueryContext.Provider>
                   </div>
+                  {m.role === "user" && !m.loading && (
+                    <div className={styles.userActions}>
+                      <button
+                        className={`${styles.actionBtn} ${remembered.has(m.id) ? styles.actionBtnActive : ""}`}
+                        onClick={() => !remembered.has(m.id) && rememberMsg(m.id, m.content)}
+                        title={remembered.has(m.id) ? "Lagret i minnet" : "Lagre til minnet"}
+                        aria-label="Lagre til minnet"
+                      >
+                        <HugeiconsIcon icon={SdCardIcon} size={15} strokeWidth={2} />
+                      </button>
+                    </div>
+                  )}
                   {trainOffer?.id === m.id && (
                     <div className={styles.trainOffer}>
                       <span className={styles.trainOfferText}>

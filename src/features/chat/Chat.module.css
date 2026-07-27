@@ -1130,7 +1130,24 @@
 .ctxRing {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   opacity: 0.8;
+  /* Klikkbar (viser/skjuler tokentallet) — men skal se ut som før. */
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Tokentallet til venstre for ringen når den er klikket. Samme størrelse
+   som modellbeskrivelsen (.modelHint), vertikalt sentrert mot ringen. */
+.ctxCount {
+  font-size: 12.5px;
+  line-height: 1;
+  align-self: center;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 /* Tools-snarvei ved siden av bindersen — åpner slash-menyen. */
@@ -1213,4 +1230,12 @@
   100% {
     background-position: 0% 0;
   }
+}
+
+/* Minnekortet under brukerens melding: samme uttrykk som handlingsraden. */
+.userActions {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
 }

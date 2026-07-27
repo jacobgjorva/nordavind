@@ -6,6 +6,9 @@ import {
   fetchKnowledgeGraph,
   updateNode,
   deleteNode,
+  createEdge,
+  removeEdge,
+  confirmKnowledge,
   type GraphData,
 } from "../../lib/api";
 import styles from "./KnowledgeGraph.module.css";
@@ -20,6 +23,7 @@ interface Sim {
   vy: number;
   deg: number;
   bucket: number; // fargetrinn 0..DEG_STEPS-1 fra koblingsgrad
+  fade: number; // 0.45 for lapper som aldri hentes og er gamle, ellers 1
 }
 
 const HEIGHT = 440;
@@ -73,9 +77,16 @@ function hash01(s: string): number {
 export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   const [data, setData] = useState<GraphData | null>(null);
   const [selId, setSelId] = useState<string | null>(null);
-  const [cardPos, setCardPos] = useState<{ x: number; y: number } | null>(null);
   const [summary, setSummary] = useState("");
   const [title, setTitle] = useState("");
+  // Editor-tilstand: søk, koble-modus og ny node-skjemaet.
+  const [query, setQuery] = useState("");
+  const [linkFrom, setLinkFrom] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [newType, setNewType] = useState("term");
+  const [newTitle, setNewTitle] = useState("");
+  const [newText, setNewText] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -92,6 +103,11 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
   // elastisk etter (Obsidian-følelsen); 0 ellers.
   const alphaTargetRef = useRef(0);
   const selRef = useRef<string | null>(null);
+  // Naboskap (id → koblede id-er) for highlight/dim og panelets naboliste.
+  const adjRef = useRef<Map<string, Set<string>>>(new Map());
+  const linkFromRef = useRef<string | null>(null);
+  // Fly-til-node: settes av søk/naboklikk, konsumeres i step().
+  const flyRef = useRef<string | null>(null);
 
   const selected = data?.nodes.find((n) => n.id === selId) ?? null;
   useEffect(() => {
@@ -108,18 +124,75 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
 
   function saveNode() {
     const id = selId;
-    setSelId(null);
     if (!id) return;
     const t = title.trim();
     const s = summary.trim();
-    if (!s || (t === selected?.title && s === selected?.summary)) return;
+    if (!t || !s || (t === selected?.title && s === selected?.summary)) return;
     setData((d) =>
       d
-        ? { ...d, nodes: d.nodes.map((n) => (n.id === id ? { ...n, summary: s } : n)) }
+        ? {
+            ...d,
+            nodes: d.nodes.map((n) =>
+              n.id === id ? { ...n, title: t, summary: s } : n
+            ),
+          }
         : d
     );
     updateNode(id, t, s).catch(swallow);
   }
+
+  // Søketreff: enkel innholdsmatch, maks 8.
+  const matches =
+    query.trim().length >= 2 && data
+      ? data.nodes
+          .filter((n) =>
+            (n.title + " " + n.summary)
+              .toLowerCase()
+              .includes(query.trim().toLowerCase())
+          )
+          .slice(0, 8)
+      : [];
+
+  function flyTo(id: string) {
+    setSelId(id);
+    flyRef.current = id;
+    wakeRef.current(0);
+  }
+
+  // Ny node: lagres via samme vei som klikk-bekreftelsen (accepted +
+  // automatisk dublettvakt), og grafen flyr til den etterpå.
+  async function createNewNode() {
+    const t = newTitle.trim();
+    const txt = newText.trim();
+    if (!t || !txt || busy) return;
+    setBusy(true);
+    try {
+      await confirmKnowledge({ type: newType, title: t, summary: txt });
+      const fresh = await fetchKnowledgeGraph();
+      setData(fresh);
+      setNewOpen(false);
+      setNewTitle("");
+      setNewText("");
+      const created = fresh.nodes.find((n) => n.title === t);
+      if (created) flyTo(created.id);
+    } catch {
+      /* vis-i-ro: brukeren kan prøve igjen */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Panelets naboliste (id + tittel + relasjon), fra rådataene.
+  const neighborRows = !selId || !data
+    ? []
+    : data.edges
+        .filter((e) => e.from_id === selId || e.to_id === selId)
+        .map((e) => {
+          const otherID = e.from_id === selId ? e.to_id : e.from_id;
+          const other = data.nodes.find((n) => n.id === otherID);
+          return other ? { edge: e, id: otherID, title: other.title, relation: e.relation } : null;
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null);
 
   // Sletter valgt node. onMouseDown (ikke onClick) så textarea ikke rekker å
   // blurre og lagre først.
@@ -139,10 +212,29 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
     deleteNode(id).catch(swallow);
   }
 
-  useEffect(() => {
+  const refetch = () =>
     fetchKnowledgeGraph()
       .then(setData)
       .catch(() => setData({ nodes: [], edges: [] }));
+  useEffect(() => {
+    refetch();
+  }, []);
+
+  useEffect(() => {
+    linkFromRef.current = linkFrom;
+  }, [linkFrom]);
+
+  // Esc: ut av koble-modus, lukk panel/skjema.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setLinkFrom(null);
+        setNewOpen(false);
+        setSelId(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   // Init: noder spres i en spiral rundt origo; grad beregnes for størrelse.
@@ -157,25 +249,44 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
     for (const d of deg.values()) {
       if (d > maxDeg) maxDeg = d;
     }
+    const adj = new Map<string, Set<string>>();
+    for (const e of data.edges) {
+      if (!adj.has(e.from_id)) adj.set(e.from_id, new Set());
+      if (!adj.has(e.to_id)) adj.set(e.to_id, new Set());
+      adj.get(e.from_id)!.add(e.to_id);
+      adj.get(e.to_id)!.add(e.from_id);
+    }
+    adjRef.current = adj;
+    // Refetch etter redigering skal ikke kaste om hele layouten: behold
+    // posisjonen til noder som alt ligger i simuleringen.
+    const prev = new Map(simRef.current.map((n) => [n.id, n]));
+    const twoWeeks = 14 * 24 * 3600 * 1000;
     simRef.current = data.nodes.map((node, i) => {
       const a = i * 2.399963; // gullvinkel — jevn spiral uansett antall
       const r = 14 * Math.sqrt(i + 1);
       const dg = deg.get(node.id) ?? 0;
       // Kvadratrot løfter mellomsjiktet — ellers blir alt unntatt hubene mint.
       const t = Math.sqrt(dg / maxDeg);
+      const old = prev.get(node.id);
+      // Falming: aldri hentet OG eldre enn to uker → dimmes (selvkuraterende
+      // kvalitet — kandidater for opprydding).
+      const stale =
+        node.hits === 0 &&
+        Date.now() - new Date(node.created_at).getTime() > twoWeeks;
       return {
         id: node.id,
         title: node.title,
         type: node.type,
-        x: Math.cos(a) * r,
-        y: Math.sin(a) * r,
+        x: old ? old.x : Math.cos(a) * r,
+        y: old ? old.y : Math.sin(a) * r,
         vx: 0,
         vy: 0,
         deg: dg,
         bucket: Math.min(DEG_STEPS - 1, Math.round(t * (DEG_STEPS - 1))),
+        fade: stale ? 0.45 : 1,
       };
     });
-    viewRef.current.user = false;
+    if (prev.size === 0) viewRef.current.user = false;
   }, [data]);
 
   // Simulering + tegning i samme rAF-løkke — React røres aldri per frame.
@@ -307,8 +418,25 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       }
       alpha += (alphaTargetRef.current - alpha) * alphaDecay;
 
-      // --- Auto-tilpass utsnittet til brukeren zoomer/panner selv. ---
+      // --- Fly-til (søk/naboklikk): glid mot noden, zoom lett inn. ---
       const view = viewRef.current;
+      if (flyRef.current) {
+        const target = nodes[idx.get(flyRef.current) ?? -1];
+        if (!target) {
+          flyRef.current = null;
+        } else {
+          view.user = true;
+          const k = Math.max(view.k, 1.3);
+          const tx = w / 2 - target.x * k;
+          const ty = h / 2 - target.y * k;
+          view.k += (k - view.k) * 0.14;
+          view.x += (tx - view.x) * 0.14;
+          view.y += (ty - view.y) * 0.14;
+          if (Math.abs(tx - view.x) < 2 && Math.abs(ty - view.y) < 2) {
+            flyRef.current = null;
+          }
+        }
+      }
       if (!view.user) {
         const fit = Math.min(w, h) / 2.3 / maxR;
         view.k += (Math.min(1.6, fit) - view.k) * 0.08;
@@ -324,6 +452,9 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       ctx!.globalCompositeOperation = "lighter";
 
       const big = nodes.length > 900;
+      // Fokus: hover/valgt node løfter sitt nabolag — resten dimmes.
+      const focus = hoverRef.current ?? selRef.current;
+      const focusSet = focus ? adjRef.current.get(focus) : null;
       // Konstant strektykkelse på SKJERMEN uansett zoom — kantene er selve
       // uttrykket og skal aldri forsvinne ved utzooming.
       ctx!.lineWidth = (big ? 0.9 : 1.3) / view.k;
@@ -336,7 +467,11 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
         const t = Math.min(1, Math.sqrt(mx * mx + my * my) / maxR);
-        ctx!.strokeStyle = edgeColor(t, big ? 0.4 : 0.62);
+        let ea = big ? 0.4 : 0.62;
+        if (focus) {
+          ea = e.from_id === focus || e.to_id === focus ? 0.95 : 0.1;
+        }
+        ctx!.strokeStyle = edgeColor(t, ea);
         // Svak, stabil bue gir det organiske nervetråd-uttrykket.
         const bend = (hash01(e.from_id + e.to_id) - 0.5) * 0.5;
         ctx!.beginPath();
@@ -354,8 +489,11 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       const sel = selRef.current;
       for (const n of nodes) {
         const active = n.id === hover || n.id === sel;
+        const inFocus =
+          !focus || n.id === focus || (focusSet ? focusSet.has(n.id) : false);
         const r = (2 + Math.min(2.5, n.deg * 0.3)) * (active ? 1.8 : 1);
         const g = r * 4.5;
+        ctx!.globalAlpha = (inFocus ? 1 : 0.14) * n.fade;
         ctx!.drawImage(sprites[n.bucket], n.x - g, n.y - g, g * 2, g * 2);
         // Liten solid kjerne over gløden gir de skarpe lyspunktene.
         ctx!.fillStyle = cores[n.bucket];
@@ -363,6 +501,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         ctx!.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2);
         ctx!.fill();
       }
+      ctx!.globalAlpha = 1;
       ctx!.globalCompositeOperation = "source-over";
 
       // Etikett for hover/valgt node — tegnes i skjermrom for jevn størrelse.
@@ -380,7 +519,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
       }
 
       // Frossen og i ro: stopp løkka helt. Interaksjoner vekker den igjen.
-      if (alpha > alphaMin || alphaTargetRef.current > 0 || dragRef.current) {
+      if (alpha > alphaMin || alphaTargetRef.current > 0 || dragRef.current || flyRef.current) {
         raf = requestAnimationFrame(step);
       } else {
         running = false;
@@ -457,14 +596,21 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
     if (hoverRef.current !== prev) wakeRef.current(0);
   }
 
-  function onUp(e: React.MouseEvent) {
+  function onUp() {
     const wasDrag = dragRef.current;
     dragRef.current = null;
     alphaTargetRef.current = 0;
     if (wasDrag && !movedRef.current) {
-      const rect = canvasRef.current!.getBoundingClientRect();
+      // Koble-modus: klikket node blir målet for den nye kanten.
+      const from = linkFromRef.current;
+      if (from && from !== wasDrag) {
+        setLinkFrom(null);
+        createEdge({ from_id: from, to_id: wasDrag, relation: "relatert til" })
+          .then(refetch)
+          .catch(swallow);
+        return;
+      }
       setSelId(wasDrag);
-      setCardPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     } else if (!wasDrag && !movedRef.current) {
       setSelId(null);
     }
@@ -505,28 +651,142 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         }}
         onWheel={onWheel}
       />
-      {selected && cardPos && (
-        <div
-          className={styles.tooltipWrap}
-          style={{ left: cardPos.x, top: cardPos.y }}
-        >
+      <div className={styles.toolbar}>
+        <input
+          className={styles.search}
+          placeholder="Søk i kunnskapen …"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && matches.length > 0) {
+              flyTo(matches[0].id);
+              setQuery("");
+            }
+          }}
+        />
+        {matches.length > 0 && (
+          <div className={styles.searchResults}>
+            {matches.map((m) => (
+              <button
+                key={m.id}
+                className={styles.searchHit}
+                onClick={() => {
+                  flyTo(m.id);
+                  setQuery("");
+                }}
+              >
+                <span className={styles.searchHitTitle}>{m.title}</span>
+                <span className={styles.searchHitText}>{m.summary}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button className={styles.newBtn} onClick={() => setNewOpen((v) => !v)}>
+        Ny node
+      </button>
+      {newOpen && (
+        <div className={styles.newForm}>
+          <select
+            className={styles.newSelect}
+            value={newType}
+            onChange={(e) => setNewType(e.target.value)}
+          >
+            <option value="term">term</option>
+            <option value="prosess">prosess</option>
+            <option value="regel">regel</option>
+            <option value="entitet">entitet</option>
+          </select>
+          <input
+            className={styles.newInput}
+            placeholder="Kort tittel"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+          />
           <textarea
-            className={styles.tooltip}
-            value={summary}
-            autoFocus
+            className={styles.newTextarea}
+            placeholder="Selve kunnskapen — én presis, selvstendig setning eller to"
             rows={3}
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+          />
+          <button
+            className={styles.newSave}
+            disabled={busy || !newTitle.trim() || !newText.trim()}
+            onClick={createNewNode}
+          >
+            Lagre
+          </button>
+        </div>
+      )}
+
+      {linkFrom && (
+        <div className={styles.linkHint}>
+          Klikk noden du vil koble til — Esc avbryter
+        </div>
+      )}
+
+      {selected && (
+        <div className={styles.panel}>
+          <div className={styles.panelTop}>
+            <span className={styles.panelType}>{selected.type}</span>
+            <button className={styles.panelClose} onClick={() => setSelId(null)}>
+              ×
+            </button>
+          </div>
+          <input
+            className={styles.panelInput}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={saveNode}
+          />
+          <textarea
+            className={styles.panelTextarea}
+            rows={5}
+            value={summary}
             onChange={(e) => setSummary(e.target.value)}
             onBlur={saveNode}
           />
-          <div className={styles.tooltipFooter}>
+          <div className={styles.panelMeta}>
+            {selected.hits > 0
+              ? `Hentet ${selected.hits} ganger${selected.last_hit_at ? `, sist ${new Date(selected.last_hit_at).toLocaleDateString("nb-NO")}` : ""}`
+              : "Aldri hentet ennå"}
+            {" · ".replace(" · ", " — ")}
+            lagt til {new Date(selected.created_at).toLocaleDateString("nb-NO")}
+          </div>
+          {neighborRows.length > 0 && (
+            <div className={styles.neighbors}>
+              {neighborRows.map((n) => (
+                <div key={n.id + n.relation} className={styles.neighborRow}>
+                  <button
+                    className={styles.neighborLink}
+                    onClick={() => flyTo(n.id)}
+                  >
+                    {n.title}
+                  </button>
+                  <span className={styles.neighborRel}>{n.relation}</span>
+                  <button
+                    className={styles.neighborDel}
+                    title="Fjern koblingen"
+                    onClick={() =>
+                      removeEdge(n.edge).then(refetch).catch(swallow)
+                    }
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className={styles.panelActions}>
             <button
-              type="button"
-              className={styles.tooltipDel}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                removeNode();
-              }}
+              className={styles.panelDelete}
+              onClick={() => setLinkFrom(selId)}
             >
+              Koble
+            </button>
+            <button className={styles.panelDelete} onClick={removeNode}>
               <HugeiconsIcon icon={Delete01Icon} size={14} />
               Slett
             </button>

@@ -74,8 +74,10 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-export function categoryColor(category: string, fallback: string): [string, string] {
-  return avatarColor((category || fallback).toLowerCase());
+// strandColor: stabil farge per agent fra den delte paletten. Tilfeldig i
+// praksis (hashet id), men alltid lik for samme agent.
+export function strandColor(agentId: string): [string, string] {
+  return avatarColor(agentId);
 }
 
 // layoutStrands: buntede baner — gruppér per kategori (ukategorisert sist),
@@ -95,42 +97,26 @@ export function layoutStrands(
     byAgent.set(r.agent_id, list);
   }
 
-  const groups = new Map<string, AgentInfo[]>();
-  for (const a of agents) {
-    const key = a.category || "￿"; // ukategorisert sorteres sist
-    const list = groups.get(key) ?? [];
-    list.push(a);
-    groups.set(key, list);
-  }
-  const keys = [...groups.keys()].sort();
-  for (const k of keys) {
-    groups.get(k)!.sort(
-      (a, b) => Date.parse(a.created_at ?? "") - Date.parse(b.created_at ?? "")
-    );
-  }
+  const sorted = [...agents].sort(
+    (a, b) => Date.parse(a.created_at ?? "") - Date.parse(b.created_at ?? "")
+  );
 
-  const laneGap = 26;
-  const groupGap = 34;
-  const totalLanes = agents.length;
-  const totalHeight =
-    totalLanes * laneGap + Math.max(0, keys.length - 1) * groupGap;
+  const laneGap = 30;
+  const totalHeight = sorted.length * laneGap;
   const available = height - PAD_TOP - PAD_BOTTOM;
   // Krymp avstandene ved mange agenter i stedet for å gå utenfor lerretet.
   const scale = totalHeight > available ? available / totalHeight : 1;
   let y = PAD_TOP + Math.max(0, (available - totalHeight) / 2);
 
   const strands: Strand[] = [];
-  for (const k of keys) {
-    for (const a of groups.get(k)!) {
-      strands.push({
-        agent: a,
-        laneY: y,
-        color: categoryColor(a.category ?? "", a.name)[0],
-        runs: byAgent.get(a.id) ?? [],
-      });
-      y += laneGap * scale;
-    }
-    y += groupGap * scale;
+  for (const a of sorted) {
+    strands.push({
+      agent: a,
+      laneY: y,
+      color: strandColor(a.id)[0],
+      runs: byAgent.get(a.id) ?? [],
+    });
+    y += laneGap * scale;
   }
   return strands;
 }
