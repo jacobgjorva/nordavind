@@ -255,6 +255,20 @@
   max-width: 100%;
   padding-left: 0;
   padding-right: 0;
+  /* Svaret er en rekke segmenter (tekst, arbeid, tekst …) — flyten holder
+     jevn luft mellom dem uten marginer som kolliderer. */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Mens turen løper animerer hver rad seg selv inn og ut (se StepWindow i
+   Chat.tsx), og stabelen skyves oppover som en følge av det. Da skal ikke
+   .step i tillegg kjøre sin egen inn-animasjon: to bevegelser på samme
+   element dro i hver sin retning. Ingen andre regler her — geometrien er
+   nøyaktig den samme som en vanlig tidslinje. */
+.timelineLive .step {
+  animation: none;
 }
 
 .timeline {
@@ -294,6 +308,26 @@
   color: var(--text-faint);
 }
 
+/* Ikonet på steget som pågår. Samme puls-takt som «Tenker …», men bare på
+   ikonet: markeringen skal si «her jobbes det nå», ikke rope. */
+.stepIconLive {
+  color: var(--text-muted);
+  animation: step-icon-flare 1.5s ease-in-out infinite;
+}
+
+@keyframes step-icon-flare {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(
+      0 0 6px color-mix(in srgb, var(--shimmer-glow, #ffffff) 45%, transparent)
+    );
+  }
+}
+
 .stepActive {
   color: var(--text-muted);
   font-size: 13.5px;
@@ -317,8 +351,32 @@
 
 /* Streaming: hvert mottatt segment fades inn */
 
+/* Samme blokk-geometri som .markdown, så svaret ikke flytter seg når
+   fade-animasjonen er ferdig og markdown tar over. */
 .streamingText {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.streamingPara {
+  margin: 0;
   white-space: pre-wrap;
+}
+
+/* Samme geometri som .markdown ul/ol, så punktene ikke flytter seg når
+   markdown overtar. */
+.streamingList {
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: pre-wrap;
+}
+
+/* Før første ordgrense er segmentet tomt — da skal det heller ikke ta luft. */
+.streamingText:empty {
+  display: none;
 }
 
 .fadeSeg {
@@ -338,11 +396,34 @@
 
 /* Markdown i assistentsvar */
 
+/* Avsnittsluften er lesbarhetens viktigste knapp: 10 px var for tett mot
+   16 px/1.6 og gjorde flere avsnitt til én vegg. */
 .markdown {
   white-space: normal;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+}
+
+/* Svarets poeng: en lett tusjstrek under teksten, ikke en boks rundt den.
+   Bakgrunnen ligger på selve <p>-en som inline, så streken følger linjebruddene
+   (box-decoration-break) i stedet for å tegne ett stort rektangel. Padding på
+   et inline-element endrer ikke linjehøyden — markeringen kan derfor dukke opp
+   når animasjonen er ferdig uten å flytte en eneste linje. */
+/* Svarets poeng: en tusjstrek som i en fagbok, ikke et signalfelt. Flat farge,
+   ingen gradient, ingen egen tekstfarge — teksten skal se ut som resten av
+   svaret, bare merket. Padding på et inline-element endrer ikke linjehøyden,
+   så markeringen kan tre inn etter animasjonen uten å flytte en linje. */
+.keyMark {
+  /* #0383F4 løftet mot lyseblått og holdt på lav alpha: streken leses som tusj,
+     ikke som en flate, og teksten beholder kontrasten mot den. */
+  background: rgba(93, 180, 255, 0.3);
+  color: inherit;
+  padding: 1px 3px;
+  margin: 0 -3px;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .markdown ul,
@@ -901,9 +982,9 @@
   text-overflow: ellipsis;
 }
 
-/* Sammenslått «Tenkte …» over svaret — reasoning/steg forsvinner ikke lenger. */
+/* Sammenslått «Arbeidet …» der stegene sto — de forsvinner ikke, de foldes. */
 .thoughtBox {
-  margin-bottom: 8px;
+  align-self: flex-start;
 }
 
 .thoughtToggle {

@@ -64,15 +64,89 @@ export function StreamingText({
     return () => clearTimeout(t);
   }, [visible, words.length, done]);
 
+  // Ordene grupperes i avsnitt med samme luft som markdown-avsnittene, slik at
+  // byttet til markdown når animasjonen er ferdig ikke flytter en eneste linje
+  // (ren pre-wrap ga et sprett per avsnitt). Ordene beholder globale nøkler, så
+  // fade-inn spiller kun for det som faktisk er nytt.
+  const paras: { i: number; w: string }[][] = [[]];
+  words.slice(0, visible).forEach((w, i) => {
+    const brk = /\n[ \t]*\n/.test(w);
+    paras[paras.length - 1].push({ i, w: brk ? w.replace(/\n[ \t]*\n\s*$/, "") : w });
+    if (brk) paras.push([]);
+  });
+
   return (
-    <span className={styles.streamingText}>
-      {words.slice(0, visible).map((w, i) => (
-        <span key={i} className={styles.fadeSeg}>
-          {w}
-        </span>
-      ))}
+    <div className={styles.streamingText}>
+      {paras.map((para, pi) => {
+        if (para.length === 0) return null;
+        // Et avsnitt der HVER linje starter med en kulepunkt-markør rendres som
+        // ekte liste allerede under animasjonen — ellers ville punktene flyttet
+        // seg 22 px sidelengs i det markdown tok over.
+        const lines = toLines(para);
+        const bullet = /^[-*+]\s/;
+        const numbered = /^\d+[.)]\s/;
+        const isList = lines.length > 0 && lines.every((l) => bullet.test(l[0].w));
+        const isNumbered =
+          !isList && lines.length > 0 && lines.every((l) => numbered.test(l[0].w));
+        if (isList || isNumbered) {
+          const List = isNumbered ? "ol" : "ul";
+          return (
+            <List key={pi} className={styles.streamingList}>
+              {lines.map((line, li) => (
+                <li key={li}>
+                  {line.map(({ i, w }, wi) => {
+                    let t = w;
+                    // Markøren blir listens egen bullet, og linjeskiftet i
+                    // halen ville gitt en tom linje inni punktet.
+                    if (wi === 0) t = t.replace(isNumbered ? numbered : bullet, "");
+                    if (wi === line.length - 1) t = t.replace(/\s+$/, "");
+                    return <Word key={i} text={t} />;
+                  })}
+                </li>
+              ))}
+            </List>
+          );
+        }
+        return (
+          <p key={pi} className={styles.streamingPara}>
+            {para.map(({ i, w }) => (
+              <Word key={i} text={w} />
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+// Ett ord i fade-inn-strømmen. Uthevede størrelser («**86 062 186 kr**») er
+// bundet med hardt mellomrom og kommer derfor som ETT ord — de rendres som
+// <strong> her, akkurat som markdown vil gjøre etterpå.
+function Word({ text }: { text: string }) {
+  const bold = text.match(/^(\*\*)([\s\S]+?)(\*\*)([^\w*]*)$/);
+  return (
+    <span className={styles.fadeSeg}>
+      {bold ? (
+        <>
+          <strong>{bold[2]}</strong>
+          {bold[4]}
+        </>
+      ) : (
+        text
+      )}
     </span>
   );
+}
+
+// toLines deler et avsnitts ord i linjer — et ord bærer med seg sin egen
+// etterfølgende whitespace, så linjeskiftet ligger i halen på siste ord.
+function toLines(para: { i: number; w: string }[]) {
+  const lines: { i: number; w: string }[][] = [[]];
+  for (const t of para) {
+    lines[lines.length - 1].push(t);
+    if (/\n/.test(t.w)) lines.push([]);
+  }
+  return lines.filter((l) => l.length > 0);
 }
 
 // Handlingsrad under hvert assistentsvar: kopier, lagre til minne, korriger,
@@ -153,6 +227,12 @@ export function SourceLink({
   href?: string;
   children?: React.ReactNode;
 }) {
+  // Svarets markerte setning kommer som en lenke til #mark — det er den eneste
+  // markdown-syntaksen som bærer fet skrift og tall gjennom uendret.
+  if (href === "#mark") {
+    return <mark className={styles.keyMark}>{children}</mark>;
+  }
+
   let host = "";
   try {
     host = href ? new URL(href).hostname.replace(/^www\./, "") : "";
