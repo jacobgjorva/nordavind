@@ -10,3 +10,4 @@ export * from "./mail";
 export * from "./documents";
 export * from "./employees";
 export * from "./m365";
+export * from "./org";

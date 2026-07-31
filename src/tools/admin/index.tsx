@@ -3,6 +3,7 @@ import { registerBlock } from "../../features/chat/blocks/registry";
 import { Admin } from "../../features/settings/Admin";
 import { Documents } from "../../features/settings/Documents";
 import { Employees } from "../../features/settings/Employees";
+import { Units } from "../../features/settings/Units";
 import { Knowledge } from "../../features/settings/Knowledge";
 import { KnowledgeGraph } from "../../features/settings/KnowledgeGraph";
 import { Quota } from "../../features/settings/Quota";
@@ -30,6 +31,8 @@ function AdminPanel({ panel }: { panel: string }) {
       <Documents />
     ) : panel === "ansatte" ? (
       <Employees />
+    ) : panel === "enheter" ? (
+      <Units />
     ) : panel === "graf" ? (
       <KnowledgeGraph />
     ) : panel === "kvote" ? (

@@ -6,22 +6,26 @@ import {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  listUnits,
   type Employee,
   type EmployeeInput,
+  type OrgUnit,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
 import styles from "./Employees.module.css";
 
-const EMPTY: EmployeeInput = { name: "", role: "", description: "", email: "" };
+const EMPTY: EmployeeInput = { name: "", role: "", description: "", email: "", unit_id: "" };
 
 // Ansatt-register: hvem gjør hva, med e-post. AI-en bruker det til å foreslå å
 // kontakte rett person når den selv ikke kommer videre.
 export function Employees() {
   const [list, setList] = useState<Employee[] | null>(null);
   const [draft, setDraft] = useState<EmployeeInput>(EMPTY);
+  const [units, setUnits] = useState<OrgUnit[]>([]);
 
   useEffect(() => {
     listEmployees().then(setList).catch(() => setList([]));
+    listUnits().then(setUnits).catch(swallow);
   }, []);
 
   async function add() {
@@ -35,6 +39,12 @@ export function Employees() {
     }
   }
 
+  function patchUnit(id: string, unitID: string) {
+    setList((l) => l?.map((e) => (e.id === id ? { ...e, unit_id: unitID } : e)) ?? l);
+    const cur = list?.find((e) => e.id === id);
+    if (cur) persist({ ...cur, unit_id: unitID });
+  }
+
   function patch(id: string, field: keyof EmployeeInput, value: string) {
     setList((l) => l?.map((e) => (e.id === id ? { ...e, [field]: value } : e)) ?? l);
   }
@@ -45,6 +55,7 @@ export function Employees() {
       role: e.role,
       description: e.description,
       email: e.email,
+      unit_id: e.unit_id,
     }).catch(swallow);
   }
 
@@ -126,6 +137,18 @@ export function Employees() {
                 onChange={(ev) => patch(e.id, "email", ev.target.value)}
                 onBlur={() => persist(e)}
               />
+              {units.length > 0 && (
+                <select
+                  className={styles.cell}
+                  value={e.unit_id}
+                  onChange={(ev) => patchUnit(e.id, ev.target.value)}
+                >
+                  <option value="">Hele firmaet</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              )}
               <button
                 className={styles.del}
                 onClick={() => remove(e.id, e.name)}

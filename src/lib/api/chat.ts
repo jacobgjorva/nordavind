@@ -105,6 +105,7 @@ export async function extractKnowledge(payload: {
 export async function rememberMessage(payload: {
   text: string;
   chat_id?: string;
+  scope?: string; // "" arv | "tenant" | "private"
 }): Promise<void> {
   await apiFetch(`/knowledge/remember`, { method: "POST", body: payload });
 }

@@ -15,6 +15,7 @@ export async function saveDocument(payload: {
   text: string;
   title?: string;
   chat_id?: string;
+  scope?: string; // "" arv | "tenant" | "unit" | "private"
 }): Promise<SavedDocument> {
   return apiFetch("/documents", { method: "POST", body: payload });
 }

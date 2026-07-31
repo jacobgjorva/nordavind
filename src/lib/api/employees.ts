@@ -6,6 +6,8 @@ export interface Employee {
   role: string;
   description: string;
   email: string;
+  unit_id: string;
+  user_id: string;
   created_at: string;
 }
 
@@ -14,6 +16,7 @@ export interface EmployeeInput {
   role: string;
   description: string;
   email: string;
+  unit_id?: string;
 }
 
 export async function listEmployees(): Promise<Employee[]> {

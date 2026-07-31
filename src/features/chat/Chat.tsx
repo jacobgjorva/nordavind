@@ -1,11 +1,17 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AgentChatContext } from "../../tools/agent/MissionPlan";
 import { Composer } from "./Composer";
 import { searchEntities, type BrainEntity } from "../../lib/api";
 import { TableQueryContext } from "./blocks/core";
-
 // Flyt-visningen lazy-lastes: den er kun for agent-chatter.
 const AgentFlow = lazy(() => import("../agentflow/AgentFlow"));
 import { Logo } from "../../ui/Logo";
@@ -17,6 +23,9 @@ import {
   Structure04Icon,
   DashboardSpeed01Icon,
   Database01Icon,
+  DatabaseIcon,
+  CursorProgress01Icon,
+  SnailIcon,
   AnonymousIcon,
   BorderNone02Icon,
   NeuralNetworkIcon,
@@ -76,6 +85,8 @@ import {
   type ContentPart,
   type ChatSummary,
   type SourceRef,
+  orgMe,
+  type OrgMe,
 } from "../../lib/api";
 import "../../tools"; // registrerer alle verktøyenes fenced-blokker
 import {
@@ -85,10 +96,28 @@ import {
   SourceLink,
   thinkingLabel,
 } from "./messageParts";
-import { DEFAULT_MODEL, modelAlias, modelDesc, modelGlow } from "../../lib/models";
+import {
+  DEFAULT_MODEL,
+  modelAlias,
+  modelDesc,
+  modelGlow,
+} from "../../lib/models";
 import { emit, on } from "../../lib/events";
 import { swallow } from "../../lib/log";
-import { formatTokens, nextId, isWidgetOnly, slugify, buildHistory, wantsAgentEdit, wantsSaveDocument, HISTORY_WINDOW, HISTORY_CHAR_BUDGET } from "./chatHelpers";
+import {
+  formatTokens,
+  nextId,
+  isWidgetOnly,
+  slugify,
+  buildHistory,
+  formatAnswer,
+  normalizeFences,
+  markKeySentence,
+  wantsAgentEdit,
+  wantsSaveDocument,
+  HISTORY_WINDOW,
+  HISTORY_CHAR_BUDGET,
+} from "./chatHelpers";
 import { FileTag } from "../../ui/FileTag";
 import { useAnchoredScroll } from "./useAnchoredScroll";
 import styles from "./Chat.module.css";
@@ -100,22 +129,232 @@ interface ChatStep {
   kind?: string;
 }
 
+/** Et svar er en KRONOLOGISK rekke av segmenter: motoren skriver tekst mellom
+ *  rundene (motor3.go emitter «tanken» før arbeidet fortsetter), så arbeidet
+ *  må legge seg UNDER teksten som kom før det — ikke samles i én blokk på
+ *  toppen. Hvert segment er enten tekst eller en stegblokk. */
+type ChatPart =
+  { kind: "text"; text: string } | { kind: "steps"; steps: ChatStep[] };
+
+/** Segmentene for visning. Meldinger uten segmenter (widget-turer, historikk
+ *  fra serveren) faller tilbake til hele innholdet som ett tekstsegment. */
+function partsOf(m: ChatMessage): ChatPart[] {
+  if (m.parts?.length) return m.parts;
+  return m.content ? [{ kind: "text", text: m.content }] : [];
+}
+
 // Stegtype → ikon. Holdes i takt med kind-konstantene i backendens narrate.go.
 // "web" står med vilje ikke her: SearchIcon er fallbacken i StepIcon, og det
 // er riktig ikon for et søk.
 const STEP_ICONS: Record<string, typeof Database01Icon> = {
-  db: Database01Icon,
+  db: DatabaseIcon,
   table: Analytics01Icon,
   file: Files01Icon,
   mail: Mail01Icon,
   link: Link01Icon,
   agent: UserGroupIcon,
+  // "click" er når assistenten går inn på en side og leser den, altså det
+  // nærmeste et klikk. Søk beholder søkeikonet; dette bryter bare opp
+  // nettarbeidet så tidslinjen ikke blir én lang rekke forstørrelsesglass.
+  click: CursorProgress01Icon,
+  // Ventemeldinger, uansett hvilket verktøy som drøyer.
+  slow: SnailIcon,
 };
 
 function StepIcon({ kind }: { kind?: string }) {
   const icon = kind ? STEP_ICONS[kind] : undefined;
   if (!icon) return <SearchIcon size={14} />;
   return <HugeiconsIcon icon={icon} size={14} strokeWidth={1.8} />;
+}
+
+/** Linjen som pulserer mens modellen jobber. Den står ALLTID nederst i det
+ *  som er skrevet så langt — aldri over en melding som alt er kommet. */
+function ActiveStep({ label, glow }: { label: string; glow?: string }) {
+  return (
+    <div className={styles.step}>
+      <span className={styles.thinkingLogo}>
+        <Logo size={10} flutter glow={glow} />
+      </span>
+      <span
+        className={`${styles.stepActive} ${styles.textShimmer}`}
+        style={{ "--shimmer-glow": glow } as React.CSSProperties}
+      >
+        {label} …
+      </span>
+    </div>
+  );
+}
+
+/** Hvor mange steg som står synlig mens turen løper. Resten glir ut i toppen;
+ *  hele lista ligger i «Arbeidet (n steg)» når svaret er ferdig. */
+const VISIBLE_STEPS = 3;
+
+/** Hvor lenge tidslinjen bruker på å gli ett steg oppover. */
+const SLIDE_MS = 600;
+
+/** Teksten venter til raden nesten er ferdig med å åpne plassen sin, og toner
+ *  så inn. Startet fadingen med en gang, dukket teksten opp mens den fortsatt
+ *  var på vei og virket forhastet. */
+const FADE_IN_DELAY_MS = 200;
+const FADE_IN_MS = 380;
+
+/** Tidslinjen mens turen løper. Samme markup og samme klasser som før — det
+ *  er RADENE som animerer seg selv, og bevegelsen oppstår som en følge av det.
+ *
+ *  Et nytt steg åpner plassen sin ved å vokse fra null høyde, mens innholdet
+ *  toner inn på sin endelige plass; steget som faller utenfor vinduet krymper
+ *  til null mens det toner ut. Summen er konstant, så
+ *  stabelen skyves rolig oppover uten at noe felles element flyttes. Tidligere
+ *  ble hele lista forskjøvet under ett; da var fade og bevegelse to separate
+ *  ting som måtte holdes i takt.
+ *
+ *  Animasjonene kjøres med Web Animations API, IKKE CSS-overganger: global.css
+ *  setter `transition-duration: 0.01ms !important` når systemet står på
+ *  «Reduser bevegelse», og det gjorde bevegelsen momentan. element.animate()
+ *  går utenom transition-egenskapen og oppfører seg likt uansett innstilling.
+ *
+ *  Hver rad merkes i dataset når den er animert, så en ny render aldri kjører
+ *  den samme inn- eller ut-animasjonen om igjen.
+ *
+ *  Kjøres i useLayoutEffect, FØR nettleseren maler. Med en vanlig effekt og to
+ *  ventende frames rakk raden å bli malt i full høyde først, så den blinket
+ *  fram, forsvant og tonet inn igjen. WAAPI trenger ingen malt starttilstand:
+ *  animate() setter sin egen. */
+function StepWindow({
+  count,
+  children,
+}: {
+  count: number;
+  children: React.ReactNode;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const rows = Array.from(list.children) as HTMLElement[];
+    if (!rows.length) return;
+    const ease = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+
+    // Nyeste steg: raden åpner plassen, innholdet toner inn der det ender.
+    //
+    // Raden klippes bevisst IKKE mens den vokser. Med overflow:hidden ble
+    // teksten skåret av underkanten og så ut til å skli opp bak en kant; nå
+    // står den i ro på sin endelige plass og bare dukker opp.
+    const last = rows[rows.length - 1];
+    if (!last.dataset.nvIn) {
+      last.dataset.nvIn = "1";
+      const h = last.offsetHeight;
+      last.animate([{ height: "0px" }, { height: h + "px" }], {
+        duration: SLIDE_MS,
+        easing: ease,
+      });
+      const body = last.lastElementChild;
+      if (body) {
+        // Raden vokser nedenfra mens raden over krymper, så innholdet ville
+        // ellers starte en radhøyde for lavt og gli opp gjennom underkanten.
+        // Denne motsatte forskyvningen nuller den bevegelsen ut: teksten står
+        // visuelt stille på sin endelige plass og toner bare inn.
+        body.animate(
+          [
+            { transform: `translateY(${-h}px)` },
+            { transform: "translateY(0)" },
+          ],
+          { duration: SLIDE_MS, easing: ease },
+        );
+        body.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: FADE_IN_MS,
+          delay: FADE_IN_DELAY_MS,
+          easing: ease,
+          fill: "backwards",
+        });
+      }
+    }
+
+    // Alt som havner utenfor vinduet krymper bort. fill holder dem nede.
+    rows.slice(0, Math.max(0, rows.length - VISIBLE_STEPS)).forEach((row) => {
+      if (row.dataset.nvOut) return;
+      row.dataset.nvOut = "1";
+      const h = row.offsetHeight;
+      row.style.overflow = "hidden";
+      row.animate(
+        [
+          { height: h + "px", opacity: 1 },
+          { height: "0px", opacity: 0 },
+        ],
+        { duration: SLIDE_MS, easing: ease, fill: "forwards" },
+      );
+    });
+  }, [count]);
+
+  return (
+    <div className={`${styles.timeline} ${styles.timelineLive}`} ref={listRef}>
+      {children}
+    </div>
+  );
+}
+
+/** Én stegblokk i svaret. Åpen som tidslinje mens turen løper (arbeidet vokser
+ *  nedover, så teksten over står i ro), sammenslått til «Arbeidet (n steg)»
+ *  når svaret er ferdig. */
+function StepsPart({
+  steps,
+  open,
+  expanded,
+  onToggle,
+}: {
+  steps: ChatStep[];
+  open: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  if (open) {
+    return (
+      <StepWindow count={steps.length}>
+        {/* Tidslinjen selv er URØRT — samme markup, samme klasser, samme
+            avstander. Vinduet ligger utenpå. */}
+        {steps.map((step, i) => (
+          <div key={i}>
+            {i > 0 && <span className={styles.stepLine} />}
+            <div className={styles.step}>
+              {/* Nyeste steg er det som pågår. Det markeres på IKONET, ikke på
+                  teksten: skimmer over hele setningen ble for mye når det
+                  ligger rett under «Tenker …» som allerede skimrer. */}
+              <span
+                className={
+                  i === steps.length - 1
+                    ? `${styles.stepIcon} ${styles.stepIconLive}`
+                    : styles.stepIcon
+                }
+              >
+                <StepIcon kind={step.kind} />
+              </span>
+              <span className={styles.reasoning}>{step.text}</span>
+            </div>
+          </div>
+        ))}
+      </StepWindow>
+    );
+  }
+  return (
+    <div className={styles.thoughtBox}>
+      <button type="button" className={styles.thoughtToggle} onClick={onToggle}>
+        {expanded ? "Skjul arbeidet" : `Arbeidet (${steps.length} steg)`}
+      </button>
+      {expanded && (
+        <div className={styles.thoughtBody}>
+          {steps.map((step, i) => (
+            <div className={styles.step} key={i}>
+              <span className={styles.stepIcon}>
+                <StepIcon kind={step.kind} />
+              </span>
+              <span className={styles.reasoning}>{step.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Hvor mange steg en tur får vise. Grundig modus kan kjøre 20 runder med
@@ -136,12 +375,14 @@ interface ChatMessage extends Omit<ApiMessage, "content"> {
   streaming?: boolean;
   /** Satt når fade-inn-animasjonen har spilt helt ut → bytt til markdown */
   revealed?: boolean;
+  /** Per segment: satt når segmentets fade-inn har spilt ferdig */
+  revealedParts?: Record<number, boolean>;
   /** Faktisk modell backend valgte (fra streamen) */
   resolvedModel?: string;
   /** Kilder fra backendens websøk */
   sources?: SourceRef[];
-  /** Tidslinje over hva modellen gjør mens den tenker */
-  steps?: ChatStep[];
+  /** Svaret som kronologiske segmenter: tekst og arbeidssteg om hverandre */
+  parts?: ChatPart[];
   /** Det brukeren faktisk skrev (uten vedleggstekst) */
   display?: string;
   /** Navn på vedlagte filer */
@@ -245,11 +486,22 @@ function ContextRing({ messages }: { messages: { content: string }[] }) {
         <span className={styles.ctxCount}>~{formatTokens(tokens)} tokens</span>
       )}
       <svg width="16" height="16" viewBox="0 0 16 16">
-        <circle cx="8" cy="8" r={R} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" />
         <circle
-          cx="8" cy="8" r={R} fill="none"
+          cx="8"
+          cy="8"
+          r={R}
+          fill="none"
+          stroke="rgba(255,255,255,0.14)"
+          strokeWidth="2"
+        />
+        <circle
+          cx="8"
+          cy="8"
+          r={R}
+          fill="none"
           stroke={warn ? "#e6a23c" : "#949494"}
-          strokeWidth="2" strokeLinecap="round"
+          strokeWidth="2"
+          strokeLinecap="round"
           strokeDasharray={`${frac * C} ${C}`}
           transform="rotate(-90 8 8)"
         />
@@ -297,7 +549,11 @@ function ImpersonatePill() {
             <span className={styles.impEmpty}>Henter …</span>
           ) : (
             users.map((u) => (
-              <button key={u.id} className={styles.impRow} onClick={() => pick(u)}>
+              <button
+                key={u.id}
+                className={styles.impRow}
+                onClick={() => pick(u)}
+              >
                 {u.email}
               </button>
             ))
@@ -309,16 +565,72 @@ function ImpersonatePill() {
 }
 
 // Admin-styring i chatten: settings-panelene kalles inn som blokker.
-const ADMIN_ACTIONS: { cmd: string; label: string; desc: string; icon: typeof AnonymousIcon }[] = [
-  { cmd: "forbruk", label: "Forbruk", desc: "Token- og kostnadsoversikt", icon: Analytics01Icon },
-  { cmd: "kunnskap", label: "Kunnskap", desc: "Bedriftskunnskapen AI-en husker", icon: NeuralNetworkIcon },
-  { cmd: "dokumenter", label: "Dokumenter", desc: "Dokumentbiblioteket", icon: Files01Icon },
-  { cmd: "ansatte", label: "Ansatte", desc: "Ansattregisteret", icon: UserGroupIcon },
-  { cmd: "tilganger", label: "Brukere og tilganger", desc: "Administrer brukere", icon: UserSettings01Icon },
-  { cmd: "tilkoblinger", label: "Tilkoblinger", desc: "Databaser og Microsoft 365", icon: Database01Icon },
-  { cmd: "koble", label: "Ny tilkobling", desc: "Koble til en ny datakilde", icon: Database01Icon },
-  { cmd: "graf", label: "Kunnskapsgraf", desc: "Grafen over bedriftskunnskapen", icon: ChartRelationshipIcon },
-  { cmd: "kvote", label: "Kvote", desc: "Token-kvoter per bruker", icon: DashboardSpeed01Icon },
+const ADMIN_ACTIONS: {
+  cmd: string;
+  label: string;
+  desc: string;
+  icon: typeof AnonymousIcon;
+}[] = [
+  {
+    cmd: "forbruk",
+    label: "Forbruk",
+    desc: "Token- og kostnadsoversikt",
+    icon: Analytics01Icon,
+  },
+  {
+    cmd: "kunnskap",
+    label: "Kunnskap",
+    desc: "Bedriftskunnskapen AI-en husker",
+    icon: NeuralNetworkIcon,
+  },
+  {
+    cmd: "dokumenter",
+    label: "Dokumenter",
+    desc: "Dokumentbiblioteket",
+    icon: Files01Icon,
+  },
+  {
+    cmd: "ansatte",
+    label: "Ansatte",
+    desc: "Ansattregisteret",
+    icon: UserGroupIcon,
+  },
+  {
+    cmd: "enheter",
+    label: "Enheter",
+    desc: "Datterselskaper og avdelinger (kunnskaps-synlighet)",
+    icon: UserGroupIcon,
+  },
+  {
+    cmd: "tilganger",
+    label: "Brukere og tilganger",
+    desc: "Administrer brukere",
+    icon: UserSettings01Icon,
+  },
+  {
+    cmd: "tilkoblinger",
+    label: "Tilkoblinger",
+    desc: "Databaser og Microsoft 365",
+    icon: Database01Icon,
+  },
+  {
+    cmd: "koble",
+    label: "Ny tilkobling",
+    desc: "Koble til en ny datakilde",
+    icon: Database01Icon,
+  },
+  {
+    cmd: "graf",
+    label: "Kunnskapsgraf",
+    desc: "Grafen over bedriftskunnskapen",
+    icon: ChartRelationshipIcon,
+  },
+  {
+    cmd: "kvote",
+    label: "Kvote",
+    desc: "Token-kvoter per bruker",
+    icon: DashboardSpeed01Icon,
+  },
 ];
 
 // Streamet tekst der hele ord fades inn i jevn takt, frikoblet fra
@@ -355,7 +667,7 @@ export function Chat({
     agent?.mission_status === "running" && !!agent?.mission_activity;
   // Scroll-ankring + topbar-fade eies av hooken; den gir ref til meldingslista.
   const { messagesRef, scrolledPast } = useAnchoredScroll(
-    activityPresent ? [...messages, 0] : messages
+    activityPresent ? [...messages, 0] : messages,
   );
   // Inline-redigering av tittel (dobbeltklikk).
   const [editingTitle, setEditingTitle] = useState(false);
@@ -383,12 +695,21 @@ export function Chat({
       on("mail-sent", () => {
         setMessages((prev) => [
           ...prev,
-          { id: nextId(), role: "assistant", content: "Epost sendt :)", revealed: true },
+          {
+            id: nextId(),
+            role: "assistant",
+            content: "Epost sendt :)",
+            revealed: true,
+          },
         ]);
         const cid = chatIdRef.current;
-        if (cid) appendChatMessage(cid, { role: "assistant", content: "Epost sendt :)" }).catch(swallow);
+        if (cid)
+          appendChatMessage(cid, {
+            role: "assistant",
+            content: "Epost sendt :)",
+          }).catch(swallow);
       }),
-    []
+    [],
   );
   // Paneler kan sende en melding på brukerens vegne. Fast reply rendres
   // deterministisk — modellen er ikke involvert, så flyten er alltid lik.
@@ -399,13 +720,21 @@ export function Chat({
         if (reply) {
           setMessages((prev) => [
             ...prev,
-            { id: nextId(), role: "user", content: text, display: text, revealed: true },
+            {
+              id: nextId(),
+              role: "user",
+              content: text,
+              display: text,
+              revealed: true,
+            },
             { id: nextId(), role: "assistant", content: reply, revealed: true },
           ]);
           const cid = chatIdRef.current;
           if (cid) {
             appendChatMessage(cid, { role: "user", content: text })
-              .then(() => appendChatMessage(cid, { role: "assistant", content: reply }))
+              .then(() =>
+                appendChatMessage(cid, { role: "assistant", content: reply }),
+              )
               .catch(swallow);
           }
           return;
@@ -414,9 +743,8 @@ export function Chat({
       }),
     // send er stabil nok her — lytteren registreres én gang.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
-
 
   function saveTitle(next: string) {
     setEditingTitle(false);
@@ -439,8 +767,8 @@ export function Chat({
             content: m.content,
             sources: m.sources ? JSON.parse(m.sources) : undefined,
             revealed: true,
-          }))
-        )
+          })),
+        ),
       )
       .catch(swallow);
   }, [chatId]);
@@ -451,7 +779,9 @@ export function Chat({
       setAgent(null);
       return;
     }
-    fetchChatAgent(chatId).then(setAgent).catch(() => setAgent(null));
+    fetchChatAgent(chatId)
+      .then(setAgent)
+      .catch(() => setAgent(null));
   }, [chatId]);
 
   // Agent-chat: poll etter nye agent-meldinger mens chatten er åpen, så et
@@ -459,24 +789,27 @@ export function Chat({
   // Kun én lett henting hvert 15. sek, aldri under streaming.
   useEffect(() => {
     if (!chatId || !agent) return;
-    const id = window.setInterval(() => {
-      if (busyRef.current) return;
-      fetchChatMessages(chatId)
-        .then((stored) =>
-          setMessages((prev) => {
-            if (busyRef.current || stored.length <= prev.length) return prev;
-            const tail = stored.slice(prev.length).map((m) => ({
-              id: nextId(),
-              role: m.role,
-              content: m.content,
-              sources: m.sources ? JSON.parse(m.sources) : undefined,
-              revealed: true,
-            }));
-            return [...prev, ...tail];
-          })
-        )
-        .catch(swallow);
-    }, agent.mission ? 3000 : 15000);
+    const id = window.setInterval(
+      () => {
+        if (busyRef.current) return;
+        fetchChatMessages(chatId)
+          .then((stored) =>
+            setMessages((prev) => {
+              if (busyRef.current || stored.length <= prev.length) return prev;
+              const tail = stored.slice(prev.length).map((m) => ({
+                id: nextId(),
+                role: m.role,
+                content: m.content,
+                sources: m.sources ? JSON.parse(m.sources) : undefined,
+                revealed: true,
+              }));
+              return [...prev, ...tail];
+            }),
+          )
+          .catch(swallow);
+      },
+      agent.mission ? 3000 : 15000,
+    );
     return () => window.clearInterval(id);
   }, [chatId, agent]);
 
@@ -573,7 +906,10 @@ export function Chat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   // Forslag om å lagre et vedlagt dokument i kunnskapsbasen, knyttet til
   // brukermeldingen det gjelder.
-  const [trainOffer, setTrainOffer] = useState<{ id: string; docs: Attachment[] } | null>(null);
+  const [trainOffer, setTrainOffer] = useState<{
+    id: string;
+    docs: Attachment[];
+  } | null>(null);
   // Minnekortet: meldings-id-er brukeren har lagret til minnet denne økten.
   const [remembered, setRemembered] = useState<Set<string>>(new Set());
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -599,7 +935,6 @@ export function Chat({
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-
   // Zoom/vindusendring endrer scrollHeight — juster tekstfeltet på nytt.
   useEffect(() => {
     function resize() {
@@ -614,7 +949,20 @@ export function Chat({
 
   function update(id: string, patch: Partial<ChatMessage>) {
     setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
+      prev.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+    );
+  }
+
+  // Ett tekstsegment har spilt ferdig fade-inn → bytt det til markdown. Egen
+  // funksjon fordi streamen skriver `parts` på hver delta; revealedParts ligger
+  // ved siden av og overlever.
+  function revealPart(id: string, index: number) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? { ...m, revealedParts: { ...m.revealedParts, [index]: true } }
+          : m,
+      ),
     );
   }
 
@@ -706,7 +1054,14 @@ export function Chat({
 
   // Bruker takket ja til å trene modellen på det vedlagte dokumentet: lagre og
   // bekreft, uten en ny brukermelding.
-  async function acceptTrain() {
+  // Brukerens org-posisjon: styrer synlighetsvalget på tren-tilbudet
+  // («kun min enhet» vises bare når enheten finnes).
+  const [myOrg, setMyOrg] = useState<OrgMe | null>(null);
+  useEffect(() => {
+    orgMe().then(setMyOrg).catch(() => setMyOrg(null));
+  }, []);
+
+  async function acceptTrain(scope: string = "") {
     const offer = trainOffer;
     if (!offer) return;
     setTrainOffer(null);
@@ -718,19 +1073,27 @@ export function Chat({
     try {
       const saved = await Promise.all(
         offer.docs.map((d) =>
-          saveDocument({ filename: d.name, text: d.text, chat_id: chatIdRef.current ?? undefined })
-        )
+          saveDocument({
+            filename: d.name,
+            text: d.text,
+            chat_id: chatIdRef.current ?? undefined,
+            scope,
+          }),
+        ),
       );
       const titles = saved.map((s) => `«${s.title}»`).join(", ");
       const content = `Lagret ${titles} i kunnskapsbasen. Jeg bruker det automatisk framover.`;
       update(replyId, { loading: false, content, revealed: true });
       const cid = chatIdRef.current;
-      if (cid) appendChatMessage(cid, { role: "assistant", content }).catch(swallow);
+      if (cid)
+        appendChatMessage(cid, { role: "assistant", content }).catch(swallow);
     } catch (e) {
       update(replyId, {
         loading: false,
         error: true,
-        content: "Kunne ikke lagre: " + (e instanceof Error ? e.message : "ukjent feil"),
+        content:
+          "Kunne ikke lagre: " +
+          (e instanceof Error ? e.message : "ukjent feil"),
       });
     }
   }
@@ -787,8 +1150,15 @@ export function Chat({
     try {
       const saved = await Promise.all(
         docs.map((d) =>
-          saveDocument({ filename: d.name, text: d.text, chat_id: chatIdRef.current ?? undefined })
-        )
+          saveDocument({
+            filename: d.name,
+            text: d.text,
+            chat_id: chatIdRef.current ?? undefined,
+            // Inline-lagring («lagre denne») spør ikke: scope arves
+            // (enheten din når du har en, ellers hele firmaet).
+            scope: "",
+          }),
+        ),
       );
       const titles = saved.map((s) => `«${s.title}»`).join(", ");
       const content = `Lagret ${titles} som bedriftskunnskap. Jeg bruker det automatisk når det er relevant.`;
@@ -803,7 +1173,9 @@ export function Chat({
       update(replyId, {
         loading: false,
         error: true,
-        content: "Kunne ikke lagre dokumentet: " + (e instanceof Error ? e.message : "ukjent feil"),
+        content:
+          "Kunne ikke lagre dokumentet: " +
+          (e instanceof Error ? e.message : "ukjent feil"),
       });
     }
   }
@@ -825,14 +1197,20 @@ export function Chat({
     }
     setMessages((prev) => [
       ...prev,
-      { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+      {
+        id: nextId(),
+        role: "user",
+        content: raw,
+        display: raw,
+        revealed: true,
+      },
       { id: nextId(), role: "assistant", content: block, revealed: true },
     ]);
     const cid = chatIdRef.current;
     if (cid) {
       appendChatMessage(cid, { role: "user", content: raw })
         .then(() =>
-          appendChatMessage(cid, { role: "assistant", content: block })
+          appendChatMessage(cid, { role: "assistant", content: block }),
         )
         .catch(swallow);
     }
@@ -855,13 +1233,21 @@ export function Chat({
     }
     setMessages((prev) => [
       ...prev,
-      { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+      {
+        id: nextId(),
+        role: "user",
+        content: raw,
+        display: raw,
+        revealed: true,
+      },
       { id: nextId(), role: "assistant", content: block, revealed: true },
     ]);
     const cid = chatIdRef.current;
     if (cid) {
       appendChatMessage(cid, { role: "user", content: raw })
-        .then(() => appendChatMessage(cid, { role: "assistant", content: block }))
+        .then(() =>
+          appendChatMessage(cid, { role: "assistant", content: block }),
+        )
         .catch(swallow);
     }
   }
@@ -889,7 +1275,13 @@ export function Chat({
         const replyId = nextId();
         setMessages((prev) => [
           ...prev,
-          { id: userId, role: "user", content: raw, display: raw, revealed: true },
+          {
+            id: userId,
+            role: "user",
+            content: raw,
+            display: raw,
+            revealed: true,
+          },
           { id: replyId, role: "assistant", content: "", loading: true },
         ]);
         try {
@@ -906,7 +1298,8 @@ export function Chat({
             window.open(url, "_blank", "width=520,height=680");
             update(replyId, {
               loading: false,
-              content: "Logg inn i Microsoft-vinduet (knappen over feltet hvis det ikke åpnet seg) — jeg sier fra når koblingen er bekreftet.",
+              content:
+                "Logg inn i Microsoft-vinduet (knappen over feltet hvis det ikke åpnet seg) — jeg sier fra når koblingen er bekreftet.",
               revealed: true,
             });
             const t = window.setInterval(async () => {
@@ -917,28 +1310,50 @@ export function Chat({
                 emit("connections-changed");
                 setMessages((prev) => [
                   ...prev,
-                  { id: nextId(), role: "assistant", content: `Microsoft 365 er koblet til som ${st2.email} ✓`, revealed: true },
+                  {
+                    id: nextId(),
+                    role: "assistant",
+                    content: `Microsoft 365 er koblet til som ${st2.email} ✓`,
+                    revealed: true,
+                  },
                 ]);
               }
             }, 2000);
             window.setTimeout(() => window.clearInterval(t), 180000);
           }
         } catch {
-          update(replyId, { loading: false, error: true, content: "Kunne ikke starte Microsoft-innloggingen." });
+          update(replyId, {
+            loading: false,
+            error: true,
+            content: "Kunne ikke starte Microsoft-innloggingen.",
+          });
         }
         return;
       }
       // Ikke M365: spawn credential-skjemaet direkte — svaret re-rutes ALDRI
       // via intent-motoren (feilstavinger som «datbase» droppet hele flyten).
       setInput("");
-      const drv = /mysql/i.test(raw) ? "mysql" : /mssql|sql ?server/i.test(raw) ? "mssql" : "postgres";
+      const drv = /mysql/i.test(raw)
+        ? "mysql"
+        : /mssql|sql ?server/i.test(raw)
+          ? "mssql"
+          : "postgres";
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), role: "user", content: raw, display: raw, revealed: true },
+        {
+          id: nextId(),
+          role: "user",
+          content: raw,
+          display: raw,
+          revealed: true,
+        },
         {
           id: nextId(),
           role: "assistant",
-          content: "Fyll inn tilkoblingen her — passordet går kryptert utenom chatten. Lurer du på noe underveis, bare spør.\n```credential\n" + JSON.stringify({ driver: drv }) + "\n```",
+          content:
+            "Fyll inn tilkoblingen her — passordet går kryptert utenom chatten. Lurer du på noe underveis, bare spør.\n```credential\n" +
+            JSON.stringify({ driver: drv }) +
+            "\n```",
           revealed: true,
         },
       ]);
@@ -953,7 +1368,11 @@ export function Chat({
       setInput("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
       pendingConnectRef.current = true;
-      emit("compose-send", { text: "Opprett en ny kobling", reply: "Hva skal vi koble til?", intent: "connect" });
+      emit("compose-send", {
+        text: "Opprett en ny kobling",
+        reply: "Hva skal vi koble til?",
+        intent: "connect",
+      });
       return;
     }
 
@@ -1022,7 +1441,8 @@ export function Chat({
     // Opprett widget når vi har en beskrivelse. Et nytt eksplisitt /widget
     // starter ALLTID en fersk widget — ellers skrev agenten den nye specen
     // inn i forrige widget og ignorerte brukeren.
-    const buildingWidget = (isWidgetCmd || widgetPendingRef.current) && !!widgetDesc;
+    const buildingWidget =
+      (isWidgetCmd || widgetPendingRef.current) && !!widgetDesc;
     if (buildingWidget && isWidgetCmd) widgetEditRef.current = null;
     if (buildingWidget && !widgetEditRef.current) {
       try {
@@ -1080,12 +1500,10 @@ export function Chat({
     const apiContent: string | ContentPart[] = images.length
       ? [
           { type: "text", text: textContent },
-          ...images.map(
-            (a): ContentPart => ({
-              type: "image_url",
-              image_url: { url: a.image! },
-            })
-          ),
+          ...images.map((a): ContentPart => ({
+            type: "image_url",
+            image_url: { url: a.image! },
+          })),
         ]
       : textContent;
 
@@ -1117,7 +1535,12 @@ export function Chat({
         images: images.map((a) => a.image!),
       },
       presetWidget
-        ? { id: replyId, role: "assistant", content: widgetBlock, revealed: true }
+        ? {
+            id: replyId,
+            role: "assistant",
+            content: widgetBlock,
+            revealed: true,
+          }
         : { id: replyId, role: "assistant", content: "", loading: true },
     ]);
 
@@ -1137,7 +1560,8 @@ export function Chat({
       update(replyId, {
         loading: false,
         error: true,
-        content: "Backend er ikke konfigurert. Sett VITE_API_BASE_URL (og evt. VITE_API_KEY) i .env.local.",
+        content:
+          "Backend er ikke konfigurert. Sett VITE_API_BASE_URL (og evt. VITE_API_KEY) i .env.local.",
       });
       return;
     }
@@ -1151,12 +1575,31 @@ export function Chat({
       let resolved: string | undefined;
       let tableQuery: TableQuery | undefined;
       const sources: SourceRef[] = [];
-      const steps: ChatStep[] = [];
-      const pushStep = (label: string, kind?: string) => {
-        if (label && steps[steps.length - 1]?.text !== label && steps.length < MAX_STEPS) {
-          steps.push({ text: label, kind });
-        }
+      // Segmentene bygges i den rekkefølgen deltaene kommer: tekst appender til
+      // siste tekstsegment, et steg til siste stegblokk — og bytter delta-type,
+      // åpnes et nytt segment. Slik havner arbeidet alltid under teksten det
+      // kom etter. `stepCount`/`lastStep` er kun tak og duplikatvern.
+      const parts: ChatPart[] = [];
+      let stepCount = 0;
+      let lastStep = "";
+      const pushText = (text: string) => {
+        const last = parts[parts.length - 1];
+        if (last?.kind === "text") last.text += text;
+        else parts.push({ kind: "text", text });
       };
+      const pushStep = (label: string, kind?: string) => {
+        if (!label || label === lastStep || stepCount >= MAX_STEPS) return;
+        lastStep = label;
+        stepCount++;
+        const last = parts[parts.length - 1];
+        if (last?.kind === "steps") last.steps.push({ text: label, kind });
+        else parts.push({ kind: "steps", steps: [{ text: label, kind }] });
+      };
+      // Ny referanse på hvert segment, ellers ser React ingen endring.
+      const snapshot = (): ChatPart[] =>
+        parts.map((p) =>
+          p.kind === "text" ? { ...p } : { kind: "steps", steps: [...p.steps] },
+        );
       await streamChat(
         "auto",
         history,
@@ -1164,7 +1607,10 @@ export function Chat({
           if (delta.reasoning) think += delta.reasoning;
           if (delta.step) pushStep(delta.step, delta.stepKind);
           if (delta.query) tableQuery = delta.query;
-          if (delta.content) acc += delta.content;
+          if (delta.content) {
+            acc += delta.content;
+            pushText(delta.content);
+          }
           if (delta.model) {
             resolved = delta.model;
             setActiveModel(delta.model);
@@ -1197,13 +1643,13 @@ export function Chat({
           // ved slutt (widget vs. tekstsvar).
           if (presetWidget) return;
           update(replyId, {
-            loading: !acc && !think && steps.length === 0,
+            loading: !acc && !think && stepCount === 0,
             content: acc,
-            reasoning: acc ? undefined : think,
+            reasoning: think,
             streaming: true,
             resolvedModel: resolved,
             sources: [...sources],
-            steps: [...steps],
+            parts: snapshot(),
             query: tableQuery,
           });
         },
@@ -1221,22 +1667,44 @@ export function Chat({
           // når historikken er klippet mot tegnbudsjettet.
           chatId: chatIdRef.current ?? undefined,
           clipped: historyClipped,
-        }
+        },
       );
       // Widget-tur: vis widgeten kun når specen faktisk ble endret denne turen.
       // Ren prat («Takk») får modellens tekstsvar i stedet for en ny widget.
       if (widgetTurnSlug) {
         if (presetWidget || widgetTouched) {
           acc = widgetBlock;
-          update(replyId, { loading: false, streaming: false, content: widgetBlock, revealed: true });
+          // Widgeten erstatter svaret: kast segmentene fra turen med.
+          update(replyId, {
+            loading: false,
+            streaming: false,
+            content: widgetBlock,
+            parts: undefined,
+            revealed: true,
+          });
         } else {
-          acc = acc || "Ok.";
-          update(replyId, { loading: false, streaming: false, content: acc });
+          if (!acc) {
+            acc = "Ok.";
+            pushText(acc);
+          }
+          update(replyId, {
+            loading: false,
+            streaming: false,
+            content: acc,
+            parts: snapshot(),
+          });
         }
         reloadWidgets();
       } else {
         update(replyId, { streaming: false });
-        if (!acc) update(replyId, { loading: false, content: "(tomt svar)" });
+        if (!acc) {
+          pushText("(tomt svar)");
+          update(replyId, {
+            loading: false,
+            content: "(tomt svar)",
+            parts: snapshot(),
+          });
+        }
       }
 
       // Agenten kan ha endret seg selv via chatten — synk state + sidepanel.
@@ -1244,7 +1712,6 @@ export function Chat({
         fetchChatAgent(chatIdRef.current).then(setAgent).catch(swallow);
         emit("agents-changed");
       }
-
 
       // Persister utvekslingen (vedleggstekst lagres ikke, kun navn).
       if (chatIdRef.current && acc) {
@@ -1260,7 +1727,7 @@ export function Chat({
               role: "assistant",
               content: acc,
               sources: sources.length ? JSON.stringify(sources) : undefined,
-            })
+            }),
           )
           .catch(swallow);
         if (isFirstExchange) {
@@ -1302,7 +1769,7 @@ export function Chat({
         // Hele admin-styringen er kun for admin (og skjules under simulering).
         ...(effectiveRole === "admin"
           ? ADMIN_ACTIONS.filter((a) => a.cmd.startsWith(slashPrefix)).map(
-              (a) => ({ ...a, tag: "Admin" })
+              (a) => ({ ...a, tag: "Admin" }),
             )
           : []),
         ...widgets
@@ -1436,7 +1903,9 @@ export function Chat({
                 <span className={styles.attachTagName}>{a.name}</span>
                 <button
                   className={styles.attachRemove}
-                  onClick={() => setAttachments((prev) => prev.filter((x) => x !== a))}
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((x) => x !== a))
+                  }
                   aria-label={`Fjern ${a.name}`}
                 >
                   ×
@@ -1446,444 +1915,544 @@ export function Chat({
               <FileTag
                 key={a.name}
                 name={a.name}
-                onRemove={() => setAttachments((prev) => prev.filter((x) => x !== a))}
+                onRemove={() =>
+                  setAttachments((prev) => prev.filter((x) => x !== a))
+                }
               />
-            )
+            ),
           )}
           {uploadError && (
             <span className={styles.attachError}>{uploadError}</span>
           )}
         </div>
       )}
-    <Composer
-      value={input}
-      onChange={handleInput}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
-      placeholder="Spør om hva som helst …"
-      textareaRef={textareaRef}
-      fileInputRef={fileInputRef}
-      onFiles={handleFiles}
-      slashItems={slashOpen ? slashItems : undefined}
-      slashIndex={slashIndex}
-      onSlashHover={setSlashIndex}
-      onSlashPick={pickSlash}
-      mentions={mentionOpen ? mentions : undefined}
-      mentionIndex={mentionIndex}
-      onMentionHover={setMentionIndex}
-      onMentionPick={pickMention}
-      model={modelAlias(activeModel)}
-      modelHint={modelDesc(activeModel)}
-      left={userRole === "admin" ? <ImpersonatePill /> : null}
-      right={<ContextRing messages={messages} />}
-    />
+      <Composer
+        value={input}
+        onChange={handleInput}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        placeholder="Spør om hva som helst …"
+        textareaRef={textareaRef}
+        fileInputRef={fileInputRef}
+        onFiles={handleFiles}
+        slashItems={slashOpen ? slashItems : undefined}
+        slashIndex={slashIndex}
+        onSlashHover={setSlashIndex}
+        onSlashPick={pickSlash}
+        mentions={mentionOpen ? mentions : undefined}
+        mentionIndex={mentionIndex}
+        onMentionHover={setMentionIndex}
+        onMentionPick={pickMention}
+        model={modelAlias(activeModel)}
+        modelHint={modelDesc(activeModel)}
+        left={userRole === "admin" ? <ImpersonatePill /> : null}
+        right={<ContextRing messages={messages} />}
+      />
     </>
   );
 
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
-    <div className={styles.chatRoot}>
-      {dragging && (
-        <div className={styles.dropOverlay}>
-          <div className={styles.dropHint}>
-            <HugeiconsIcon icon={Upload05Icon} size={40} strokeWidth={1.5} />
-            <span>Slipp for å legge ved</span>
+      <div className={styles.chatRoot}>
+        {dragging && (
+          <div className={styles.dropOverlay}>
+            <div className={styles.dropHint}>
+              <HugeiconsIcon icon={Upload05Icon} size={40} strokeWidth={1.5} />
+              <span>Slipp for å legge ved</span>
+            </div>
           </div>
-        </div>
-      )}
-      <div
-        className={`${styles.topbar} ${styles.topbarVisible} ${
-          scrolledPast ? styles.topbarScrolled : ""
-        }`}
-      >
-        <button
-          className={styles.headerBtn}
-          onClick={() => emit("sidebar-toggle")}
-          aria-label="Vis/skjul sidemeny"
-          title="Vis/skjul sidemeny (⌘B)"
-        >
-          <HugeiconsIcon icon={LayoutAlignLeftIcon} size={17} strokeWidth={2} />
-        </button>
-        <button
-          className={styles.headerBtn}
-          onClick={() => emit("new-chat")}
-          aria-label="Ny chat"
-          title="Ny chat (⌘N)"
-        >
-          <HugeiconsIcon icon={BadgePlusIcon} size={17} strokeWidth={2} />
-        </button>
-        {title && (hasMessages || agent) && (
-          <>
-          {editingTitle ? (
-            <input
-              className={styles.titleInput}
-              defaultValue={title}
-              autoFocus
-              maxLength={60}
-              onBlur={(e) => saveTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") setEditingTitle(false);
-              }}
-            />
-          ) : (
-            <span
-              className={styles.titleText}
-              onDoubleClick={() => setEditingTitle(true)}
-              title="Dobbeltklikk for å endre"
-            >
-              {title}
-            </span>
-          )}
-          {agent && (
-            <button
-              className={styles.agentPause}
-              onClick={toggleAgentPause}
-              title={agent.enabled ? "Sett agenten på pause" : "Gjenoppta agenten"}
-              aria-label={agent.enabled ? "Pause agent" : "Gjenoppta agent"}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="10"
-                  cy="10"
-                  r="9.25"
-                  fill={agent.enabled ? "#007EFF" : "#5b5b60"}
-                  stroke={agent.enabled ? "#00CAFF" : "none"}
-                  strokeWidth="0.75"
-                />
-                {agent.enabled ? (
-                  <>
-                    <rect x="7" y="6" width="2" height="8" rx="1" fill="white" />
-                    <rect x="11" y="6" width="2" height="8" rx="1" fill="white" />
-                  </>
-                ) : (
-                  <path d="M8 6.5 L14 10 L8 13.5 Z" fill="white" />
-                )}
-              </svg>
-            </button>
-          )}
-          {agent && (
-            <button
-              className={styles.agentPush}
-              onClick={togglePush}
-              title={
-                agent.push_enabled
-                  ? "Push-varsel på: du varsles når agenten finner noe verdt å vite"
-                  : "Send push når agenten finner noe verdt å vite"
-              }
-              aria-label={agent.push_enabled ? "Skru av push" : "Skru på push"}
-            >
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path
-                  d="M10 2.5c-2.5 0-4 1.8-4 4.2 0 3.4-1.3 4.6-1.8 5.1-.3.3-.1.9.4.9h10.8c.5 0 .7-.6.4-.9-.5-.5-1.8-1.7-1.8-5.1 0-2.4-1.5-4.2-4-4.2Z"
-                  fill={agent.push_enabled ? "#007EFF" : "none"}
-                  stroke={agent.push_enabled ? "#00CAFF" : "currentColor"}
-                  strokeWidth="1.3"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M8.5 16a1.5 1.5 0 0 0 3 0"
-                  stroke={agent.push_enabled ? "#00CAFF" : "currentColor"}
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          )}
-          {agent && (
-            <button
-              className={styles.agentPause}
-              onClick={() => setShowFlow((v) => !v)}
-              title={showFlow ? "Tilbake til chatten" : "Se og rediger agentens flyt"}
-              aria-label={showFlow ? "Tilbake til chat" : "Agentflyt"}
-            >
-              <HugeiconsIcon
-                icon={showFlow ? BubbleChatTemporaryIcon : Structure04Icon}
-                size={18}
-                strokeWidth={1.8}
-              />
-            </button>
-          )}
-          {agent && (
-            <button
-              className={styles.agentDelete}
-              onClick={deleteThisAgent}
-              title="Slett agent og chat"
-              aria-label="Slett agent"
-            >
-              <HugeiconsIcon icon={Delete01Icon} size={16} strokeWidth={2} />
-            </button>
-          )}
-          {agent && (
-            <span className={styles.agentStats}>
-              {agent.schedule_label && <span>{agent.schedule_label}</span>}
-              {agent.daily_token_limit ? (
-                <span>
-                  ~{formatTokens(agent.daily_token_limit * 30)} tokens/mnd
-                </span>
-              ) : null}
-            </span>
-          )}
-          </>
         )}
-      </div>
-      {showFlow && agent ? (
-        <Suspense fallback={null}>
-          <AgentFlow agentId={agent.id} onClose={() => setShowFlow(false)} />
-        </Suspense>
-      ) : hasMessages ? (
-        <div className={styles.conversation}>
-          <div className={styles.messages} ref={messagesRef}>
-            <div className={styles.messagesInner}>
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  data-mid={m.id}
-                  data-role={m.role}
-                  className={`${styles.row} ${
-                    m.role === "user" ? styles.user : styles.assistant
-                  } ${isWidgetOnly(m.content) ? styles.widgetRow : ""}`}
+        <div
+          className={`${styles.topbar} ${styles.topbarVisible} ${
+            scrolledPast ? styles.topbarScrolled : ""
+          }`}
+        >
+          <button
+            className={styles.headerBtn}
+            onClick={() => emit("sidebar-toggle")}
+            aria-label="Vis/skjul sidemeny"
+            title="Vis/skjul sidemeny (⌘B)"
+          >
+            <HugeiconsIcon
+              icon={LayoutAlignLeftIcon}
+              size={17}
+              strokeWidth={2}
+            />
+          </button>
+          <button
+            className={styles.headerBtn}
+            onClick={() => emit("new-chat")}
+            aria-label="Ny chat"
+            title="Ny chat (⌘N)"
+          >
+            <HugeiconsIcon icon={BadgePlusIcon} size={17} strokeWidth={2} />
+          </button>
+          {title && (hasMessages || agent) && (
+            <>
+              {editingTitle ? (
+                <input
+                  className={styles.titleInput}
+                  defaultValue={title}
+                  autoFocus
+                  maxLength={60}
+                  onBlur={(e) => saveTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setEditingTitle(false);
+                  }}
+                />
+              ) : (
+                <span
+                  className={styles.titleText}
+                  onDoubleClick={() => setEditingTitle(true)}
+                  title="Dobbeltklikk for å endre"
                 >
-                  <div
-                    className={`${styles.bubble} ${
-                      m.error ? styles.error : ""
-                    } ${isWidgetOnly(m.content) ? styles.widgetBubble : ""} ${
-                      trainOffer?.id === m.id ? styles.bubbleOffer : ""
-                    }`}
+                  {title}
+                </span>
+              )}
+              {agent && (
+                <button
+                  className={styles.agentPause}
+                  onClick={toggleAgentPause}
+                  title={
+                    agent.enabled
+                      ? "Sett agenten på pause"
+                      : "Gjenoppta agenten"
+                  }
+                  aria-label={agent.enabled ? "Pause agent" : "Gjenoppta agent"}
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    aria-hidden="true"
                   >
-                  <TableQueryContext.Provider value={m.query ?? null}>
-                    {/* Arbeids-indikator: står HELE tiden streamen er åpen, også
-                        når litt innhold alt har kommet — så den aldri «forsvinner». */}
-                    {m.role === "assistant" &&
-                      !m.error &&
-                      (m.streaming || m.loading) && (
-                        <div className={styles.timeline}>
-                          <div className={styles.step}>
-                            <span className={styles.thinkingLogo}>
-                              <Logo
-                                size={10}
-                                flutter
-                                glow={modelGlow(m.resolvedModel ?? null)}
-                              />
-                            </span>
-                            <span
-                              className={`${styles.stepActive} ${styles.textShimmer}`}
-                              style={{ "--shimmer-glow": modelGlow(m.resolvedModel ?? null) } as React.CSSProperties}
-                            >
-                              {thinkingLabel(m.reasoning)} …
-                            </span>
-                          </div>
-                          {(m.steps ?? []).map((step, i) => (
-                            <div key={i}>
-                              <span className={styles.stepLine} />
-                              <div className={styles.step}>
-                                <span className={styles.stepIcon}>
-                                  <StepIcon kind={step.kind} />
-                                </span>
-                                <span className={styles.reasoning}>{step.text}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    {/* Ferdig svar: arbeidet forsvinner ikke, det legger seg
-                        sammenslått over svaret og kan foldes ut igjen. */}
-                    {m.role === "assistant" &&
-                      !m.error &&
-                      !m.streaming &&
-                      !m.loading &&
-                      (m.steps?.length ?? 0) > 0 && (
-                        <div className={styles.thoughtBox}>
-                          <button
-                            type="button"
-                            className={styles.thoughtToggle}
-                            onClick={() =>
-                              setOpenSteps((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
-                            }
-                          >
-                            {openSteps[m.id] ? "Skjul arbeidet" : `Arbeidet (${m.steps!.length} steg)`}
-                          </button>
-                          {openSteps[m.id] && (
-                            <div className={styles.thoughtBody}>
-                              {m.steps!.map((step, i) => (
-                                <div className={styles.step} key={i}>
-                                  <span className={styles.stepIcon}>
-                                    <StepIcon kind={step.kind} />
-                                  </span>
-                                  <span className={styles.reasoning}>{step.text}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    {m.content ? (
-                      m.role === "assistant" && !m.error && !m.revealed ? (
-                        <StreamingText
-                          content={m.content}
-                          done={!m.streaming}
-                          onDone={() => update(m.id, { revealed: true })}
+                    <circle
+                      cx="10"
+                      cy="10"
+                      r="9.25"
+                      fill={agent.enabled ? "#007EFF" : "#5b5b60"}
+                      stroke={agent.enabled ? "#00CAFF" : "none"}
+                      strokeWidth="0.75"
+                    />
+                    {agent.enabled ? (
+                      <>
+                        <rect
+                          x="7"
+                          y="6"
+                          width="2"
+                          height="8"
+                          rx="1"
+                          fill="white"
                         />
-                      ) : m.role === "assistant" && !m.error ? (
-                        <div className={styles.markdown}>
-                          {(() => {
-                            const ts =
-                              agent &&
-                              m.content.match(/^\*\*(.+?)\*\*\n\n([\s\S]*)$/);
+                        <rect
+                          x="11"
+                          y="6"
+                          width="2"
+                          height="8"
+                          rx="1"
+                          fill="white"
+                        />
+                      </>
+                    ) : (
+                      <path d="M8 6.5 L14 10 L8 13.5 Z" fill="white" />
+                    )}
+                  </svg>
+                </button>
+              )}
+              {agent && (
+                <button
+                  className={styles.agentPush}
+                  onClick={togglePush}
+                  title={
+                    agent.push_enabled
+                      ? "Push-varsel på: du varsles når agenten finner noe verdt å vite"
+                      : "Send push når agenten finner noe verdt å vite"
+                  }
+                  aria-label={
+                    agent.push_enabled ? "Skru av push" : "Skru på push"
+                  }
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M10 2.5c-2.5 0-4 1.8-4 4.2 0 3.4-1.3 4.6-1.8 5.1-.3.3-.1.9.4.9h10.8c.5 0 .7-.6.4-.9-.5-.5-1.8-1.7-1.8-5.1 0-2.4-1.5-4.2-4-4.2Z"
+                      fill={agent.push_enabled ? "#007EFF" : "none"}
+                      stroke={agent.push_enabled ? "#00CAFF" : "currentColor"}
+                      strokeWidth="1.3"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8.5 16a1.5 1.5 0 0 0 3 0"
+                      stroke={agent.push_enabled ? "#00CAFF" : "currentColor"}
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              )}
+              {agent && (
+                <button
+                  className={styles.agentPause}
+                  onClick={() => setShowFlow((v) => !v)}
+                  title={
+                    showFlow
+                      ? "Tilbake til chatten"
+                      : "Se og rediger agentens flyt"
+                  }
+                  aria-label={showFlow ? "Tilbake til chat" : "Agentflyt"}
+                >
+                  <HugeiconsIcon
+                    icon={showFlow ? BubbleChatTemporaryIcon : Structure04Icon}
+                    size={18}
+                    strokeWidth={1.8}
+                  />
+                </button>
+              )}
+              {agent && (
+                <button
+                  className={styles.agentDelete}
+                  onClick={deleteThisAgent}
+                  title="Slett agent og chat"
+                  aria-label="Slett agent"
+                >
+                  <HugeiconsIcon
+                    icon={Delete01Icon}
+                    size={16}
+                    strokeWidth={2}
+                  />
+                </button>
+              )}
+              {agent && (
+                <span className={styles.agentStats}>
+                  {agent.schedule_label && <span>{agent.schedule_label}</span>}
+                  {agent.daily_token_limit ? (
+                    <span>
+                      ~{formatTokens(agent.daily_token_limit * 30)} tokens/mnd
+                    </span>
+                  ) : null}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        {showFlow && agent ? (
+          <Suspense fallback={null}>
+            <AgentFlow agentId={agent.id} onClose={() => setShowFlow(false)} />
+          </Suspense>
+        ) : hasMessages ? (
+          <div className={styles.conversation}>
+            <div className={styles.messages} ref={messagesRef}>
+              <div className={styles.messagesInner}>
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    data-mid={m.id}
+                    data-role={m.role}
+                    className={`${styles.row} ${
+                      m.role === "user" ? styles.user : styles.assistant
+                    } ${isWidgetOnly(m.content) ? styles.widgetRow : ""}`}
+                  >
+                    <div
+                      className={`${styles.bubble} ${
+                        m.error ? styles.error : ""
+                      } ${isWidgetOnly(m.content) ? styles.widgetBubble : ""} ${
+                        trainOffer?.id === m.id ? styles.bubbleOffer : ""
+                      }`}
+                    >
+                      <TableQueryContext.Provider value={m.query ?? null}>
+                        {m.role === "assistant" && !m.error ? (
+                          (() => {
+                            // Segmentene rendres i den rekkefølgen de kom: tekst,
+                            // så arbeidet som fulgte, så neste tekst. Den aktive
+                            // linjen står nederst i siste stegblokk og KUTTES i det
+                            // modellen begynner å skrive — da er tekst siste
+                            // segment, og arbeidet gjenopptas under den.
+                            const parts = partsOf(m);
+                            const working = !!(m.streaming || m.loading);
+                            // Handlingsraden venter til siste tekstsegment har
+                            // animert ferdig, ellers dukker den opp under en
+                            // tekst som fortsatt vokser.
+                            const lastText = parts.reduce(
+                              (acc, p, i) => (p.kind === "text" ? i : acc),
+                              -1,
+                            );
+                            const settled =
+                              !working &&
+                              (lastText < 0 ||
+                                !!m.revealed ||
+                                !!m.revealedParts?.[lastText]);
                             return (
                               <>
-                                {ts && (
-                                  <div className={styles.agentStamp}>{ts[1]}</div>
+                                {/* Unntaket fra kronologien: «Tenker …» står fast
+                                øverst så lenge turen løper — den flytter seg
+                                aldri, arbeidet og teksten flyter under den. */}
+                                {working && (
+                                  <ActiveStep
+                                    label={thinkingLabel(m.reasoning)}
+                                    glow={modelGlow(m.resolvedModel ?? null)}
+                                  />
                                 )}
-                                <Markdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{ a: SourceLink, pre: MarkdownPre }}
-                                >
-                                  {ts ? ts[2] : m.content}
-                                </Markdown>
+                                {parts.map((p, i) => {
+                                  if (p.kind === "steps") {
+                                    return (
+                                      <StepsPart
+                                        key={i}
+                                        steps={p.steps}
+                                        open={working}
+                                        expanded={!!openSteps[`${m.id}:${i}`]}
+                                        onToggle={() =>
+                                          setOpenSteps((prev) => ({
+                                            ...prev,
+                                            [`${m.id}:${i}`]:
+                                              !prev[`${m.id}:${i}`],
+                                          }))
+                                        }
+                                      />
+                                    );
+                                  }
+                                  const revealed =
+                                    m.revealed || m.revealedParts?.[i];
+                                  if (!revealed) {
+                                    return (
+                                      <StreamingText
+                                        key={i}
+                                        // Samme formatering som markdown-visningen
+                                        // får: avsnittene og uthevingen er på plass
+                                        // allerede under animasjonen, så byttet
+                                        // etterpå ikke flytter en linje.
+                                        content={formatAnswer(
+                                          normalizeFences(p.text),
+                                        )}
+                                        done={
+                                          !m.streaming || i < parts.length - 1
+                                        }
+                                        onDone={() => revealPart(m.id, i)}
+                                      />
+                                    );
+                                  }
+                                  const ts =
+                                    i === 0 &&
+                                    agent &&
+                                    p.text.match(
+                                      /^\*\*(.+?)\*\*\n\n([\s\S]*)$/,
+                                    );
+                                  const formatted = formatAnswer(
+                                    normalizeFences(ts ? ts[2] : p.text),
+                                  );
+                                  // Én markering per svar, i det SISTE
+                                  // tekstsegmentet: mellomtekstene motoren skriver
+                                  // mens den jobber er ikke konklusjonen — den
+                                  // kommer til slutt.
+                                  const shown =
+                                    i === lastText
+                                      ? markKeySentence(formatted)
+                                      : formatted;
+                                  return (
+                                    <div className={styles.markdown} key={i}>
+                                      {ts && (
+                                        <div className={styles.agentStamp}>
+                                          {ts[1]}
+                                        </div>
+                                      )}
+                                      <Markdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                          a: SourceLink,
+                                          pre: MarkdownPre,
+                                        }}
+                                      >
+                                        {shown}
+                                      </Markdown>
+                                    </div>
+                                  );
+                                })}
+                                {settled && m.content && (
+                                  <MessageActions
+                                    content={m.content}
+                                    sources={m.sources}
+                                    armed={correctionTarget?.id === m.id}
+                                    onArm={(content) =>
+                                      setCorrectionTarget((cur) =>
+                                        cur?.id === m.id
+                                          ? null
+                                          : { id: m.id, content },
+                                      )
+                                    }
+                                    remembered={remembered.has(m.id)}
+                                    onRemember={(content) =>
+                                      rememberMsg(m.id, content)
+                                    }
+                                  />
+                                )}
                               </>
                             );
-                          })()}
-                          {!m.streaming && !m.loading && (
-                            <MessageActions
-                              content={m.content}
-                              sources={m.sources}
-                              armed={correctionTarget?.id === m.id}
-                              onArm={(content) =>
-                                setCorrectionTarget((cur) =>
-                                  cur?.id === m.id
-                                    ? null
-                                    : { id: m.id, content }
-                                )
-                              }
-                              remembered={remembered.has(m.id)}
-                              onRemember={(content) => rememberMsg(m.id, content)}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          {m.images && m.images.length > 0 && (
-                            <span className={styles.attachRow}>
-                              {m.images.map((src, i) => (
-                                <img
-                                  key={i}
-                                  src={src}
-                                  alt="Vedlagt bilde"
-                                  className={styles.bubbleImage}
-                                />
-                              ))}
-                            </span>
-                          )}
-                          {m.display ?? m.content}
-                          {m.attachmentNames &&
-                            m.attachmentNames.length > 0 && (
+                          })()
+                        ) : m.content ? (
+                          <>
+                            {m.images && m.images.length > 0 && (
                               <span className={styles.attachRow}>
-                                {m.attachmentNames.map((name) => (
-                                  <span key={name} className={styles.attachTag}>
-                                    <span
-                                      className={styles.attachTagIconBox}
-                                      style={{
-                                        background: fileTagColor(name)[0],
-                                        color: fileTagColor(name)[1],
-                                      }}
-                                    >
-                                      <HugeiconsIcon icon={fileIcon(name)} size={14} strokeWidth={2} />
-                                    </span>
-                                    <span className={styles.attachTagName}>{name}</span>
-                                  </span>
+                                {m.images.map((src, i) => (
+                                  <img
+                                    key={i}
+                                    src={src}
+                                    alt="Vedlagt bilde"
+                                    className={styles.bubbleImage}
+                                  />
                                 ))}
                               </span>
                             )}
-                        </>
-                      )
-                    ) : null}
-                  </TableQueryContext.Provider>
-                  </div>
-                  {m.role === "user" && !m.loading && (
-                    <div className={styles.userActions}>
-                      <button
-                        className={`${styles.actionBtn} ${remembered.has(m.id) ? styles.actionBtnActive : ""}`}
-                        onClick={() => !remembered.has(m.id) && rememberMsg(m.id, m.content)}
-                        title={remembered.has(m.id) ? "Lagret i minnet" : "Lagre til minnet"}
-                        aria-label="Lagre til minnet"
-                      >
-                        <HugeiconsIcon icon={SdCardIcon} size={15} strokeWidth={2} />
-                      </button>
+                            {m.display ?? m.content}
+                            {m.attachmentNames &&
+                              m.attachmentNames.length > 0 && (
+                                <span className={styles.attachRow}>
+                                  {m.attachmentNames.map((name) => (
+                                    <span
+                                      key={name}
+                                      className={styles.attachTag}
+                                    >
+                                      <span
+                                        className={styles.attachTagIconBox}
+                                        style={{
+                                          background: fileTagColor(name)[0],
+                                          color: fileTagColor(name)[1],
+                                        }}
+                                      >
+                                        <HugeiconsIcon
+                                          icon={fileIcon(name)}
+                                          size={14}
+                                          strokeWidth={2}
+                                        />
+                                      </span>
+                                      <span className={styles.attachTagName}>
+                                        {name}
+                                      </span>
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                          </>
+                        ) : null}
+                      </TableQueryContext.Provider>
                     </div>
-                  )}
-                  {trainOffer?.id === m.id && (
-                    <div className={styles.trainOffer}>
-                      <span className={styles.trainOfferText}>
-                        Tren modellen på dette?
-                      </span>
-                      <button
-                        type="button"
-                        className={styles.trainYes}
-                        onClick={acceptTrain}
-                      >
-                        Ja
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.trainNo}
-                        onClick={dismissTrain}
-                      >
-                        Nei
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {activity && (
-                <div
-                  className={styles.activityRow}
-                  data-role="assistant"
-                  data-mid="activity"
-                >
-                  <div className={styles.timeline}>
-                    <div className={styles.step}>
-                      <span className={styles.thinkingLogo}>
-                        <Logo size={10} flutter />
-                      </span>
-                      <span className={`${styles.stepActive} ${styles.activityThought} ${styles.textShimmer}`}>
-                        {activity.thought?.trim() || "Tenker"} …
-                      </span>
-                    </div>
-                    {activity.steps && activity.steps.length > 0 && (
-                      <div>
-                        <span className={styles.stepLine} />
-                        <div className={styles.step}>
-                          <span className={styles.stepIcon}>
-                            <SearchIcon size={14} />
-                          </span>
-                          <span className={`${styles.reasoning} ${styles.activityStep}`}>
-                            {activity.steps[activity.steps.length - 1]}
-                          </span>
-                        </div>
+                    {m.role === "user" && !m.loading && (
+                      <div className={styles.userActions}>
+                        <button
+                          className={`${styles.actionBtn} ${remembered.has(m.id) ? styles.actionBtnActive : ""}`}
+                          onClick={() =>
+                            !remembered.has(m.id) &&
+                            rememberMsg(m.id, m.content)
+                          }
+                          title={
+                            remembered.has(m.id)
+                              ? "Lagret i minnet"
+                              : "Lagre til minnet"
+                          }
+                          aria-label="Lagre til minnet"
+                        >
+                          <HugeiconsIcon
+                            icon={SdCardIcon}
+                            size={15}
+                            strokeWidth={2}
+                          />
+                        </button>
+                      </div>
+                    )}
+                    {trainOffer?.id === m.id && (
+                      <div className={styles.trainOffer}>
+                        <span className={styles.trainOfferText}>
+                          Tren modellen på dette?
+                        </span>
+                        {myOrg?.unit_id ? (
+                          <>
+                            <button
+                              type="button"
+                              className={styles.trainYes}
+                              onClick={() => acceptTrain("tenant")}
+                            >
+                              Ja, for hele firmaet
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.trainYes}
+                              onClick={() => acceptTrain("unit")}
+                            >
+                              {`Ja, kun ${myOrg.unit_name || "min enhet"}`}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.trainYes}
+                            onClick={() => acceptTrain("")}
+                          >
+                            Ja
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={styles.trainNo}
+                          onClick={dismissTrain}
+                        >
+                          Nei
+                        </button>
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                ))}
+                {activity && (
+                  <div
+                    className={styles.activityRow}
+                    data-role="assistant"
+                    data-mid="activity"
+                  >
+                    <div className={styles.timeline}>
+                      <div className={styles.step}>
+                        <span className={styles.thinkingLogo}>
+                          <Logo size={10} flutter />
+                        </span>
+                        <span
+                          className={`${styles.stepActive} ${styles.activityThought} ${styles.textShimmer}`}
+                        >
+                          {activity.thought?.trim() || "Tenker"} …
+                        </span>
+                      </div>
+                      {activity.steps && activity.steps.length > 0 && (
+                        <div>
+                          <span className={styles.stepLine} />
+                          <div className={styles.step}>
+                            <span className={styles.stepIcon}>
+                              <SearchIcon size={14} />
+                            </span>
+                            <span
+                              className={`${styles.reasoning} ${styles.activityStep}`}
+                            >
+                              {activity.steps[activity.steps.length - 1]}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className={styles.composerDocked}>
+              <div className={styles.composerWrap}>{composer}</div>
             </div>
           </div>
-          <div className={styles.composerDocked}>
+        ) : (
+          <div className={styles.empty}>
             <div className={styles.composerWrap}>{composer}</div>
           </div>
-        </div>
-      ) : (
-        <div className={styles.empty}>
-          <div className={styles.composerWrap}>{composer}</div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </AgentChatContext.Provider>
   );
 }
