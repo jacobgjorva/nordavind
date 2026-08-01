@@ -1060,6 +1060,9 @@ export function Chat({
   useEffect(() => {
     orgMe().then(setMyOrg).catch(() => setMyOrg(null));
   }, []);
+  // Etter Ja på tren-tilbudet: brukeren velger hvem kunnskapen gjelder for
+  // (Jacobs modul-design 2026-08-01) — valget er selve tilgangsstyringen.
+  const [trainChoosing, setTrainChoosing] = useState(false);
 
   async function acceptTrain(scope: string = "") {
     const offer = trainOffer;
@@ -2364,46 +2367,73 @@ export function Chat({
                         </button>
                       </div>
                     )}
-                    {trainOffer?.id === m.id && (
-                      <div className={styles.trainOffer}>
-                        <span className={styles.trainOfferText}>
-                          Tren modellen på dette?
-                        </span>
-                        {myOrg?.unit_id ? (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.trainYes}
-                              onClick={() => acceptTrain("tenant")}
-                            >
-                              Ja, for hele firmaet
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.trainYes}
-                              onClick={() => acceptTrain("unit")}
-                            >
-                              {`Ja, kun ${myOrg.unit_name || "min enhet"}`}
-                            </button>
-                          </>
-                        ) : (
+                    {trainOffer?.id === m.id &&
+                      (!trainChoosing ? (
+                        <div className={styles.trainOffer}>
+                          <span className={styles.trainOfferText}>
+                            Tren modellen på dette?
+                          </span>
                           <button
                             type="button"
                             className={styles.trainYes}
-                            onClick={() => acceptTrain("")}
+                            onClick={() => setTrainChoosing(true)}
                           >
                             Ja
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          className={styles.trainNo}
-                          onClick={dismissTrain}
-                        >
-                          Nei
-                        </button>
-                      </div>
-                    )}
+                          <button
+                            type="button"
+                            className={styles.trainNo}
+                            onClick={dismissTrain}
+                          >
+                            Nei
+                          </button>
+                        </div>
+                      ) : (
+                        <div className={styles.trainOffer}>
+                          <span className={styles.trainOfferText}>
+                            Hvem skal kunnskapen gjelde for?
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.trainYes}
+                            onClick={() => {
+                              setTrainChoosing(false);
+                              acceptTrain("private");
+                            }}
+                          >
+                            Bare meg
+                          </button>
+                          {myOrg?.unit_id && (
+                            <button
+                              type="button"
+                              className={styles.trainYes}
+                              onClick={() => {
+                                setTrainChoosing(false);
+                                acceptTrain("unit");
+                              }}
+                            >
+                              {myOrg.unit_name || "Min enhet"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.trainYes}
+                            onClick={() => {
+                              setTrainChoosing(false);
+                              acceptTrain("tenant");
+                            }}
+                          >
+                            Hele firmaet
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.trainNo}
+                            onClick={() => setTrainChoosing(false)}
+                          >
+                            Avbryt
+                          </button>
+                        </div>
+                      ))}
                   </div>
                 ))}
                 {activity && (
