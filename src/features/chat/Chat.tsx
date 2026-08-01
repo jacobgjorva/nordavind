@@ -1957,6 +1957,60 @@ export function Chat({
   return (
     <AgentChatContext.Provider value={agent?.id ?? null}>
       <div className={styles.chatRoot}>
+        {trainChoosing && trainOffer && (
+          <div className={styles.scopeOverlay} onClick={() => setTrainChoosing(false)}>
+            <div className={styles.scopeCard} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.scopeTitle}>Dette gjør agenten bedre.</div>
+              <div className={styles.scopeText}>
+                Skal kunnskapen gjelde bare for deg, eller for flere?
+              </div>
+              <div className={styles.scopeBtns}>
+                <button
+                  type="button"
+                  className={styles.scopeBtn}
+                  onClick={() => {
+                    setTrainChoosing(false);
+                    acceptTrain("private");
+                  }}
+                >
+                  Bare meg
+                  <span className={styles.scopeBtnHint}>Kun i dine egne samtaler</span>
+                </button>
+                {myOrg?.unit_id && (
+                  <button
+                    type="button"
+                    className={styles.scopeBtn}
+                    onClick={() => {
+                      setTrainChoosing(false);
+                      acceptTrain("unit");
+                    }}
+                  >
+                    {myOrg.unit_name || "Mitt område"}
+                    <span className={styles.scopeBtnHint}>Alle i området ditt</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={styles.scopeBtn}
+                  onClick={() => {
+                    setTrainChoosing(false);
+                    acceptTrain("tenant");
+                  }}
+                >
+                  Hele organisasjonen
+                  <span className={styles.scopeBtnHint}>Alle i bedriften</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                className={styles.scopeCancel}
+                onClick={() => setTrainChoosing(false)}
+              >
+                Avbryt
+              </button>
+            </div>
+          </div>
+        )}
         {dragging && (
           <div className={styles.dropOverlay}>
             <div className={styles.dropHint}>
@@ -2367,73 +2421,27 @@ export function Chat({
                         </button>
                       </div>
                     )}
-                    {trainOffer?.id === m.id &&
-                      (!trainChoosing ? (
-                        <div className={styles.trainOffer}>
-                          <span className={styles.trainOfferText}>
-                            Tren modellen på dette?
-                          </span>
-                          <button
-                            type="button"
-                            className={styles.trainYes}
-                            onClick={() => setTrainChoosing(true)}
-                          >
-                            Ja
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.trainNo}
-                            onClick={dismissTrain}
-                          >
-                            Nei
-                          </button>
-                        </div>
-                      ) : (
-                        <div className={styles.trainOffer}>
-                          <span className={styles.trainOfferText}>
-                            Hvem skal kunnskapen gjelde for?
-                          </span>
-                          <button
-                            type="button"
-                            className={styles.trainYes}
-                            onClick={() => {
-                              setTrainChoosing(false);
-                              acceptTrain("private");
-                            }}
-                          >
-                            Bare meg
-                          </button>
-                          {myOrg?.unit_id && (
-                            <button
-                              type="button"
-                              className={styles.trainYes}
-                              onClick={() => {
-                                setTrainChoosing(false);
-                                acceptTrain("unit");
-                              }}
-                            >
-                              {myOrg.unit_name || "Min enhet"}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className={styles.trainYes}
-                            onClick={() => {
-                              setTrainChoosing(false);
-                              acceptTrain("tenant");
-                            }}
-                          >
-                            Hele firmaet
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.trainNo}
-                            onClick={() => setTrainChoosing(false)}
-                          >
-                            Avbryt
-                          </button>
-                        </div>
-                      ))}
+                    {trainOffer?.id === m.id && (
+                      <div className={styles.trainOffer}>
+                        <span className={styles.trainOfferText}>
+                          Tren modellen på dette?
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.trainYes}
+                          onClick={() => setTrainChoosing(true)}
+                        >
+                          Ja
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.trainNo}
+                          onClick={dismissTrain}
+                        >
+                          Nei
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {activity && (
