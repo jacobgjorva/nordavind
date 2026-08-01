@@ -90,3 +90,28 @@
   background: rgba(255, 80, 80, 0.12);
   color: #ff6a6a;
 }
+
+/* Gruppemedlemskap: chips per enhet, aktiv = fylt. */
+.unitChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.unitChip,
+.unitChipOn {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 0.5px solid var(--border-strong, #333);
+  background: none;
+  color: var(--text-faint, #6a6a72);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.unitChipOn {
+  background: rgba(122, 162, 247, 0.15);
+  border-color: rgba(122, 162, 247, 0.5);
+  color: var(--text, #ececef);
+}

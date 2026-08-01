@@ -1976,19 +1976,20 @@ export function Chat({
                   Bare meg
                   <span className={styles.scopeBtnHint}>Kun i dine egne samtaler</span>
                 </button>
-                {myOrg?.unit_id && (
+                {(myOrg?.units ?? []).map((u) => (
                   <button
+                    key={u.id}
                     type="button"
                     className={styles.scopeBtn}
                     onClick={() => {
                       setTrainChoosing(false);
-                      acceptTrain("unit");
+                      acceptTrain(`unit:${u.id}`);
                     }}
                   >
-                    {myOrg.unit_name || "Mitt område"}
-                    <span className={styles.scopeBtnHint}>Alle i området ditt</span>
+                    {u.name}
+                    <span className={styles.scopeBtnHint}>Alle i {u.name}</span>
                   </button>
-                )}
+                ))}
                 <button
                   type="button"
                   className={styles.scopeBtn}

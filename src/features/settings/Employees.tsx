@@ -39,10 +39,20 @@ export function Employees() {
     }
   }
 
-  function patchUnit(id: string, unitID: string) {
-    setList((l) => l?.map((e) => (e.id === id ? { ...e, unit_id: unitID } : e)) ?? l);
-    const cur = list?.find((e) => e.id === id);
-    if (cur) persist({ ...cur, unit_id: unitID });
+  function toggleUnit(id: string, unitID: string) {
+    setList((l) => {
+      const next = l?.map((e) => {
+        if (e.id !== id) return e;
+        const has = (e.unit_ids ?? []).includes(unitID);
+        const unit_ids = has
+          ? (e.unit_ids ?? []).filter((x) => x !== unitID)
+          : [...(e.unit_ids ?? []), unitID];
+        return { ...e, unit_ids };
+      }) ?? l;
+      const cur = next?.find((e) => e.id === id);
+      if (cur) persist(cur);
+      return next;
+    });
   }
 
   function patch(id: string, field: keyof EmployeeInput, value: string) {
@@ -55,7 +65,7 @@ export function Employees() {
       role: e.role,
       description: e.description,
       email: e.email,
-      unit_id: e.unit_id,
+      unit_ids: e.unit_ids ?? [],
     }).catch(swallow);
   }
 
@@ -138,16 +148,22 @@ export function Employees() {
                 onBlur={() => persist(e)}
               />
               {units.length > 0 && (
-                <select
-                  className={styles.cell}
-                  value={e.unit_id}
-                  onChange={(ev) => patchUnit(e.id, ev.target.value)}
-                >
-                  <option value="">Hele firmaet</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
+                <div className={styles.unitChips}>
+                  {units.map((u) => {
+                    const active = (e.unit_ids ?? []).includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        className={active ? styles.unitChipOn : styles.unitChip}
+                        onClick={() => toggleUnit(e.id, u.id)}
+                        title={active ? `Fjern fra ${u.name}` : `Legg til i ${u.name}`}
+                      >
+                        {u.name}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
               <button
                 className={styles.del}

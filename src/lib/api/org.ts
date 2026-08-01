@@ -11,8 +11,7 @@ export interface OrgUnit {
 }
 
 export interface OrgMe {
-  unit_id: string;
-  unit_name: string;
+  units: { id: string; name: string }[];
   role: string;
 }
 
