@@ -30,3 +30,9 @@ export async function saveM365App(payload: {
 }): Promise<void> {
   await apiFetch("/m365/app", { method: "POST", body: payload });
 }
+
+// Starter OneDrive-synk til brukerens private kunnskapstre (kjører i
+// bakgrunnen på serveren).
+export async function syncM365Docs(): Promise<void> {
+  await apiFetch("/m365/syncdocs", { method: "POST", body: {} });
+}

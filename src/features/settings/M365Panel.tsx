@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   disconnectM365,
   fetchM365Status,
+  syncM365Docs,
   type M365Status,
 } from "../../lib/api";
 import { swallow } from "../../lib/log";
@@ -24,6 +25,22 @@ export function M365Panel({ onChanged }: { onChanged: () => void }) {
 
   if (!status) return <div className={styles.empty}>Henter …</div>;
 
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+
+  async function syncDocs() {
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      await syncM365Docs();
+      setSyncMsg("Synk startet. Dokumentene dukker opp i treet om litt (kun synlig for deg).");
+    } catch {
+      setSyncMsg("Kunne ikke starte synken.");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <div className={styles.m365}>
       <div className={styles.m365Head}>Microsoft 365</div>
@@ -32,12 +49,22 @@ export function M365Panel({ onChanged }: { onChanged: () => void }) {
         og Teams — samme samtykke.
       </p>
       {status.connected ? (
-        <div className={styles.m365Row}>
-          <span className={styles.m365Ok}>Koblet til som {status.email}</span>
-          <button className={styles.danger} onClick={disconnect}>
-            Koble fra
-          </button>
-        </div>
+        <>
+          <div className={styles.m365Row}>
+            <span className={styles.m365Ok}>Koblet til som {status.email}</span>
+            <button className={styles.danger} onClick={disconnect}>
+              Koble fra
+            </button>
+          </div>
+          <div className={styles.m365Row}>
+            <span className={styles.m365Note}>
+              {syncMsg || "Synk dine nylige OneDrive-dokumenter til ditt private kunnskapstre."}
+            </span>
+            <button className={styles.primary ?? ""} onClick={syncDocs} disabled={syncing}>
+              {syncing ? "Synker" : "Synk dokumenter"}
+            </button>
+          </div>
+        </>
       ) : (
         <p className={styles.m365Note}>
           Ikke koblet til. Bruk «+ Ny kobling» og be agenten koble til
