@@ -12,6 +12,8 @@ import styles from "./Connectors.module.css";
 // Selve tilkoblingen opprettes via connector-agenten («+ Ny kobling»).
 export function M365Panel({ onChanged }: { onChanged: () => void }) {
   const [status, setStatus] = useState<M365Status | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
 
   useEffect(() => {
     fetchM365Status().then(setStatus).catch(swallow);
@@ -24,9 +26,6 @@ export function M365Panel({ onChanged }: { onChanged: () => void }) {
   }
 
   if (!status) return <div className={styles.empty}>Henter …</div>;
-
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState("");
 
   async function syncDocs() {
     setSyncing(true);
