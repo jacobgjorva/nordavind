@@ -4,7 +4,6 @@ import { Admin } from "../../features/settings/Admin";
 import { Documents } from "../../features/settings/Documents";
 import { Employees } from "../../features/settings/Employees";
 import { Units } from "../../features/settings/Units";
-import { Knowledge } from "../../features/settings/Knowledge";
 import { KnowledgeGraph } from "../../features/settings/KnowledgeGraph";
 import { Quota } from "../../features/settings/Quota";
 import { Usage } from "../../features/settings/Usage";
@@ -25,8 +24,6 @@ function AdminPanel({ panel }: { panel: string }) {
       <Admin currentUserId={userId} />
     ) : panel === "forbruk" ? (
       <Usage />
-    ) : panel === "kunnskap" ? (
-      <Knowledge />
     ) : panel === "dokumenter" ? (
       <Documents />
     ) : panel === "ansatte" ? (

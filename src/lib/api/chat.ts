@@ -82,24 +82,6 @@ export interface KnowledgeProposal {
   summary: string;
 }
 
-export async function extractKnowledge(payload: {
-  chat_id?: string;
-  question: string;
-  answer: string;
-}): Promise<KnowledgeProposal[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/knowledge/extract`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok || res.status === 204) return [];
-    const data = (await res.json()) as { proposals?: KnowledgeProposal[] };
-    return data.proposals ?? [];
-  } catch {
-    return [];
-  }
-}
 
 // Eksplisitt minne: brukeren klikket minnekortet på en melding.
 export async function rememberMessage(payload: {

@@ -28,7 +28,6 @@ import {
   SnailIcon,
   AnonymousIcon,
   BorderNone02Icon,
-  NeuralNetworkIcon,
   ArrowDown01Icon,
   BadgePlusIcon,
   Files01Icon,
@@ -576,12 +575,6 @@ const ADMIN_ACTIONS: {
     label: "Forbruk",
     desc: "Token- og kostnadsoversikt",
     icon: Analytics01Icon,
-  },
-  {
-    cmd: "kunnskap",
-    label: "Kunnskap",
-    desc: "Bedriftskunnskapen AI-en husker",
-    icon: NeuralNetworkIcon,
   },
   {
     cmd: "dokumenter",
