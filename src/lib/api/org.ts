@@ -41,3 +41,20 @@ export async function orgMe(): Promise<OrgMe> {
 // Synlighetsvalget som sendes med dokumenter og minnekort. Tomt = arv
 // (enheten hvis den finnes, ellers hele firmaet).
 export type KnowledgeScope = "" | "tenant" | "unit" | "private";
+
+// Org-delingskøen: forespørsler om organisasjonsvid deling (admin).
+export interface ScopeRequest {
+  doc_id: string;
+  title: string;
+  requested_by: string;
+  created_at: string;
+}
+
+export async function listScopeRequests(): Promise<ScopeRequest[]> {
+  const data = await apiFetch<{ requests?: ScopeRequest[] }>("/org/sharing");
+  return data.requests ?? [];
+}
+
+export async function resolveScopeRequest(docID: string, approve: boolean): Promise<void> {
+  await apiFetch(`/org/sharing/${docID}`, { method: "POST", body: { approve } });
+}

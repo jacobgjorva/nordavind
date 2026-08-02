@@ -23,6 +23,7 @@ export interface GraphNode {
   created_at: string;
   hits: number;
   last_hit_at?: string;
+  scope?: string; // '' = hele org | unit:<id> | user:<id> — fargekodingen
 }
 
 export interface GraphEdge {

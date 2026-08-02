@@ -4,6 +4,7 @@ import { Admin } from "../../features/settings/Admin";
 import { Documents } from "../../features/settings/Documents";
 import { Employees } from "../../features/settings/Employees";
 import { Units } from "../../features/settings/Units";
+import { Sharing } from "../../features/settings/Sharing";
 import { KnowledgeGraph } from "../../features/settings/KnowledgeGraph";
 import { Quota } from "../../features/settings/Quota";
 import { Usage } from "../../features/settings/Usage";
@@ -30,6 +31,8 @@ function AdminPanel({ panel }: { panel: string }) {
       <Employees />
     ) : panel === "enheter" ? (
       <Units />
+    ) : panel === "deling" ? (
+      <Sharing />
     ) : panel === "graf" ? (
       <KnowledgeGraph />
     ) : panel === "kvote" ? (

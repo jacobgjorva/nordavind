@@ -595,6 +595,12 @@ const ADMIN_ACTIONS: {
     icon: UserGroupIcon,
   },
   {
+    cmd: "deling",
+    label: "Deling",
+    desc: "Forespørsler om organisasjonsvid kunnskap",
+    icon: UserGroupIcon,
+  },
+  {
     cmd: "tilganger",
     label: "Brukere og tilganger",
     desc: "Administrer brukere",

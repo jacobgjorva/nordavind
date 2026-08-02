@@ -24,6 +24,7 @@ interface Sim {
   deg: number;
   bucket: number; // fargetrinn 0..DEG_STEPS-1 fra koblingsgrad
   fade: number; // 0.45 for lapper som aldri hentes og er gamle, ellers 1
+  scope: string; // synlighet: "" org | unit:* | user:* — ring-fargen
 }
 
 const HEIGHT = 440;
@@ -284,6 +285,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         deg: dg,
         bucket: Math.min(DEG_STEPS - 1, Math.round(t * (DEG_STEPS - 1))),
         fade: stale ? 0.45 : 1,
+        scope: n.scope ?? "",
       };
     });
     if (prev.size === 0) viewRef.current.user = false;
@@ -500,6 +502,16 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         ctx!.beginPath();
         ctx!.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2);
         ctx!.fill();
+        // Synlighets-ring: grønn = enhet, gul = privat, ingen = hele org.
+        if (n.scope) {
+          ctx!.strokeStyle = n.scope.startsWith("user:")
+            ? "rgba(240, 200, 90, 0.9)"
+            : "rgba(110, 220, 140, 0.9)";
+          ctx!.lineWidth = 1.2;
+          ctx!.beginPath();
+          ctx!.arc(n.x, n.y, r * 1.5, 0, Math.PI * 2);
+          ctx!.stroke();
+        }
       }
       ctx!.globalAlpha = 1;
       ctx!.globalCompositeOperation = "source-over";
@@ -752,8 +764,14 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
             {selected.hits > 0
               ? `Hentet ${selected.hits} ganger${selected.last_hit_at ? `, sist ${new Date(selected.last_hit_at).toLocaleDateString("nb-NO")}` : ""}`
               : "Aldri hentet ennå"}
-            {" · ".replace(" · ", " — ")}
+            {" — "}
             lagt til {new Date(selected.created_at).toLocaleDateString("nb-NO")}
+            {" — "}
+            {selected.scope
+              ? selected.scope.startsWith("user:")
+                ? "privat"
+                : "delt i enhet"
+              : "hele organisasjonen"}
           </div>
           {neighborRows.length > 0 && (
             <div className={styles.neighbors}>
