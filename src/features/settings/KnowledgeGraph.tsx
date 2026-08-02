@@ -285,7 +285,7 @@ export function KnowledgeGraph({ fill = false }: { fill?: boolean }) {
         deg: dg,
         bucket: Math.min(DEG_STEPS - 1, Math.round(t * (DEG_STEPS - 1))),
         fade: stale ? 0.45 : 1,
-        scope: n.scope ?? "",
+        scope: node.scope ?? "",
       };
     });
     if (prev.size === 0) viewRef.current.user = false;
