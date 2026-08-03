@@ -1,6 +1,6 @@
 // Nordavind-modellene samlet ett sted: vindskalaen navngir nivåene, med
 // beskrivelse og glød-farge. Å legge til en modell = én linje her.
-export const DEFAULT_MODEL = "mistral-medium-3.5-128b";
+export const DEFAULT_MODEL = "mistral-large-2512";
 
 interface ModelMeta {
   alias: string; // visningsnavn (vindskala)
@@ -9,6 +9,10 @@ interface ModelMeta {
 }
 
 export const MODELS: Record<string, ModelMeta> = {
+  // Gjeldende backend-modeller (router.go): chat + vision.
+  "mistral-large-2512": { alias: "Bris", desc: "fikser det meste", glow: "#ffffff" },
+  "mistral-medium-2604": { alias: "Kuling", desc: "god på bilder", glow: "#8fd0ff" },
+  // Eldre id-er fra lagrede klientvalg — beholdes så aliaset aldri ryker.
   "mistral-medium-3.5-128b": { alias: "Bris", desc: "fikser det meste", glow: "#ffffff" },
   "qwen3.5-397b-a17b": { alias: "Storm", desc: "god på avanserte oppgaver", glow: "#c9a8ff" },
   "glm-5.2": { alias: "Orkan", desc: "for de tyngste oppgavene", glow: "#ff9de0" },
