@@ -426,6 +426,19 @@ export default function AgentFlow({ agentId }: { agentId: string; onClose?: () =
               onChange={(e) => patch({ alert_rule: e.target.value })}
             />
           </label>
+          {(plan.watch_rules?.length ?? 0) > 0 && (
+            <div className={styles.field}>
+              Målte regler (avgjøres i kode, ikke av modellen)
+              <ul>
+                {plan.watch_rules!.map((r, i) => (
+                  <li key={i}>
+                    {r.label || r.column || `steg ${r.step}`} {r.op} {r.value}
+                    {r.pct ? " % endring" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       );
     }
