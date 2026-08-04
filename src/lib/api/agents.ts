@@ -187,12 +187,24 @@ export interface PlanMail {
   subject: string;
 }
 
+// Tallfestet varselregel — evalueres i backend-kode hver kjøring.
+export interface WatchRule {
+  step: number;
+  column?: string;
+  agg?: string;
+  op: string;
+  value: number;
+  pct?: boolean;
+  label?: string;
+}
+
 // Agentens plan slik flyt-visningen redigerer den.
 export interface AgentPlan {
   approach?: string;
   steps: PlanStep[];
   watch: string;
   alert_rule: string;
+  watch_rules?: WatchRule[];
   chart?: PlanChart | null;
   chart_slug?: string;
   mail?: PlanMail | null;
