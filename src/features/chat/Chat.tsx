@@ -1742,7 +1742,20 @@ export function Chat({
         }
       }
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (e instanceof DOMException && e.name === "AbortError") {
+        // Trukket tilbake: turen fjernes fra chatten og teksten legges
+        // tilbake i feltet — avbrudd skjer oftest for å rette en skrivefeil.
+        // Ingenting er persistert ennå (lagringen skjer først etter fullført
+        // stream), så det holder å rydde lokalt. Har brukeren alt begynt å
+        // skrive noe nytt, lar vi det stå.
+        setMessages((prev) =>
+          prev.filter((m) => m.id !== userMsgId && m.id !== replyId),
+        );
+        setInput((cur) => (cur.trim() ? cur : text));
+        if (files.length) setAttachments((cur) => (cur.length ? cur : files));
+        requestAnimationFrame(() => textareaRef.current?.focus());
+        return;
+      }
       const msg = e instanceof Error ? e.message : "Ukjent feil";
       update(replyId, {
         loading: false,
@@ -1949,6 +1962,7 @@ export function Chat({
         modelHint={modelDesc(activeModel)}
         left={userRole === "admin" ? <ImpersonatePill /> : null}
         right={<ContextRing messages={messages} />}
+        onStop={busy ? () => abortRef.current?.abort() : undefined}
       />
     </>
   );

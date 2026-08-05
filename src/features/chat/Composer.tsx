@@ -1,6 +1,6 @@
 import { useRef, type ReactNode, type RefObject } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Attachment01Icon, FlashIcon } from "@hugeicons/core-free-icons";
+import { Attachment01Icon, FlashIcon, StopIcon } from "@hugeicons/core-free-icons";
 import type { AnonymousIcon } from "@hugeicons/core-free-icons";
 import styles from "./Chat.module.css";
 
@@ -59,6 +59,7 @@ export function Composer({
   modelHint,
   left,
   right,
+  onStop,
 }: {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
@@ -83,6 +84,8 @@ export function Composer({
   /** Ekstra kontroller i bunnlinjen (rolle-pille, egne knapper). */
   left?: ReactNode;
   right?: ReactNode;
+  /** Satt mens et svar streames: stopp-knappen trekker meldingen tilbake. */
+  onStop?: () => void;
 }) {
   const slashOpen = (slashItems?.length ?? 0) > 0;
   const mirrorRef = useRef<HTMLDivElement>(null);
@@ -187,6 +190,16 @@ export function Composer({
         {left}
         <span className={styles.footerRight}>
           {right}
+          {onStop && (
+            <button
+              className={`${styles.actionBtn} ${styles.stopBtn}`}
+              onClick={onStop}
+              title="Stopp og trekk meldingen tilbake"
+              aria-label="Stopp og trekk meldingen tilbake"
+            >
+              <HugeiconsIcon icon={StopIcon} size={16} strokeWidth={2} />
+            </button>
+          )}
           {model && (
             <span className={styles.modelInfo}>
               <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} />
