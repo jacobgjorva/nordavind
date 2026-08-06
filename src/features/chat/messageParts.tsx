@@ -25,8 +25,24 @@ export function MarkdownPre({ children }: { children?: React.ReactNode }) {
   return <CodeBlock lang={lang}>{children}</CodeBlock>;
 }
 
+// Under ord-animasjonen skal fenced-syntaks aldri vises rått: en ferdig
+// ```copy-blokk vises som selve verdien (chipen tar over når markdown
+// settles), og en ufullstendig fence holdes tilbake til den er hel.
+function streamSafe(content: string): string {
+  let s = content.replace(/```copy\n([^`]*?)\n?```/g, (_, v: string) => v.trim());
+  const lastFence = s.lastIndexOf("```");
+  if (lastFence >= 0) {
+    const rest = s.slice(lastFence + 3);
+    if (!rest.includes("```")) {
+      const fences = s.match(/```/g)?.length ?? 0;
+      if (fences % 2 === 1) s = s.slice(0, lastFence);
+    }
+  }
+  return s;
+}
+
 export function StreamingText({
-  content,
+  content: rawContent,
   done,
   onDone,
 }: {
@@ -34,6 +50,7 @@ export function StreamingText({
   done: boolean;
   onDone?: () => void;
 }) {
+  const content = streamSafe(rawContent);
   const [visible, setVisible] = useState(0);
 
   // Under streaming committes kun frem til siste ordgrense; når svaret er
@@ -124,6 +141,17 @@ export function StreamingText({
 // <strong> her, akkurat som markdown vil gjøre etterpå.
 function Word({ text }: { text: string }) {
   const bold = text.match(/^(\*\*)([\s\S]+?)(\*\*)([^\w*]*)$/);
+  // Inline-kode («`ordre-4412`») rendres som kode alt under animasjonen, så
+  // byttet til markdown ikke endrer utseendet på nøkkelverdier.
+  const code = text.match(/^`([^`]+)`([^\w`]*)$/);
+  if (code) {
+    return (
+      <span className={styles.fadeSeg}>
+        <code className={styles.inlineCode}>{code[1]}</code>
+        {code[2]}
+      </span>
+    );
+  }
   return (
     <span className={styles.fadeSeg}>
       {bold ? (
